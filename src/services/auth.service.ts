@@ -57,6 +57,9 @@ export async function register(input: RegisterInput) {
         name: input.name.trim(),
         email,
         passwordHash,
+        usageControl: {
+          create: {},
+        },
       },
       select: publicUserSelect,
     });
