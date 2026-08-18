@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum Goal {
+  WEIGHT_LOSS
+  MAINTENANCE
+  WEIGHT_GAIN
+  MUSCLE_GAIN
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  email        String        @unique
+  passwordHash String
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  profile      Profile?
+  usageControl UsageControl?
+}
+
+model Profile {
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @unique @db.Uuid
+  birthDate        DateTime      @db.Date
+  sex              Sex
+  heightCm         Decimal       @db.Decimal(5, 2)
+  weightKg         Decimal       @db.Decimal(6, 2)
+  goal             Goal
+  activityLevel    ActivityLevel
+  mealsPerDay      Int
+  weeklyFoodBudget Decimal       @db.Decimal(10, 2)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UsageControl {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @db.Uuid
+  freeUsesLimit    Int      @default(3)
+  freeUsesConsumed Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
