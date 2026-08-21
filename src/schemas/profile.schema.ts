@@ -46,6 +46,36 @@ const birthDateSchema = z
   })
   .transform((value) => new Date(`${value}T00:00:00.000Z`));
 
+const foodListSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, "Food item cannot be empty")
+      .max(80, "Food item must contain at most 80 characters"),
+  )
+  .max(30, "Food list must contain at most 30 items")
+  .transform((items) => {
+    const seen = new Set<string>();
+
+    return items.filter((item) => {
+      const normalizedItem = item.toLowerCase();
+
+      if (seen.has(normalizedItem)) {
+        return false;
+      }
+
+      seen.add(normalizedItem);
+      return true;
+    });
+  })
+  .optional()
+  .default([]);
+
+function normalizedFoodSet(items: string[]): Set<string> {
+  return new Set(items.map((item) => item.toLowerCase()));
+}
+
 export const profileSchema = z
   .object({
     birthDate: birthDateSchema,
@@ -71,7 +101,45 @@ export const profileSchema = z
       maximum: 99_999_999.99,
       allowZero: true,
     }),
+    foodPreferences: foodListSchema,
+    likedFoods: foodListSchema,
+    dislikedFoods: foodListSchema,
+    foodRestrictions: foodListSchema,
+    foodAllergies: foodListSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((profile, context) => {
+    const dislikedFoods = normalizedFoodSet(profile.dislikedFoods);
+    const foodRestrictions = normalizedFoodSet(profile.foodRestrictions);
+    const foodAllergies = normalizedFoodSet(profile.foodAllergies);
+
+    for (const likedFood of profile.likedFoods) {
+      const normalizedLikedFood = likedFood.toLowerCase();
+
+      if (dislikedFoods.has(normalizedLikedFood)) {
+        context.addIssue({
+          code: "custom",
+          path: ["likedFoods"],
+          message: `${likedFood} cannot be both liked and disliked`,
+        });
+      }
+
+      if (foodAllergies.has(normalizedLikedFood)) {
+        context.addIssue({
+          code: "custom",
+          path: ["likedFoods"],
+          message: `${likedFood} cannot be both liked and an allergen`,
+        });
+      }
+
+      if (foodRestrictions.has(normalizedLikedFood)) {
+        context.addIssue({
+          code: "custom",
+          path: ["likedFoods"],
+          message: `${likedFood} cannot be both liked and restricted`,
+        });
+      }
+    }
+  });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
