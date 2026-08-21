@@ -2,6 +2,7 @@ import express from "express";
 
 import { authRouter } from "./routes/auth.routes.js";
 import { profileRouter } from "./routes/profile.routes.js";
+import { usageControlRouter } from "./routes/usage-control.routes.js";
 
 const app = express();
 
@@ -13,5 +14,6 @@ app.get("/health", (_request, response) => {
 
 app.use("/auth", authRouter);
 app.use("/api/profile", profileRouter);
+app.use("/api/usage", usageControlRouter);
 
 export { app };
