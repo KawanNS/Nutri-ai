@@ -61,6 +61,7 @@ model User {
   profile      Profile?
   usageControl UsageControl?
   usageEvents  UsageEvent[]
+  mealPlans    MealPlan[]
 }
 
 model Profile {
@@ -109,7 +110,29 @@ model UsageEvent {
   finalizedAt    DateTime?
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   usageControl   UsageControl @relation(fields: [usageControlId, userId], references: [id, userId], onDelete: Cascade)
+  mealPlan       MealPlan?
 
+  @@unique([id, userId])
   @@unique([userId, idempotencyKey])
   @@index([usageControlId, status, createdAt])
+}
+
+model MealPlan {
+  id               String     @id @default(uuid()) @db.Uuid
+  userId           String     @db.Uuid
+  usageEventId     String     @unique @db.Uuid
+  title            String
+  content          Json
+  profileSnapshot  Json
+  model            String
+  promptVersion    String
+  schemaVersion    Int        @default(1)
+  openaiResponseId String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usageEvent       UsageEvent @relation(fields: [usageEventId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([usageEventId, userId])
+  @@index([userId, createdAt])
 }

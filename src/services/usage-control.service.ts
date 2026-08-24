@@ -123,7 +123,11 @@ export async function reserveUsage(
         },
       });
 
-      return { event: existingEvent, usage: serializeUsage(usage) };
+      return {
+        event: existingEvent,
+        usage: serializeUsage(usage),
+        reservationCreated: false,
+      };
     }
 
     const updatedUsage = await transaction.$queryRaw<UsageCountersRow[]>`
@@ -151,7 +155,11 @@ export async function reserveUsage(
       where: { id: inserted[0].id },
     });
 
-    return { event, usage: serializeUsage(updatedUsage[0]) };
+    return {
+      event,
+      usage: serializeUsage(updatedUsage[0]),
+      reservationCreated: true,
+    };
   });
 }
 
