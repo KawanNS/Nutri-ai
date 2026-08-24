@@ -383,3 +383,40 @@ export async function getMealPlan(userId: string, mealPlanId: string) {
 
   return mealPlan;
 }
+
+export async function getMealPlanByUsageEvent(
+  userId: string,
+  usageEventId: string,
+) {
+  const mealPlan = await prisma.mealPlan.findUnique({
+    where: { usageEventId },
+  });
+
+  if (!mealPlan || mealPlan.userId !== userId) {
+    throw new MealPlanError(404, "MEAL_PLAN_NOT_FOUND", "Meal plan not found");
+  }
+
+  const usage = await prisma.usageControl.findUniqueOrThrow({
+    where: { userId },
+    select: {
+      freeUsesLimit: true,
+      freeUsesConsumed: true,
+      freeUsesReserved: true,
+    },
+  });
+
+  return { mealPlan, usage: serializeUsage(usage) };
+}
+
+export async function getMealPlanGenerationState(
+  userId: string,
+  usageEventId: string,
+) {
+  return prisma.usageEvent.findFirst({
+    where: { id: usageEventId, userId },
+    select: {
+      status: true,
+      mealPlan: { select: { id: true } },
+    },
+  });
+}

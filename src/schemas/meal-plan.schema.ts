@@ -102,3 +102,5 @@ export const mealPlanListQuerySchema = z
     limit: z.coerce.number().int().min(1).max(50).default(20),
   })
   .strict();
+
+export const generateMealPlanBodySchema = z.object({}).strict();
