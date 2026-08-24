@@ -5,7 +5,7 @@ import {
   persistMealPlanAndConfirmUsage,
   prepareMealPlanGeneration,
 } from "./meal-plan.service.js";
-import { generateMealPlanWithAI } from "./openai.service.js";
+import { generateMealPlanWithAI } from "./ai-provider.service.js";
 import { failUsage, reserveUsage } from "./usage-control.service.js";
 
 export class MealPlanGenerationError extends Error {
@@ -93,7 +93,8 @@ export async function generateMealPlan(
       profileSnapshot: context.profileSnapshot,
       model: generated.model,
       promptVersion: MEAL_PLAN_PROMPT_VERSION,
-      openaiResponseId: generated.responseId,
+      openaiResponseId:
+        generated.provider === "openai" ? generated.responseId : undefined,
     });
 
     return { outcome: "CREATED" as const, ...result };

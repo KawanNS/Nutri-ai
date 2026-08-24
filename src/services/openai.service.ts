@@ -15,21 +15,12 @@ import {
   validateGeneratedMealPlan,
 } from "../schemas/meal-plan.schema.js";
 import type { ProfileSnapshot } from "./meal-plan.service.js";
+import {
+  AIProviderError,
+  type GeneratedMealPlanWithAI,
+} from "./ai-provider.types.js";
 
 const OPENAI_TIMEOUT_MS = 60_000;
-
-export class OpenAIServiceError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    public readonly code:
-      | "AI_GENERATION_FAILED"
-      | "AI_INVALID_RESPONSE"
-      | "AI_TEMPORARILY_UNAVAILABLE",
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 function createOpenAIClient(): OpenAI {
   return new OpenAI({
@@ -39,13 +30,13 @@ function createOpenAIClient(): OpenAI {
   });
 }
 
-function normalizeOpenAIError(error: unknown): OpenAIServiceError {
-  if (error instanceof OpenAIServiceError) {
+function normalizeOpenAIError(error: unknown): AIProviderError {
+  if (error instanceof AIProviderError) {
     return error;
   }
 
   if (error instanceof APIConnectionTimeoutError) {
-    return new OpenAIServiceError(
+    return new AIProviderError(
       503,
       "AI_TEMPORARILY_UNAVAILABLE",
       "Meal plan generation is temporarily unavailable",
@@ -57,7 +48,7 @@ function normalizeOpenAIError(error: unknown): OpenAIServiceError {
     error instanceof APIConnectionError ||
     error instanceof InternalServerError
   ) {
-    return new OpenAIServiceError(
+    return new AIProviderError(
       503,
       "AI_TEMPORARILY_UNAVAILABLE",
       "Meal plan generation is temporarily unavailable",
@@ -65,7 +56,7 @@ function normalizeOpenAIError(error: unknown): OpenAIServiceError {
   }
 
   if (error instanceof SyntaxError || error instanceof ZodError) {
-    return new OpenAIServiceError(
+    return new AIProviderError(
       502,
       "AI_INVALID_RESPONSE",
       "AI returned an invalid meal plan",
@@ -73,27 +64,21 @@ function normalizeOpenAIError(error: unknown): OpenAIServiceError {
   }
 
   if (error instanceof APIError) {
-    return new OpenAIServiceError(
+    return new AIProviderError(
       502,
       "AI_GENERATION_FAILED",
       "Meal plan generation failed",
     );
   }
 
-  return new OpenAIServiceError(
+  return new AIProviderError(
     500,
     "AI_GENERATION_FAILED",
     "Meal plan generation failed",
   );
 }
 
-export interface GeneratedMealPlanWithAI {
-  plan: unknown;
-  model: string;
-  responseId: string;
-}
-
-export async function generateMealPlanWithAI(
+export async function generateMealPlanWithOpenAI(
   profileSnapshot: ProfileSnapshot,
 ): Promise<GeneratedMealPlanWithAI> {
   const prompt = buildMealPlanPrompt(profileSnapshot);
@@ -111,7 +96,7 @@ export async function generateMealPlanWithAI(
     });
 
     if (!response.output_parsed) {
-      throw new OpenAIServiceError(
+      throw new AIProviderError(
         502,
         "AI_INVALID_RESPONSE",
         "AI returned an invalid meal plan",
@@ -124,7 +109,7 @@ export async function generateMealPlanWithAI(
     );
 
     if (!validation.success) {
-      throw new OpenAIServiceError(
+      throw new AIProviderError(
         502,
         "AI_INVALID_RESPONSE",
         "AI returned an invalid meal plan",
@@ -133,6 +118,7 @@ export async function generateMealPlanWithAI(
 
     return {
       plan: validation.data,
+      provider: "openai",
       model,
       responseId: response.id,
     };
@@ -140,3 +126,5 @@ export async function generateMealPlanWithAI(
     throw normalizeOpenAIError(error);
   }
 }
+
+export { AIProviderError as OpenAIServiceError };

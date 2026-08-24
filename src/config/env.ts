@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 function requireEnvironmentVariable(
-  name: "DATABASE_URL" | "JWT_SECRET" | "OPENAI_API_KEY",
+  name: "DATABASE_URL" | "JWT_SECRET" | "OPENAI_API_KEY" | "GEMINI_API_KEY",
 ): string {
   const value = process.env[name];
 
@@ -24,5 +24,20 @@ export const env = {
   },
   get openaiModel(): string {
     return process.env.OPENAI_MODEL?.trim() || "gpt-5.6-luna";
+  },
+  get aiProvider(): "openai" | "gemini" {
+    const provider = process.env.AI_PROVIDER?.trim() || "openai";
+
+    if (provider !== "openai" && provider !== "gemini") {
+      throw new Error("AI_PROVIDER must be either openai or gemini");
+    }
+
+    return provider;
+  },
+  get geminiApiKey(): string {
+    return requireEnvironmentVariable("GEMINI_API_KEY");
+  },
+  get geminiModel(): string {
+    return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   },
 };

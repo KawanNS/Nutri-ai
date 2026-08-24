@@ -1,6 +1,7 @@
 import type { Response } from "express";
 
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
+import { AIProviderError } from "../services/ai-provider.types.js";
 import {
   generateMealPlanBodySchema,
   mealPlanIdSchema,
@@ -15,7 +16,6 @@ import {
   listMealPlans,
   MealPlanError,
 } from "../services/meal-plan.service.js";
-import { OpenAIServiceError } from "../services/openai.service.js";
 import { UsageControlError } from "../services/usage-control.service.js";
 import { idempotencyKeySchema } from "../schemas/usage-control.schema.js";
 
@@ -37,7 +37,7 @@ function handleError(error: unknown, response: Response): void {
   if (
     error instanceof MealPlanError ||
     error instanceof MealPlanGenerationError ||
-    error instanceof OpenAIServiceError ||
+    error instanceof AIProviderError ||
     error instanceof UsageControlError
   ) {
     response.status(error.statusCode).json({

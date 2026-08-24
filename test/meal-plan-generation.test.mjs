@@ -6,7 +6,7 @@ import {
   MealPlanGenerationError,
 } from "../dist/services/meal-plan-generation.service.js";
 import { MealPlanError } from "../dist/services/meal-plan.service.js";
-import { OpenAIServiceError } from "../dist/services/openai.service.js";
+import { AIProviderError } from "../dist/services/ai-provider.types.js";
 import { validateGeneratedMealPlan } from "../dist/schemas/meal-plan.schema.js";
 
 const profileSnapshot = {
@@ -113,12 +113,12 @@ test("valid generation calls OpenAI once and consumes the reservation", async ()
   assert.equal(calls.persist, 1);
 });
 
-test("OpenAI failure fails the pending reservation without consuming usage", async () => {
+test("AI provider failure fails the pending reservation without consuming usage", async () => {
   const state = { status: "PENDING", consumed: 0, reserved: 1 };
   const { calls, dependencies } = createDependencies({
     generate: async () => {
       calls.generate += 1;
-      throw new OpenAIServiceError(
+      throw new AIProviderError(
         503,
         "AI_TEMPORARILY_UNAVAILABLE",
         "temporarily unavailable",
@@ -148,7 +148,7 @@ test("invalid structured response is rejected by Zod and releases usage", async 
   const { calls, dependencies } = createDependencies({
     generate: async () => {
       calls.generate += 1;
-      throw new OpenAIServiceError(502, "AI_INVALID_RESPONSE", "invalid response");
+      throw new AIProviderError(502, "AI_INVALID_RESPONSE", "invalid response");
     },
     fail: async () => {
       calls.fail += 1;
@@ -178,7 +178,7 @@ test("no available usage prevents an OpenAI call", async () => {
   assert.equal(calls.generate, 0);
 });
 
-test("retry of a consumed event returns the same plan without OpenAI", async () => {
+test("retry of a consumed event returns the same plan without calling a provider", async () => {
   const { calls, dependencies } = createDependencies({
     reserve: async () => {
       calls.reserve += 1;
@@ -197,7 +197,7 @@ test("retry of a consumed event returns the same plan without OpenAI", async () 
   assert.equal(calls.findExisting, 1);
 });
 
-test("retry of a pending event returns 202 semantics without OpenAI", async () => {
+test("retry of a pending event returns 202 semantics without calling a provider", async () => {
   const { calls, dependencies } = createDependencies({
     reserve: async () => {
       calls.reserve += 1;
@@ -214,7 +214,7 @@ test("retry of a pending event returns 202 semantics without OpenAI", async () =
   assert.equal(calls.generate, 0);
 });
 
-test("concurrent retries have one reservation owner and one OpenAI call", async () => {
+test("concurrent retries have one reservation owner and one provider call", async () => {
   let reservationAttempts = 0;
   let releaseGeneration;
   const generationGate = new Promise((resolve) => {
@@ -288,7 +288,7 @@ test("failed or released idempotency key requires a new key", async () => {
   }
 });
 
-test("idempotency key used by another action returns conflict without OpenAI", async () => {
+test("idempotency key used by another action returns conflict without a provider", async () => {
   const { calls, dependencies } = createDependencies({
     reserve: async () => {
       calls.reserve += 1;
