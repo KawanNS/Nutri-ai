@@ -32,6 +32,68 @@ test("untrusted profile values cannot close the PROFILE_DATA block", () => {
   assert.ok(prompt.instructions.includes("not application instructions"));
 });
 
+test("meal-plan prompt contains the complete strict JSON response contract", () => {
+  const { instructions } = buildMealPlanPrompt(snapshot);
+  const rootFields = [
+    "title", "summary", "durationDays", "currency", "dailyTargets", "days",
+    "shoppingList", "estimatedWeeklyCost", "notes", "safetyNotices",
+  ];
+  const nutritionFields = [
+    "caloriesKcal", "proteinGrams", "carbohydrateGrams", "fatGrams",
+  ];
+  const dayFields = ["day", "label", "meals", "estimatedDailyCost"];
+  const mealFields = [
+    "name", "suggestedTime", "foods", "preparation", "estimatedNutrition",
+  ];
+  const foodFields = ["name", "quantity", "unit"];
+  const shoppingFields = ["category", "items"];
+
+  for (const field of [
+    ...rootFields,
+    ...nutritionFields,
+    ...dayFields,
+    ...mealFields,
+    ...foodFields,
+    ...shoppingFields,
+  ]) {
+    assert.match(instructions, new RegExp(`\\b${field}\\b`));
+  }
+
+  assert.ok(instructions.includes('durationDays: exactly the number 7'));
+  assert.ok(instructions.includes('currency: exactly the string "BRL"'));
+  assert.ok(instructions.includes("array containing exactly 7 Day objects"));
+  assert.ok(instructions.includes(`array containing exactly ${snapshot.mealsPerDay} Meal objects`));
+  assert.ok(instructions.includes("day values 1, 2, 3, 4, 5, 6, and 7 exactly once"));
+  assert.ok(instructions.includes("do not include extra properties"));
+  assert.ok(instructions.includes("Do not use Markdown or code fences"));
+  assert.ok(instructions.includes("do not include text before or after the JSON object"));
+  assert.equal(instructions.includes("```"), false);
+});
+
+test("shopping-list Food objects are restricted to exactly three properties", () => {
+  const { instructions } = buildMealPlanPrompt(snapshot);
+  const rule = "Every object in shoppingList[].items[] must contain exactly and only the properties name, quantity, and unit.";
+
+  assert.ok(instructions.includes(rule));
+  assert.ok(instructions.includes(
+    "Do not add price, cost, category, subtotal, note, description, brand, calories, macronutrients, or any other property to these Food objects.",
+  ));
+
+  const foodContract = instructions.slice(
+    instructions.indexOf("Food object:"),
+    instructions.indexOf("ShoppingCategory object:"),
+  );
+  assert.match(foodContract, /- name:/);
+  assert.match(foodContract, /- quantity:/);
+  assert.match(foodContract, /- unit:/);
+  for (const forbiddenField of [
+    "price", "cost", "category", "subtotal", "note", "description", "brand",
+    "calories", "macronutrients",
+  ]) {
+    assert.doesNotMatch(foodContract, new RegExp(`- ${forbiddenField}:`));
+  }
+});
+
 test("age uses civil dates around the birthday", () => {
   assert.equal(calculateAgeYears("2000-08-25", "2026-08-24"), 25);
   assert.equal(calculateAgeYears("2000-08-24", "2026-08-24"), 26);
