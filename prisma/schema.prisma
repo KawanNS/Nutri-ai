@@ -62,6 +62,20 @@ model User {
   usageControl UsageControl?
   usageEvents  UsageEvent[]
   mealPlans    MealPlan[]
+  progressEntries ProgressEntry[]
+}
+
+model ProgressEntry {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  weightKg   Decimal  @db.Decimal(6, 2)
+  recordedAt DateTime @db.Date
+  note       String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model Profile {
