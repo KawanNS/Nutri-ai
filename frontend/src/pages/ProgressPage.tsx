@@ -12,7 +12,8 @@ function errorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 401) return 'Sua sessão não foi encontrada ou expirou. Faça login quando a autenticação estiver disponível.'
   return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
 }
-export function ProgressPage() {
+interface ProgressPageProps { onLogout(): void }
+export function ProgressPage({ onLogout }: ProgressPageProps) {
   const [entries, setEntries] = useState<ProgressEntry[]>([]), [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null), [success, setSuccess] = useState<string | null>(null)
@@ -38,7 +39,7 @@ export function ProgressPage() {
     try { const data = await listProgress(nextCursor); setEntries((value) => mergeUnique(value, data.progressEntries)); setNextCursor(data.nextCursor) }
     catch (requestError) { setError(errorMessage(requestError)) } finally { setLoadingMore(false) }
   }
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><span className="muted">Seu progresso</span></div></header>
+  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><div className="topbar__actions"><span className="muted">Seu progresso</span><button className="logout-button" type="button" onClick={onLogout}>Sair</button></div></div></header>
     <main className="page"><div className="page-heading"><div><p className="eyebrow">Histórico / Evolução</p><h1>Seu caminho, em números.</h1><p>Acompanhe seu peso ao longo do tempo e reconheça cada passo da sua evolução.</p></div></div>
       {error && <div className="notice notice--error" role="alert">{error}</div>}{success && <div className="notice notice--success" role="status">{success}</div>}
       <section className="summary-grid" aria-label="Resumo do progresso"><article className="summary-card"><span className="summary-card__label">Peso atual</span><span className="summary-card__value">{current ? <>{Number(current.weightKg).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} <small>kg</small></> : '—'}</span></article><article className="summary-card"><span className="summary-card__label">Variação no período carregado</span><span className={`summary-card__value ${variation !== null && variation <= 0 ? 'variation--down' : 'variation--up'}`}>{variation === null ? '—' : <>{variation > 0 ? '+' : ''}{variation.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} <small>kg</small></>}</span></article></section>

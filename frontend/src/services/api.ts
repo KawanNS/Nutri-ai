@@ -1,4 +1,4 @@
-import { getToken } from './authToken'
+import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken } from './authToken'
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 interface ApiErrorBody { error?: string; code?: string }
 export class ApiError extends Error {
@@ -19,6 +19,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const response = await fetch(`${API_URL}${path}`, { ...init, headers })
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as ApiErrorBody
+    if (response.status === 401 && token) {
+      removeToken()
+      window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
+    }
     throw new ApiError(body.error ?? 'Não foi possível concluir a solicitação.', response.status, body.code)
   }
   return response.json() as Promise<T>
