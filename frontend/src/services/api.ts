@@ -1,13 +1,16 @@
 import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken } from './authToken'
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
-interface ApiErrorBody { error?: string; code?: string }
+export interface ApiErrorDetail { field: string; message: string }
+interface ApiErrorBody { error?: string; code?: string; details?: ApiErrorDetail[] }
 export class ApiError extends Error {
   readonly status: number
   readonly code?: string
-  constructor(message: string, status: number, code?: string) {
+  readonly details?: ApiErrorDetail[]
+  constructor(message: string, status: number, code?: string, details?: ApiErrorDetail[]) {
     super(message)
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -23,7 +26,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       removeToken()
       window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
     }
-    throw new ApiError(body.error ?? 'Não foi possível concluir a solicitação.', response.status, body.code)
+    throw new ApiError(body.error ?? 'Não foi possível concluir a solicitação.', response.status, body.code, body.details)
   }
   return response.json() as Promise<T>
 }
