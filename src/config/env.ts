@@ -13,6 +13,9 @@ function requireEnvironmentVariable(
 }
 
 export const env = {
+  get frontendUrl(): string {
+    return process.env.FRONTEND_URL?.trim() || "http://localhost:5173";
+  },
   get databaseUrl(): string {
     return requireEnvironmentVariable("DATABASE_URL");
   },
