@@ -16,7 +16,7 @@ app.use(
       callback(null, !origin || origin === env.frontendUrl);
     },
     methods: ["GET", "POST", "PUT", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"],
+    allowedHeaders: ["Authorization", "Content-Type", "Idempotency-Key"],
   }),
 );
 app.use(express.json());

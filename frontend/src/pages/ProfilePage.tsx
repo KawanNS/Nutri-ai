@@ -9,6 +9,7 @@ interface ProfilePageProps {
   profile?: Profile
   required: boolean
   onSaved(profile: Profile, wasFirstProfile: boolean): void
+  onMealPlan(): void
   onProgress(): void
   onLogout(): void
 }
@@ -39,7 +40,7 @@ function validDecimal(value: string, maximum: number, allowZero = false): boolea
   return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) && number <= maximum
 }
 
-export function ProfilePage({ profile, required, onSaved, onProgress, onLogout }: ProfilePageProps) {
+export function ProfilePage({ profile, required, onSaved, onMealPlan, onProgress, onLogout }: ProfilePageProps) {
   const [form, setForm] = useState<FormState>(() => initialState(profile)), [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}), [error, setError] = useState<string | null>(null), [success, setSuccess] = useState<string | null>(null)
   function change<K extends keyof FormState>(key: K, value: FormState[K]) { setForm((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: '' })) }
@@ -73,7 +74,7 @@ export function ProfilePage({ profile, required, onSaved, onProgress, onLogout }
     } finally { setSaving(false) }
   }
   const otherConflictLists = [...form.dislikedFoods, ...form.foodRestrictions, ...form.foodAllergies]
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button nav-button--active" type="button">Perfil</button>{!required && <button className="nav-button" type="button" onClick={onProgress}>Evolução</button>}<button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><nav className="topbar__actions" aria-label="Navegação principal">{!required && <button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button>}<button className="nav-button nav-button--active" type="button">Perfil</button>{!required && <button className="nav-button" type="button" onClick={onProgress}>Evolução</button>}<button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
     <main className="page profile-page"><div className="page-heading"><div><p className="eyebrow">Perfil nutricional</p><h1>{required ? 'Vamos conhecer você.' : 'Suas preferências, do seu jeito.'}</h1><p>{required ? 'Precisamos destes dados para personalizar sua experiência antes de liberar a evolução.' : 'Mantenha seus dados atualizados para recomendações mais alinhadas à sua rotina.'}</p></div></div>
       {required && <div className="notice notice--info">Complete seu perfil para acessar a área de Evolução.</div>}{error && <div className="notice notice--error" role="alert">{error}</div>}{success && <div className="notice notice--success" role="status">{success}</div>}
       <form className="profile-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
