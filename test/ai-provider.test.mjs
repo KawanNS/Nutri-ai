@@ -183,12 +183,14 @@ test("invalid AI_PROVIDER is rejected", () => {
   }
 });
 
-test("Gemini JSON mode returns a Zod-validated plan without structured output", async () => {
+test("Gemini structured JSON mode returns a Zod-validated plan in one call", async () => {
   let request;
+  let generateContentCalls = 0;
   const diagnostics = [];
   const client = {
     models: {
       generateContent: async (input) => {
+        generateContentCalls += 1;
         request = input;
         return geminiSdkResponse(JSON.stringify(validMealPlan()));
       },
@@ -201,13 +203,14 @@ test("Gemini JSON mode returns a Zod-validated plan without structured output", 
   );
 
   assert.equal(result.provider, "gemini");
+  assert.equal(generateContentCalls, 1);
   assert.equal(result.plan.days.length, 7);
   assert.equal(result.plan.days[0].meals.length, 3);
   assert.equal(result.plan.days[0].meals[0].suggestedTime, null);
   assert.equal(request.model, "gemini-3.5-flash-lite");
   assert.equal(request.config.responseMimeType, "application/json");
   assert.equal("responseJsonSchema" in request.config, false);
-  assert.equal("responseSchema" in request.config, false);
+  assert.equal(request.config.responseSchema.type, "OBJECT");
   assert.equal(request.config.httpOptions.timeout, 60_000);
   assert.ok(request.config.systemInstruction.includes("untrusted user data"));
   assert.ok(request.contents.includes("\\u003C/PROFILE_DATA\\u003E"));

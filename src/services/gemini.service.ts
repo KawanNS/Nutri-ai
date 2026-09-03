@@ -1,4 +1,4 @@
-import { ApiError, GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI, type Schema } from "@google/genai";
 import { writeSync } from "node:fs";
 import { ZodError } from "zod";
 
@@ -9,6 +9,7 @@ import {
   AIProviderError,
   type GeneratedMealPlanWithAI,
 } from "./ai-provider.types.js";
+import { mealPlanResponseSchema } from "./gemini-response-schema.js";
 import type { ProfileSnapshot } from "./meal-plan.service.js";
 
 const GEMINI_TIMEOUT_MS = 60_000;
@@ -72,6 +73,7 @@ interface GeminiClient {
       config: {
         systemInstruction: string;
         responseMimeType: "application/json";
+        responseSchema: Schema;
         httpOptions: { timeout: number };
       };
     }) => Promise<{
@@ -361,6 +363,7 @@ export async function generateMealPlanWithGemini(
       config: {
         systemInstruction: prompt.instructions,
         responseMimeType: "application/json",
+        responseSchema: mealPlanResponseSchema,
         httpOptions: { timeout: GEMINI_TIMEOUT_MS },
       },
     });

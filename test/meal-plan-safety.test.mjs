@@ -64,19 +64,29 @@ test("meal-plan prompt contains the complete strict JSON response contract", () 
   assert.ok(instructions.includes("array containing exactly 7 Day objects"));
   assert.ok(instructions.includes(`array containing exactly ${snapshot.mealsPerDay} Meal objects`));
   assert.ok(instructions.includes("day values 1, 2, 3, 4, 5, 6, and 7 exactly once"));
-  assert.ok(instructions.includes("do not include extra properties"));
-  assert.ok(instructions.includes("Do not use Markdown or code fences"));
-  assert.ok(instructions.includes("do not include text before or after the JSON object"));
+  assert.ok(instructions.includes("do not rename properties or add extra properties"));
+  assert.ok(instructions.includes("Do not use Markdown, code fences, comments"));
+  assert.ok(instructions.includes("text before or after the JSON object"));
+  assert.ok(instructions.includes("only one valid, compact JSON object"));
+  assert.ok(instructions.includes("Use double quotes for every property name and string"));
+  assert.ok(instructions.includes("Do not use trailing commas or omit commas"));
+  assert.ok(instructions.includes("Use JSON numbers, not numeric strings"));
+  assert.ok(instructions.includes("Never use NaN or Infinity"));
+  assert.ok(instructions.includes("a short objective preparation"));
+  assert.ok(instructions.includes("brief notes and safety notices"));
   assert.equal(instructions.includes("```"), false);
 });
 
 test("shopping-list Food objects are restricted to exactly three properties", () => {
   const { instructions } = buildMealPlanPrompt(snapshot);
-  const rule = "Every object in shoppingList[].items[] must contain exactly and only the properties name, quantity, and unit.";
+  const shape = '{"category":"string","items":[{"name":"string","quantity":1,"unit":"string"}]}';
+  const rule = "Every shoppingList[].items[] object must contain exactly name (string), quantity (JSON number), and unit (string).";
 
+  assert.ok(instructions.includes(shape));
   assert.ok(instructions.includes(rule));
+  assert.ok(instructions.includes("unit must never be an object, array, or number"));
   assert.ok(instructions.includes(
-    "Do not add price, cost, category, subtotal, note, description, brand, calories, macronutrients, or any other property to these Food objects.",
+    "Do not add category, price, cost, estimatedCost, subtotal, notes, description, brand, calories, macronutrients, or any other property to shoppingList items.",
   ));
 
   const foodContract = instructions.slice(
