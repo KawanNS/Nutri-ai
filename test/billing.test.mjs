@@ -6,7 +6,12 @@ import {
   selectEffectiveSubscriptionAccess,
 } from "../dist/services/subscription.service.js";
 import {
+  CHECKOUT_ATTEMPT_TTL_MS,
+  buildCorrelatedCheckoutUrl,
+  createCorrelatedCheckoutAttempt,
+  generateCheckoutCorrelationToken,
   getConfiguredCheckoutUrl,
+  hashCheckoutCorrelationToken,
   prepareCheckout,
 } from "../dist/services/billing.service.js";
 import {
@@ -67,6 +72,79 @@ test("checkout fails closed while account correlation is unverified", () => {
     () => prepareCheckout("user-a", "MONTHLY"),
     (error) => error.code === "CHECKOUT_CORRELATION_NOT_VERIFIED",
   );
+});
+
+test("checkout correlation tokens are opaque, URL-safe, random, and contain no PII", () => {
+  const userId = "5d789ca7-a7a5-41a8-8fc7-f89ea5f93ce7";
+  const email = "person@example.com";
+  const first = generateCheckoutCorrelationToken();
+  const second = generateCheckoutCorrelationToken();
+
+  assert.match(first, /^[A-Za-z0-9_-]+$/);
+  assert.ok(Buffer.from(first, "base64url").byteLength >= 16);
+  assert.notEqual(first, second);
+  assert.equal(first.includes(userId), false);
+  assert.equal(first.includes(email), false);
+  assert.equal(first.split(".").length, 1);
+});
+
+test("correlated checkout persists only the token hash and a pending short-lived attempt", async () => {
+  const token = "opaque_token-with-url_safe-characters";
+  const tokenHash = hashCheckoutCorrelationToken(token);
+  const fixedNow = new Date("2026-09-04T12:00:00.000Z");
+  const writes = [];
+
+  const result = await createCorrelatedCheckoutAttempt("user-a", "MONTHLY", {
+    now: () => fixedNow,
+    generateToken: () => token,
+    persistence: {
+      create: async (args) => {
+        writes.push(args);
+        return { id: "attempt-a" };
+      },
+    },
+  });
+
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0].select, { id: true });
+  assert.equal(writes[0].data.userId, "user-a");
+  assert.equal(writes[0].data.plan, "MONTHLY");
+  assert.equal(writes[0].data.status, "PENDING");
+  assert.equal(writes[0].data.token, tokenHash);
+  assert.equal(writes[0].data.token.includes(token), false);
+  assert.equal(writes[0].data.checkoutUrl.includes(token), false);
+  assert.equal(writes[0].data.expiresAt.getTime(), fixedNow.getTime() + CHECKOUT_ATTEMPT_TTL_MS);
+  assert.equal(result.checkoutAttemptId, "attempt-a");
+  assert.equal(result.expiresAt.getTime(), fixedNow.getTime() + CHECKOUT_ATTEMPT_TTL_MS);
+});
+
+test("correlated checkout preserves trusted query parameters and safely replaces sck", async () => {
+  const url = buildCorrelatedCheckoutUrl(
+    "https://pay.cakto.com.br/example?campaign=safe&sck=old",
+    "opaque token/+?",
+  );
+  const parsed = new URL(url);
+
+  assert.equal(parsed.origin, "https://pay.cakto.com.br");
+  assert.equal(parsed.searchParams.get("campaign"), "safe");
+  assert.equal(parsed.searchParams.getAll("sck").length, 1);
+  assert.equal(parsed.searchParams.get("sck"), "opaque token/+?");
+  assert.match(url, /sck=opaque(?:\+|%20)token%2F%2B%3F/);
+});
+
+test("correlation preparation creates no subscription, Premium, or usage mutation", async () => {
+  const effects = { checkoutAttempts: 0, subscriptions: 0, premium: 0, usage: 0 };
+  await createCorrelatedCheckoutAttempt("user-a", "ANNUAL", {
+    generateToken: () => "opaque-token",
+    persistence: {
+      create: async () => {
+        effects.checkoutAttempts += 1;
+        return { id: "attempt-a" };
+      },
+    },
+  });
+
+  assert.deepEqual(effects, { checkoutAttempts: 1, subscriptions: 0, premium: 0, usage: 0 });
 });
 
 test("checkout input rejects prices, URLs, and unknown plans from the frontend", () => {
