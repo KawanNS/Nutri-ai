@@ -18,6 +18,7 @@ interface UsageCountersRow {
 
 interface TransitionedEventRow {
   id: string;
+  entitlement: "FREE" | "SUBSCRIPTION";
 }
 
 export interface ProfileSnapshot {
@@ -229,7 +230,7 @@ export async function persistMealPlanAndConfirmUsage(
         AND "userId" = ${input.userId}::uuid
         AND "action" = 'PLAN_GENERATION'::"UsageAction"
         AND "status" = 'PENDING'::"UsageStatus"
-      RETURNING "id"
+      RETURNING "id", "entitlement"
     `;
 
     if (transitioned.length === 0) {
@@ -290,7 +291,16 @@ export async function persistMealPlanAndConfirmUsage(
       },
     });
 
-    const updatedUsage = await transaction.$queryRaw<UsageCountersRow[]>`
+    const updatedUsage = transitioned[0].entitlement === "SUBSCRIPTION"
+      ? [await transaction.usageControl.findUniqueOrThrow({
+          where: { userId: input.userId },
+          select: {
+            freeUsesLimit: true,
+            freeUsesConsumed: true,
+            freeUsesReserved: true,
+          },
+        })]
+      : await transaction.$queryRaw<UsageCountersRow[]>`
       UPDATE "UsageControl"
       SET
         "freeUsesReserved" = "freeUsesReserved" - 1,

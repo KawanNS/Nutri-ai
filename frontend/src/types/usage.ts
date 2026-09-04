@@ -1,4 +1,6 @@
-export interface Usage {
+import type { SubscriptionAccess } from './subscription'
+
+export interface Usage extends SubscriptionAccess {
   freeUsesLimit: number
   freeUsesConsumed: number
   freeUsesReserved: number

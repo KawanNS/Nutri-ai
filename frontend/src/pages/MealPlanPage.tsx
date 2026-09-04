@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../services/api'
 import { generateMealPlan, getMealPlan, listLatestMealPlan } from '../services/mealPlanService'
 import { getUsage } from '../services/usageService'
+import { getSubscription } from '../services/billingService'
+import { Paywall } from '../components/Paywall'
 import type { MealPlan, Nutrition } from '../types/mealPlan'
 import type { Usage } from '../types/usage'
 
@@ -52,8 +54,8 @@ export function MealPlanPage({ onProfile, onProgress, onLogout }: MealPlanPagePr
   const loadPage = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [{ usage: currentUsage }, list] = await Promise.all([getUsage(), listLatestMealPlan()])
-      setUsage(currentUsage)
+      const [{ usage: currentUsage }, list, { subscription }] = await Promise.all([getUsage(), listLatestMealPlan(), getSubscription()])
+      setUsage({ ...currentUsage, ...subscription })
       if (list.mealPlans[0]) setMealPlan((await getMealPlan(list.mealPlans[0].id)).mealPlan)
       else setMealPlan(null)
     } catch (requestError) {
@@ -74,7 +76,7 @@ export function MealPlanPage({ onProfile, onProgress, onLogout }: MealPlanPagePr
     try {
       const response = await generateMealPlan(key)
       if ('status' in response) { setPending(true); return }
-      setMealPlan(response.mealPlan); setUsage(response.usage); setPending(false); attemptKey.current = null
+      setMealPlan(response.mealPlan); setUsage((current) => current ? { ...current, ...response.usage } : response.usage); setPending(false); attemptKey.current = null
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.code === 'FREE_USAGE_LIMIT_REACHED') {
         setUsage((current) => current ? { ...current, freeUsesAvailable: 0 } : current)
@@ -84,12 +86,13 @@ export function MealPlanPage({ onProfile, onProgress, onLogout }: MealPlanPagePr
     } finally { generatingRef.current = false; setGenerating(false) }
   }
 
-  const needsProfile = error?.includes('perfil'), limitReached = usage?.freeUsesAvailable === 0
+  const needsProfile = error?.includes('perfil'), limitReached = usage?.isPremium === false && usage.freeUsesAvailable === 0
   return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button nav-button--active" type="button">Plano alimentar</button><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
-    <main className="page meal-plan-page"><div className="page-heading meal-plan-heading"><div><p className="eyebrow">Plano alimentar</p><h1>Comer bem, com um plano possível.</h1><p>Um cardápio de sete dias alinhado ao seu perfil, rotina e orçamento.</p></div>{usage && <div className="usage-card"><strong>{usage.freeUsesAvailable} de {usage.freeUsesLimit}</strong><span>gerações gratuitas disponíveis</span>{usage.freeUsesReserved > 0 && <small>Há uma geração em processamento.</small>}</div>}</div>
+    <main className="page meal-plan-page"><div className="page-heading meal-plan-heading"><div><p className="eyebrow">Plano alimentar</p><h1>Comer bem, com um plano possível.</h1><p>Um cardápio de sete dias alinhado ao seu perfil, rotina e orçamento.</p></div>{usage && <div className="usage-card"><strong>{usage.isPremium ? 'Premium ativo' : `${usage.freeUsesAvailable} de ${usage.freeUsesLimit}`}</strong><span>{usage.isPremium ? 'gerações liberadas pela assinatura' : 'gerações gratuitas disponíveis'}</span>{usage.freeUsesReserved > 0 && <small>Há uma geração em processamento.</small>}</div>}</div>
       {error && <div className="notice notice--error" role="alert">{error}{needsProfile && <button className="notice__action" type="button" onClick={onProfile}>Revisar perfil</button>}</div>}
       {pending && <div className="notice notice--info" role="status">Seu plano ainda está sendo processado. Verifique novamente em alguns instantes usando a mesma tentativa.</div>}
       {limitReached && <div className="notice notice--info">Você atingiu o limite de gerações gratuitas. Seus planos anteriores continuam disponíveis.</div>}
+      {limitReached && <Paywall />}
       {loading ? <div className="panel loading"><span className="spinner" aria-label="Carregando plano alimentar"/></div> : <>
         <div className="meal-plan-actions"><button className="button button--primary" type="button" disabled={generating || limitReached || pending} onClick={() => void requestGeneration(false)}>{generating ? 'Gerando seu plano…' : mealPlan ? 'Gerar novo plano' : 'Gerar meu plano alimentar'}</button>{pending && <button className="button button--secondary" type="button" disabled={generating} onClick={() => void requestGeneration(true)}>{generating ? 'Verificando…' : 'Verificar novamente'}</button>}</div>
         {!mealPlan && !generating && <section className="panel empty meal-plan-empty"><h2>Seu plano começa aqui.</h2><p>Quando você solicitar, a IA usará os dados do seu perfil para montar o cardápio. Nenhuma geração acontece automaticamente.</p></section>}

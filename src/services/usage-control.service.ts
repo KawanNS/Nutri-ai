@@ -5,6 +5,10 @@ import type {
   UsageStatus,
 } from "../generated/prisma/client.js";
 import { prisma } from "../lib/prisma.js";
+import {
+  getEffectiveSubscriptionAccess,
+  serializeSubscriptionAccess,
+} from "./subscription.service.js";
 
 interface UsageCountersRow {
   freeUsesLimit: number;
@@ -19,6 +23,7 @@ interface InsertedEventRow {
 interface TransitionedEventRow {
   id: string;
   usageControlId: string;
+  entitlement: "FREE" | "SUBSCRIPTION";
 }
 
 export class UsageControlError extends Error {
@@ -44,20 +49,26 @@ function serializeUsage(usage: UsageCountersRow) {
 }
 
 export async function getUsage(userId: string) {
-  const usage = await prisma.usageControl.findUnique({
-    where: { userId },
-    select: {
-      freeUsesLimit: true,
-      freeUsesConsumed: true,
-      freeUsesReserved: true,
-    },
-  });
+  const [usage, subscription] = await Promise.all([
+    prisma.usageControl.findUnique({
+      where: { userId },
+      select: {
+        freeUsesLimit: true,
+        freeUsesConsumed: true,
+        freeUsesReserved: true,
+      },
+    }),
+    getEffectiveSubscriptionAccess(userId),
+  ]);
 
   if (!usage) {
     throw new UsageControlError(404, "USAGE_CONTROL_NOT_FOUND", "Usage control not found");
   }
 
-  return serializeUsage(usage);
+  return {
+    ...serializeUsage(usage),
+    ...serializeSubscriptionAccess(subscription),
+  };
 }
 
 export async function reserveUsage(
@@ -66,6 +77,17 @@ export async function reserveUsage(
   idempotencyKey: string,
 ) {
   return prisma.$transaction(async (transaction) => {
+    const subscription = await transaction.subscription.findFirst({
+      where: {
+        userId,
+        OR: [
+          { status: "ACTIVE" },
+          { status: "CANCELED", currentPeriodEnd: { gt: new Date() } },
+        ],
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
     const eventId = randomUUID();
     const inserted = await transaction.$queryRaw<InsertedEventRow[]>`
       INSERT INTO "UsageEvent" (
@@ -75,6 +97,8 @@ export async function reserveUsage(
         "action",
         "status",
         "idempotencyKey",
+        "entitlement",
+        "subscriptionId",
         "createdAt"
       )
       SELECT
@@ -84,6 +108,8 @@ export async function reserveUsage(
         ${action}::"UsageAction",
         'PENDING'::"UsageStatus",
         ${idempotencyKey},
+        ${subscription ? "SUBSCRIPTION" : "FREE"}::"UsageEntitlement",
+        ${subscription?.id ?? null}::uuid,
         CURRENT_TIMESTAMP
       FROM "UsageControl"
       WHERE "userId" = ${userId}::uuid
@@ -128,6 +154,21 @@ export async function reserveUsage(
         usage: serializeUsage(usage),
         reservationCreated: false,
       };
+    }
+
+    if (subscription) {
+      const usage = await transaction.usageControl.findUniqueOrThrow({
+        where: { userId },
+        select: {
+          freeUsesLimit: true,
+          freeUsesConsumed: true,
+          freeUsesReserved: true,
+        },
+      });
+      const event = await transaction.usageEvent.findUniqueOrThrow({
+        where: { id: inserted[0].id },
+      });
+      return { event, usage: serializeUsage(usage), reservationCreated: true };
     }
 
     const updatedUsage = await transaction.$queryRaw<UsageCountersRow[]>`
@@ -177,7 +218,7 @@ async function finalizeUsage(
       WHERE "id" = ${eventId}::uuid
         AND "userId" = ${userId}::uuid
         AND "status" = 'PENDING'::"UsageStatus"
-      RETURNING "id", "usageControlId"
+      RETURNING "id", "usageControlId", "entitlement"
     `;
 
     if (transitioned.length === 0) {
@@ -210,7 +251,16 @@ async function finalizeUsage(
     }
 
     const [transition] = transitioned;
-    const updatedUsage =
+    const updatedUsage = transition.entitlement === "SUBSCRIPTION"
+      ? [await transaction.usageControl.findUniqueOrThrow({
+          where: { userId },
+          select: {
+            freeUsesLimit: true,
+            freeUsesConsumed: true,
+            freeUsesReserved: true,
+          },
+        })]
+      :
       targetStatus === "CONSUMED"
         ? await transaction.$queryRaw<UsageCountersRow[]>`
             UPDATE "UsageControl"

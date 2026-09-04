@@ -1,7 +1,12 @@
 import "dotenv/config";
 
 function requireEnvironmentVariable(
-  name: "DATABASE_URL" | "JWT_SECRET" | "OPENAI_API_KEY" | "GEMINI_API_KEY",
+  name:
+    | "DATABASE_URL"
+    | "JWT_SECRET"
+    | "OPENAI_API_KEY"
+    | "GEMINI_API_KEY"
+    | "CAKTO_WEBHOOK_SECRET",
 ): string {
   const value = process.env[name];
 
@@ -42,5 +47,24 @@ export const env = {
   },
   get geminiModel(): string {
     return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
+  },
+  get caktoWebhookSecret(): string {
+    return requireEnvironmentVariable("CAKTO_WEBHOOK_SECRET");
+  },
+  caktoCheckoutUrls: {
+    MONTHLY:
+      process.env.CAKTO_MONTHLY_CHECKOUT_URL?.trim() ||
+      "https://pay.cakto.com.br/ugdtzm4_1082268",
+    QUARTERLY:
+      process.env.CAKTO_QUARTERLY_CHECKOUT_URL?.trim() ||
+      "https://pay.cakto.com.br/t7cba8g_1082579",
+    ANNUAL:
+      process.env.CAKTO_ANNUAL_CHECKOUT_URL?.trim() ||
+      "https://pay.cakto.com.br/osevqyx_1082601",
+  },
+  caktoProductIds: {
+    MONTHLY: process.env.CAKTO_MONTHLY_PRODUCT_ID?.trim() || null,
+    QUARTERLY: process.env.CAKTO_QUARTERLY_PRODUCT_ID?.trim() || null,
+    ANNUAL: process.env.CAKTO_ANNUAL_PRODUCT_ID?.trim() || null,
   },
 };
