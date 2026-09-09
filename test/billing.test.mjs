@@ -19,6 +19,7 @@ import {
   isValidCaktoSecret,
   recordCaktoWebhook,
 } from "../dist/services/cakto-webhook.service.js";
+import { caktoCorrelationTokenSchema } from "../dist/schemas/cakto-webhook.schema.js";
 import { generateMealPlan } from "../dist/services/meal-plan-generation.service.js";
 import { checkoutBodySchema } from "../dist/schemas/billing.schema.js";
 
@@ -177,6 +178,160 @@ test("known webhook is recorded without granting access while association is blo
   assert.equal(result.pendingAssociation, true);
   assert.equal(created[0].data.processingError, "CHECKOUT_ASSOCIATION_NOT_VERIFIED");
   assert.equal(JSON.stringify(created[0]).includes("not-persisted"), false);
+});
+
+const validCaktoCorrelationToken = "A".repeat(43);
+const webhookCorrelationNow = new Date("2026-09-08T12:00:00.000Z");
+
+async function recordWebhookWithCorrelationCandidate({ sck, attempt }) {
+  const checkoutQueries = [];
+  const checkoutOperations = [];
+  const webhookWrites = [];
+  const data = { id: "order-correlation", email: "private@example.com" };
+  if (sck !== undefined) data.sck = sck;
+
+  const checkoutAttempts = new Proxy(
+    {
+      findUnique: async (args) => {
+        checkoutQueries.push(args);
+        return attempt;
+      },
+    },
+    {
+      get(target, property, receiver) {
+        checkoutOperations.push(String(property));
+        return Reflect.get(target, property, receiver);
+      },
+    },
+  );
+
+  const result = await recordCaktoWebhook(
+    { secret: "webhook-secret", event: "purchase_approved", data },
+    {
+      create: async (args) => {
+        webhookWrites.push(args);
+        return { recorded: true };
+      },
+    },
+    {
+      checkoutAttempts,
+      now: () => webhookCorrelationNow,
+    },
+  );
+
+  return { checkoutOperations, checkoutQueries, result, webhookWrites };
+}
+
+test("Cakto sck accepts the internal Base64URL format, null, or absence", () => {
+  assert.equal(caktoCorrelationTokenSchema.safeParse(validCaktoCorrelationToken).success, true);
+  assert.equal(caktoCorrelationTokenSchema.safeParse(null).success, true);
+  assert.equal(caktoCorrelationTokenSchema.safeParse(undefined).success, true);
+  assert.equal(caktoCorrelationTokenSchema.safeParse("invalid token").success, false);
+});
+
+for (const [name, sck] of [
+  ["absent", undefined],
+  ["null", null],
+  ["invalid", "invalid token"],
+]) {
+  test(`Cakto sck ${name} remains uncorrelated and does not query CheckoutAttempt`, async () => {
+    const { checkoutQueries, result } = await recordWebhookWithCorrelationCandidate({
+      sck,
+      attempt: null,
+    });
+
+    assert.equal(checkoutQueries.length, 0);
+    assert.equal(result.checkoutCorrelationCandidate, false);
+    assert.equal(result.pendingAssociation, true);
+  });
+}
+
+test("valid but unknown Cakto sck remains uncorrelated", async () => {
+  const { checkoutQueries, result } = await recordWebhookWithCorrelationCandidate({
+    sck: validCaktoCorrelationToken,
+    attempt: null,
+  });
+
+  assert.equal(checkoutQueries.length, 1);
+  assert.equal(result.checkoutCorrelationCandidate, false);
+  assert.equal(result.pendingAssociation, true);
+});
+
+test("expired CheckoutAttempt remains uncorrelated", async () => {
+  const { result } = await recordWebhookWithCorrelationCandidate({
+    sck: validCaktoCorrelationToken,
+    attempt: {
+      userId: "user-a",
+      plan: "MONTHLY",
+      status: "PENDING",
+      expiresAt: webhookCorrelationNow,
+    },
+  });
+
+  assert.equal(result.checkoutCorrelationCandidate, false);
+  assert.equal(result.pendingAssociation, true);
+});
+
+test("non-PENDING CheckoutAttempt remains uncorrelated", async () => {
+  const { result } = await recordWebhookWithCorrelationCandidate({
+    sck: validCaktoCorrelationToken,
+    attempt: {
+      userId: "user-a",
+      plan: "MONTHLY",
+      status: "COMPLETED",
+      expiresAt: new Date(webhookCorrelationNow.getTime() + 60_000),
+    },
+  });
+
+  assert.equal(result.checkoutCorrelationCandidate, false);
+  assert.equal(result.pendingAssociation, true);
+});
+
+test("matching unexpired PENDING CheckoutAttempt is only a fail-closed candidate", async () => {
+  const { checkoutOperations, checkoutQueries, result, webhookWrites } =
+    await recordWebhookWithCorrelationCandidate({
+      sck: validCaktoCorrelationToken,
+      attempt: {
+        userId: "user-a",
+        plan: "MONTHLY",
+        status: "PENDING",
+        expiresAt: new Date(webhookCorrelationNow.getTime() + 60_000),
+      },
+    });
+
+  assert.deepEqual(checkoutOperations, ["findUnique"]);
+  assert.equal(result.checkoutCorrelationCandidate, true);
+  assert.equal(result.pendingAssociation, true);
+  assert.deepEqual(Object.keys(result).sort(), [
+    "checkoutCorrelationCandidate",
+    "duplicate",
+    "pendingAssociation",
+    "webhookEvent",
+  ]);
+  assert.deepEqual(Object.keys(webhookWrites[0].data).sort(), [
+    "eventType",
+    "payloadHash",
+    "processedAt",
+    "processingError",
+    "provider",
+    "providerEventId",
+  ]);
+  assert.equal(webhookWrites[0].data.processingError, "CHECKOUT_ASSOCIATION_NOT_VERIFIED");
+  assert.deepEqual(checkoutQueries[0].select, {
+    userId: true,
+    plan: true,
+    status: true,
+    expiresAt: true,
+  });
+  assert.equal(
+    checkoutQueries[0].where.token,
+    hashCheckoutCorrelationToken(validCaktoCorrelationToken),
+  );
+  assert.notEqual(checkoutQueries[0].where.token, validCaktoCorrelationToken);
+  assert.equal(JSON.stringify(result).includes(validCaktoCorrelationToken), false);
+  assert.equal(JSON.stringify(result).includes("private@example.com"), false);
+  assert.equal(JSON.stringify(webhookWrites).includes(validCaktoCorrelationToken), false);
+  assert.equal(JSON.stringify(webhookWrites).includes("private@example.com"), false);
 });
 
 test("invalid webhook payload does not write an event", async () => {

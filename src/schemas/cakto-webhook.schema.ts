@@ -17,6 +17,12 @@ export const caktoWebhookEnvelopeSchema = z
   })
   .passthrough();
 
+export const caktoCorrelationTokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/)
+  .nullable()
+  .optional();
+
 export const caktoOrderDataSchema = z
   .object({
     id: z.string().min(1).max(255),
