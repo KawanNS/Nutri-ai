@@ -21,6 +21,15 @@ export async function caktoWebhookController(
     const payload = parsedPayload.data;
 
     const result = await recordCaktoWebhook(payload);
+    try {
+      console.info(
+        "[cakto-webhook-correlation]",
+        JSON.stringify({
+          checkoutCorrelationCandidate: result.checkoutCorrelationCandidate,
+        }),
+      );
+    } catch {}
+
     response.status(result.pendingAssociation ? 202 : 200).json({
       received: true,
       duplicate: result.duplicate,
