@@ -6,6 +6,7 @@ export const caktoKnownEventSchema = z.enum([
   "chargeback",
   "subscription_created",
   "subscription_renewed",
+  "subscription_renewal_refused",
   "subscription_canceled",
 ]);
 
