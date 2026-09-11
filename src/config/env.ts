@@ -51,6 +51,12 @@ export const env = {
   get caktoWebhookSecret(): string {
     return requireEnvironmentVariable("CAKTO_WEBHOOK_SECRET");
   },
+  get caktoApiBaseUrl(): string {
+    return process.env.CAKTO_API_BASE_URL?.trim() || "https://api.cakto.com.br";
+  },
+  get caktoApiAccessToken(): string | null {
+    return process.env.CAKTO_API_ACCESS_TOKEN?.trim() || null;
+  },
   caktoCheckoutUrls: {
     MONTHLY:
       process.env.CAKTO_MONTHLY_CHECKOUT_URL?.trim() ||
@@ -66,5 +72,10 @@ export const env = {
     MONTHLY: process.env.CAKTO_MONTHLY_PRODUCT_ID?.trim() || null,
     QUARTERLY: process.env.CAKTO_QUARTERLY_PRODUCT_ID?.trim() || null,
     ANNUAL: process.env.CAKTO_ANNUAL_PRODUCT_ID?.trim() || null,
+  },
+  caktoOfferIds: {
+    MONTHLY: process.env.CAKTO_MONTHLY_OFFER_ID?.trim() || null,
+    QUARTERLY: process.env.CAKTO_QUARTERLY_OFFER_ID?.trim() || null,
+    ANNUAL: process.env.CAKTO_ANNUAL_OFFER_ID?.trim() || null,
   },
 };
