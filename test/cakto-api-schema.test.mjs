@@ -31,7 +31,7 @@ const orderStatuses = [
 ];
 
 const minimumOrder = {
-  id: "order-id",
+  id: "3d5ab3d1-94af-4e96-8470-1b8659b87001",
   status: "paid",
   type: "unique",
   product: { id: "product-id" },
@@ -98,6 +98,11 @@ test("Cakto API order accepts only documented order types", () => {
     assert.equal(caktoApiOrderSchema.safeParse({ ...minimumOrder, type }).success, true);
   }
   assert.equal(caktoApiOrderSchema.safeParse({ ...minimumOrder, type: "other" }).success, false);
+});
+
+test("Cakto API order requires its documented UUID identifier", () => {
+  assert.equal(caktoApiOrderSchema.safeParse(minimumOrder).success, true);
+  assert.equal(caktoApiOrderSchema.safeParse({ ...minimumOrder, id: "order-id" }).success, false);
 });
 
 test("Cakto API order requires product with a valid id", () => {
@@ -194,8 +199,15 @@ test("Cakto API offer validates documented status, type, and intervalType enums"
   assert.equal(caktoApiOfferSchema.safeParse({ ...minimumOffer, intervalType: "day" }).success, false);
 });
 
-test("Cakto API offer interval fields are optional integers but not nullable", () => {
-  for (const field of ["interval", "recurrence_period", "quantity_recurrences", "trial_days"]) {
+test("Cakto API offer recurrence fields are optional integers but not nullable", () => {
+  for (const field of [
+    "interval",
+    "recurrence_period",
+    "quantity_recurrences",
+    "trial_days",
+    "max_retries",
+    "retry_interval",
+  ]) {
     assert.equal(caktoApiOfferSchema.safeParse({ ...minimumOffer, [field]: 1 }).success, true);
     assert.equal(caktoApiOfferSchema.safeParse({ ...minimumOffer, [field]: 1.5 }).success, false);
     assert.equal(caktoApiOfferSchema.safeParse({ ...minimumOffer, [field]: null }).success, false);
@@ -211,8 +223,48 @@ test("Cakto API offer strips unknown fields", () => {
   assert.equal("undocumented" in result, false);
 });
 
-test("Cakto API subscription accepts documented fields and all documented statuses", () => {
-  for (const status of ["active", "inactive", "canceled", "expired", "paused", "trial"]) {
+test("Cakto API subscription accepts a complete documented response", () => {
+  const completeSubscription = {
+    ...minimumSubscription,
+    current_period: 1,
+    recurrence_period: 30,
+    quantity_recurrences: -1,
+    trial_days: 0,
+    max_retries: 3,
+    retry_interval: 2,
+    paid_payments_quantity: 1,
+    retention: "30 days",
+    next_payment_date: "2026-10-10T12:00:00Z",
+    canceledAt: null,
+  };
+  assert.deepEqual(caktoApiSubscriptionSchema.parse(completeSubscription), completeSubscription);
+});
+
+test("Cakto API subscription requires every documented required field", () => {
+  for (const field of [
+    "amount",
+    "parent_order",
+    "paymentMethod",
+    "customer",
+    "product",
+    "offer",
+    "orders",
+    "createdAt",
+    "updatedAt",
+  ]) {
+    const invalid = { ...minimumSubscription };
+    delete invalid[field];
+    assert.equal(caktoApiSubscriptionSchema.safeParse(invalid).success, false, field);
+    assert.equal(
+      caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: null }).success,
+      false,
+      `${field} null`,
+    );
+  }
+});
+
+test("Cakto API subscription accepts all documented statuses and rejects unknown status", () => {
+  for (const status of ["active", "inactive", "canceled", "expired", "paused", "late", "trial"]) {
     assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, status }).success, true);
   }
   assert.equal(
@@ -221,15 +273,99 @@ test("Cakto API subscription accepts documented fields and all documented status
   );
 });
 
-test("Cakto API subscription validates identifiers, decimal amount, and date-times", () => {
+test("Cakto API subscription validates identifiers and non-empty provider references", () => {
   assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, id: "" }).success, false);
-  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, amount: 19.9 }).success, false);
-  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, amount: "" }).success, false);
-  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, amount: "19.999" }).success, false);
-  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, createdAt: "invalid" }).success, false);
+  for (const field of ["parent_order", "paymentMethod", "customer", "product", "offer"]) {
+    assert.equal(
+      caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: "" }).success,
+      false,
+      field,
+    );
+  }
 });
 
-test("Cakto API subscription keeps next payment and cancellation nullable without treating either as period end", () => {
+test("Cakto API subscription validates the documented decimal string format", () => {
+  for (const amount of [
+    "0",
+    "19",
+    "19.9",
+    "19.90",
+    "-1",
+    "-0.50",
+    "00000001",
+    "99999999.99",
+  ]) {
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, amount }).success, true, amount);
+  }
+  for (const amount of [
+    "19.999",
+    19.9,
+    null,
+    "",
+    ".",
+    "-",
+    "-.5",
+    ".50",
+    "19.",
+    "000000000",
+    "123456789",
+    "123456789.00",
+    "NaN",
+    "Infinity",
+  ]) {
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, amount }).success, false, String(amount));
+  }
+  const { amount: _amount, ...withoutAmount } = minimumSubscription;
+  assert.equal(caktoApiSubscriptionSchema.safeParse(withoutAmount).success, false);
+});
+
+test("Cakto API subscription validates its order ID array without inventing a minimum size", () => {
+  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, orders: [] }).success, true);
+  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, orders: ["order-a", "order-b"] }).success, true);
+  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, orders: "order-a" }).success, false);
+  assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, orders: [""] }).success, false);
+});
+
+test("Cakto API subscription validates required and nullable date-times", () => {
+  for (const field of ["createdAt", "updatedAt"]) {
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: "2026-09-10T12:00:00-03:00" }).success, true);
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: "invalid" }).success, false);
+  }
+  for (const field of ["next_payment_date", "canceledAt"]) {
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: "2026-09-10T12:00:00Z" }).success, true);
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: null }).success, true);
+    assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: "invalid" }).success, false);
+  }
+});
+
+test("Cakto API subscription integer fields accept signed integers only", () => {
+  for (const field of [
+    "current_period",
+    "recurrence_period",
+    "quantity_recurrences",
+    "trial_days",
+    "max_retries",
+    "retry_interval",
+    "paid_payments_quantity",
+  ]) {
+    for (const value of [1, 0, -1]) {
+      assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: value }).success, true, `${field}: ${value}`);
+    }
+    for (const value of [1.5, "1", null]) {
+      assert.equal(caktoApiSubscriptionSchema.safeParse({ ...minimumSubscription, [field]: value }).success, false, `${field}: ${value}`);
+    }
+  }
+});
+
+test("Cakto API subscription strips unknown fields", () => {
+  const parsed = caktoApiSubscriptionSchema.parse({
+    ...minimumSubscription,
+    undocumented: "discarded",
+  });
+  assert.equal("undocumented" in parsed, false);
+});
+
+test("Cakto API subscription date hints remain data only and are not converted to period end", () => {
   assert.equal(
     caktoApiSubscriptionSchema.safeParse({
       ...minimumSubscription,
@@ -259,12 +395,7 @@ test("Cakto API billing cycle validates documented fields and nullable completio
   assert.equal(caktoApiBillingCycleSchema.safeParse({ ...billingCycle, cycle_number: 1.5 }).success, false);
 });
 
-test("Cakto API subscription and billing schemas strip unknown fields", () => {
-  const subscription = caktoApiSubscriptionSchema.parse({
-    ...minimumSubscription,
-    undocumented: "discarded",
-  });
+test("Cakto API billing schemas strip unknown fields", () => {
   const cycle = caktoApiBillingCycleSchema.parse({ ...billingCycle, undocumented: "discarded" });
-  assert.equal("undocumented" in subscription, false);
   assert.equal("undocumented" in cycle, false);
 });

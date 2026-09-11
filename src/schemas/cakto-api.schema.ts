@@ -22,8 +22,7 @@ const caktoApiDateTimeSchema = z.iso.datetime({ offset: true });
 const caktoApiNullableDateTimeSchema = caktoApiDateTimeSchema.nullable().optional();
 const caktoApiDecimalStringSchema = z
   .string()
-  .min(1)
-  .regex(/^-?\d{0,8}(?:\.\d{0,2})?$/);
+  .regex(/^-?\d{1,8}(?:\.\d{1,2})?$/);
 
 export const caktoApiOrderStatusSchema = z.enum([
   "processing",
@@ -55,7 +54,7 @@ export const caktoApiProductReferenceSchema = z
 
 export const caktoApiOrderSchema = z
   .object({
-    id: caktoApiIdentifierSchema,
+    id: z.uuid(),
     refId: z.string().min(1).max(255).optional(),
     status: caktoApiOrderStatusSchema,
     type: caktoApiOrderTypeSchema,
@@ -103,6 +102,8 @@ export const caktoApiOfferSchema = z
     recurrence_period: caktoApiOptionalIntegerSchema,
     quantity_recurrences: caktoApiOptionalIntegerSchema,
     trial_days: caktoApiOptionalIntegerSchema,
+    max_retries: caktoApiOptionalIntegerSchema,
+    retry_interval: caktoApiOptionalIntegerSchema,
   })
   .strip();
 
@@ -112,6 +113,7 @@ export const caktoApiSubscriptionStatusSchema = z.enum([
   "canceled",
   "expired",
   "paused",
+  "late",
   "trial",
 ]);
 
