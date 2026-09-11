@@ -8,6 +8,8 @@ export const caktoKnownEventSchema = z.enum([
   "subscription_renewed",
   "subscription_renewal_refused",
   "subscription_canceled",
+  "subscription_paused",
+  "subscription_resumed",
 ]);
 
 export const caktoWebhookEnvelopeSchema = z

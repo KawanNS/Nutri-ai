@@ -193,6 +193,21 @@ test("subscription renewal refusal remains known and fail-closed", async () => {
   assert.equal(created[0].data.processedAt, null);
 });
 
+test("subscription pause and resume events remain known and fail-closed", async () => {
+  for (const event of ["subscription_paused", "subscription_resumed"]) {
+    const created = [];
+    const result = await recordCaktoWebhook(
+      { secret: "not-persisted", event, data: { id: "order-1" } },
+      { create: async (args) => { created.push(args); return { id: "event-1" }; } },
+    );
+
+    assert.equal(result.pendingAssociation, true);
+    assert.equal(result.checkoutCorrelationCandidate, false);
+    assert.equal(created[0].data.processingError, "CHECKOUT_ASSOCIATION_NOT_VERIFIED");
+    assert.equal(created[0].data.processedAt, null);
+  }
+});
+
 const validCaktoCorrelationToken = "A".repeat(43);
 const webhookCorrelationNow = new Date("2026-09-08T12:00:00.000Z");
 
