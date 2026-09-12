@@ -60,6 +60,12 @@ export const env = {
   get caktoApiAccessToken(): string | null {
     return process.env.CAKTO_API_ACCESS_TOKEN?.trim() || null;
   },
+  get controlledCheckoutEnabled(): boolean {
+    return process.env.NUTRI_CONTROLLED_CHECKOUT_ENABLED?.trim().toLowerCase() === "true";
+  },
+  get controlledCheckoutUserId(): string | null {
+    return process.env.NUTRI_CONTROLLED_CHECKOUT_USER_ID?.trim() || null;
+  },
   caktoCheckoutUrls: {
     MONTHLY:
       process.env.CAKTO_MONTHLY_CHECKOUT_URL?.trim() ||
