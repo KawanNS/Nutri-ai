@@ -128,44 +128,38 @@ test("shopping-list food items enforce the strict documented contract", async (t
   });
 });
 
-test("AI_PROVIDER=gemini selects only Gemini", async () => {
-  let geminiCalls = 0;
-  let openaiCalls = 0;
+test("AI provider facade sends meal-plan generation through the Router", async () => {
+  let routerCalls = 0;
+  let request;
   const result = await generateMealPlanWithAI(profileSnapshot, {
-    getProvider: () => "gemini",
-    generateWithGemini: async () => {
-      geminiCalls += 1;
-      return { plan: validMealPlan(), provider: "gemini", model: "gemini-test" };
-    },
-    generateWithOpenAI: async () => {
-      openaiCalls += 1;
-      throw new Error("OpenAI must not be called");
+    router: {
+      route: async (input) => {
+        routerCalls += 1;
+        request = input;
+        return {
+          content: JSON.stringify(validMealPlan()),
+          provider: "GEMINI",
+          model: "gemini-test",
+          latencyMs: 1,
+          usage: {},
+          finishReason: "STOP",
+          requestId: null,
+        };
+      },
+      health: () => [],
     },
   });
 
   assert.equal(result.provider, "gemini");
-  assert.equal(geminiCalls, 1);
-  assert.equal(openaiCalls, 0);
+  assert.equal(routerCalls, 1);
+  assert.equal(request.task, "MEAL_PLAN_GENERATION");
 });
 
-test("AI_PROVIDER=openai selects only OpenAI", async () => {
-  let geminiCalls = 0;
-  let openaiCalls = 0;
-  const result = await generateMealPlanWithAI(profileSnapshot, {
-    getProvider: () => "openai",
-    generateWithGemini: async () => {
-      geminiCalls += 1;
-      throw new Error("Gemini must not be called");
-    },
-    generateWithOpenAI: async () => {
-      openaiCalls += 1;
-      return { plan: validMealPlan(), provider: "openai", model: "openai-test" };
-    },
-  });
-
-  assert.equal(result.provider, "openai");
-  assert.equal(geminiCalls, 0);
-  assert.equal(openaiCalls, 1);
+test("legacy AI_PROVIDER does not override the Router V1 decision", async () => {
+  const source = await import("node:fs/promises");
+  const facade = await source.readFile("src/services/ai-provider.service.ts", "utf8");
+  assert.equal(facade.includes("env.aiProvider"), false);
+  assert.equal(facade.includes("generateMealPlanWithOpenAI"), false);
 });
 
 test("invalid AI_PROVIDER is rejected", () => {

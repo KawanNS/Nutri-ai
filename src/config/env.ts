@@ -45,6 +45,9 @@ export const env = {
   get geminiApiKey(): string {
     return requireEnvironmentVariable("GEMINI_API_KEY");
   },
+  get geminiApiKeyOrNull(): string | null {
+    return process.env.GEMINI_API_KEY?.trim() || null;
+  },
   get geminiModel(): string {
     return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   },
