@@ -9,6 +9,7 @@ import { progressRouter } from "./routes/progress.routes.js";
 import { usageControlRouter } from "./routes/usage-control.routes.js";
 import { billingRouter } from "./routes/billing.routes.js";
 import { caktoWebhookRouter } from "./routes/cakto-webhook.routes.js";
+import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/profile", profileRouter);
 app.use("/api/progress", progressRouter);
 app.use("/api/usage", usageControlRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/admin/ai-router", aiRouterAdminRouter);
 app.use("/webhooks/cakto", caktoWebhookRouter);
 
 export { app };

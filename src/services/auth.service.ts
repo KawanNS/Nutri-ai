@@ -12,6 +12,7 @@ const publicUserSelect = {
   name: true,
   email: true,
   status: true,
+  role: true,
   createdAt: true,
   updatedAt: true,
 } as const;

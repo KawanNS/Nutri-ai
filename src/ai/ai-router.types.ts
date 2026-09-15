@@ -1,7 +1,8 @@
 export const AI_TASKS = ["MEAL_PLAN_GENERATION"] as const;
+export const AI_ROUTER_PROVIDERS = ["GEMINI"] as const;
 
 export type AITask = (typeof AI_TASKS)[number];
-export type AIRouterProvider = "GEMINI";
+export type AIRouterProvider = (typeof AI_ROUTER_PROVIDERS)[number];
 
 export interface AIRouterRequest {
   task: string;
@@ -12,9 +13,9 @@ export interface AIRouterRequest {
 }
 
 export interface AIRoute {
-  task: AITask;
-  provider: AIRouterProvider;
-  model: string;
+  readonly task: AITask;
+  readonly provider: AIRouterProvider;
+  readonly model: string;
 }
 
 export interface AIUsage {
@@ -43,6 +44,8 @@ export type AIRouterErrorCode =
   | "AI_INVALID_RESPONSE"
   | "AI_SCHEMA_VALIDATION_FAILED"
   | "AI_CONFIGURATION_ERROR"
+  | "AI_UNSUPPORTED_PROVIDER"
+  | "AI_UNSUPPORTED_MODEL"
   | "AI_UNSUPPORTED_TASK"
   | "AI_UNKNOWN_ERROR";
 
