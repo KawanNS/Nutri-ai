@@ -3,7 +3,7 @@ import { caktoWebhookEnvelopeSchema } from "../schemas/cakto-webhook.schema.js";
 import {
   authenticateCaktoWebhook,
   CaktoWebhookError,
-  recordCaktoWebhook,
+  processCaktoWebhook,
 } from "../services/cakto-webhook.service.js";
 
 export async function caktoWebhookController(
@@ -20,7 +20,7 @@ export async function caktoWebhookController(
     }
     const payload = parsedPayload.data;
 
-    const result = await recordCaktoWebhook(payload);
+    const result = await processCaktoWebhook(payload);
     try {
       console.info(
         "[cakto-webhook-correlation]",
