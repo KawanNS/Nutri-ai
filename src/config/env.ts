@@ -17,6 +17,34 @@ function requireEnvironmentVariable(
   return value;
 }
 
+export interface AIGatewayConfig {
+  baseUrl: string;
+  apiKey: string;
+}
+
+function normalizeGatewayBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("AI_GATEWAY_BASE_URL must be a valid URL");
+  }
+
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("AI_GATEWAY_BASE_URL must not contain credentials, query, or fragment");
+  }
+
+  const isLoopback = ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
+    throw new Error("AI_GATEWAY_BASE_URL must use HTTPS except on loopback");
+  }
+  if (!url.pathname.replace(/\/$/, "").endsWith("/v1")) {
+    throw new Error("AI_GATEWAY_BASE_URL must target the gateway /v1 endpoint");
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
 export const env = {
   get frontendUrl(): string {
     return process.env.FRONTEND_URL?.trim() || "http://localhost:5173";
@@ -50,6 +78,22 @@ export const env = {
   },
   get geminiModel(): string {
     return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
+  },
+  get aiGatewayConfig(): AIGatewayConfig | null {
+    const baseUrl = process.env.AI_GATEWAY_BASE_URL?.trim() || null;
+    const apiKey = process.env.AI_GATEWAY_API_KEY?.trim() || null;
+
+    if (baseUrl === null && apiKey === null) return null;
+    if (baseUrl === null || apiKey === null) {
+      throw new Error(
+        "AI_GATEWAY_BASE_URL and AI_GATEWAY_API_KEY must be configured together",
+      );
+    }
+
+    return Object.freeze({
+      baseUrl: normalizeGatewayBaseUrl(baseUrl),
+      apiKey,
+    });
   },
   get caktoWebhookSecret(): string {
     return requireEnvironmentVariable("CAKTO_WEBHOOK_SECRET");

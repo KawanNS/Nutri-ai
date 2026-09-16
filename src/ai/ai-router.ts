@@ -1,4 +1,4 @@
-import { createGeminiAdapter } from "./adapters/gemini.adapter.js";
+import { createConfiguredAIAdapter } from "./adapters/configured.adapter.js";
 import { resolveAIRoute } from "./ai-route-resolver.js";
 import { createConfiguredAIRoutingPolicy, type AIRoutingPolicy } from "./ai-routing-policy.js";
 import {
@@ -176,7 +176,7 @@ export function createAIRouter(dependencies: AIRouterDependencies): AIRouter {
 export function createDefaultAIRouter(): AIRouter {
   return createAIRouter({
     policy: createConfiguredAIRoutingPolicy(),
-    adapters: [createGeminiAdapter()],
+    adapters: [createConfiguredAIAdapter()],
     routeConfigRepository: new PrismaAIRouteConfigRepository(prisma),
     telemetrySink: new PrismaAITelemetrySink(prisma),
   });

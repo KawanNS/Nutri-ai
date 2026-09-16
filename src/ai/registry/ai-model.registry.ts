@@ -1,7 +1,8 @@
 import type { AIRouterProvider } from "../ai-router.types.js";
 import type { AIModelPricing } from "../cost/ai-cost.js";
+import { env } from "../../config/env.js";
 
-export const GEMINI_MODELS = ["gemini-3.5-flash-lite"] as const;
+export const GEMINI_MODELS = [env.geminiModel] as const;
 
 export interface AIModelDefinition {
   provider: AIRouterProvider;
@@ -13,7 +14,7 @@ export interface AIModelDefinition {
 const MODEL_DEFINITIONS: readonly AIModelDefinition[] = Object.freeze([
   Object.freeze({
     provider: "GEMINI",
-    model: "gemini-3.5-flash-lite",
+    model: env.geminiModel,
     enabled: true,
     pricing: null,
   }),

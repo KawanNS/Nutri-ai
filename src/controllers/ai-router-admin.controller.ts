@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import { z } from "zod";
 
-import { createGeminiAdapter } from "../ai/adapters/gemini.adapter.js";
+import { createConfiguredAIAdapter } from "../ai/adapters/configured.adapter.js";
 import {
   aiAdminAuditQuerySchema,
   aiAdminUsageQuerySchema,
@@ -186,7 +186,7 @@ const productionControllers = createAIAdminControllers({
   ),
   queries: new PrismaAIAdminQueryService(prisma),
   providerSummaries: () =>
-    createAIProviderSummaries(providers, models, [createGeminiAdapter()]),
+    createAIProviderSummaries(providers, models, [createConfiguredAIAdapter()]),
   modelSummaries: () =>
     models.list().map((definition) => ({
       provider: definition.provider,
