@@ -231,6 +231,48 @@ test("ADMIN authorization is based on the database role", async (t) => {
     assert.equal(response.statusCode, null);
     assert.equal(nextCalls, 1);
   });
+
+  await t.test("Premium USER remains forbidden from administration", () => {
+    const response = createResponse();
+    let nextCalls = 0;
+    requireAdmin(
+      {
+        auth: {
+          userId: "premium-user-id",
+          role: "USER",
+          isPremium: true,
+          subscriptionId: "subscription-id",
+        },
+      },
+      response,
+      () => {
+        nextCalls += 1;
+      },
+    );
+    assert.equal(response.statusCode, 403);
+    assert.equal(nextCalls, 0);
+  });
+
+  await t.test("database-derived ADMIN needs no Premium or Subscription", () => {
+    const response = createResponse();
+    let nextCalls = 0;
+    requireAdmin(
+      {
+        auth: {
+          userId: "admin-id",
+          role: "ADMIN",
+          isPremium: false,
+          subscriptionId: null,
+        },
+      },
+      response,
+      () => {
+        nextCalls += 1;
+      },
+    );
+    assert.equal(response.statusCode, null);
+    assert.equal(nextCalls, 1);
+  });
 });
 
 test("missing persisted route resolves to the known default", async () => {
