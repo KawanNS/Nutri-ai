@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { AuthLayout } from '../components/AuthLayout'
 import { ApiError } from '../services/api'
 import { login } from '../services/authService'
-import { saveToken } from '../services/authToken'
+import { saveRole, saveToken } from '../services/authToken'
 
-interface LoginPageProps { initialEmail?: string; notice?: string; onAuthenticated(): void; onRegister(): void }
+interface LoginPageProps { initialEmail?: string; notice?: string; onAuthenticated(role: 'USER' | 'ADMIN'): void; onRegister(): void }
 
 export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegister }: LoginPageProps) {
   const [email, setEmail] = useState(initialEmail), [password, setPassword] = useState('')
@@ -12,7 +12,7 @@ export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegist
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (submitting) return
     setSubmitting(true); setError(null)
-    try { const response = await login({ email: email.trim(), password }); saveToken(response.token); onAuthenticated() }
+    try { const response = await login({ email: email.trim(), password }); saveToken(response.token); saveRole(response.user.role); onAuthenticated(response.user.role) }
     catch (requestError) { setError(requestError instanceof ApiError && requestError.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente novamente.') }
     finally { setSubmitting(false) }
   }
