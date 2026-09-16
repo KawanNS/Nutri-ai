@@ -30,6 +30,41 @@ interface CheckoutCorrelationDependencies {
   generateToken?: () => string;
 }
 
+interface ControlledCheckoutTransaction {
+  user: {
+    findUnique(args: {
+      where: { id: string };
+      select: { id: true; status: true };
+    }): Promise<{ id: string; status: "ACTIVE" | "BLOCKED" } | null>;
+  };
+  checkoutAttempt: CheckoutAttemptPersistence & {
+    findFirst(args: {
+      where: {
+        userId: string;
+        plan: SubscriptionPlan;
+        status: "PENDING";
+        expiresAt: { gt: Date };
+      };
+      select: { id: true };
+    }): Promise<{ id: string } | null>;
+  };
+}
+
+interface ControlledCheckoutClient {
+  $transaction<T>(
+    operation: (transaction: ControlledCheckoutTransaction) => Promise<T>,
+    options: { isolationLevel: "Serializable" },
+  ): Promise<T>;
+}
+
+interface CheckoutPreparationDependencies {
+  controlledEnabled?: boolean;
+  controlledUserId?: string;
+  client?: ControlledCheckoutClient;
+  now?: () => Date;
+  generateToken?: () => string;
+}
+
 export function generateCheckoutCorrelationToken(): string {
   return randomBytes(CORRELATION_TOKEN_BYTES).toString("base64url");
 }
@@ -90,11 +125,102 @@ export async function createCorrelatedCheckoutAttempt(
   };
 }
 
-export function prepareCheckout(_userId: string, plan: SubscriptionPlan): never {
-  getConfiguredCheckoutUrl(plan);
-  throw new BillingError(
-    503,
-    "CHECKOUT_CORRELATION_NOT_VERIFIED",
-    "Checkout is temporarily unavailable while secure account association is finalized",
+function isTransactionConflict(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2034"
   );
+}
+
+export async function prepareCheckout(
+  userId: string,
+  plan: SubscriptionPlan,
+  dependencies: CheckoutPreparationDependencies = {},
+) {
+  getConfiguredCheckoutUrl(plan);
+
+  const controlledEnabled =
+    dependencies.controlledEnabled ?? env.controlledCheckoutEnabled;
+  if (!controlledEnabled) {
+    throw new BillingError(
+      503,
+      "CHECKOUT_CORRELATION_NOT_VERIFIED",
+      "Checkout is temporarily unavailable while secure account association is finalized",
+    );
+  }
+
+  const controlledUserId =
+    dependencies.controlledUserId ?? env.controlledCheckoutUserId;
+  if (!controlledUserId || userId !== controlledUserId) {
+    throw new BillingError(
+      403,
+      "CONTROLLED_CHECKOUT_USER_NOT_ALLOWED",
+      "This account is not allowed to use the controlled checkout",
+    );
+  }
+
+  if (plan !== "MONTHLY") {
+    throw new BillingError(
+      403,
+      "CONTROLLED_CHECKOUT_MONTHLY_ONLY",
+      "Only the monthly plan is available for the controlled checkout",
+    );
+  }
+
+  const client: ControlledCheckoutClient =
+    dependencies.client ?? (prisma as unknown as ControlledCheckoutClient);
+  const now = dependencies.now?.() ?? new Date();
+
+  try {
+    return await client.$transaction(
+      async (transaction) => {
+        const user = await transaction.user.findUnique({
+          where: { id: userId },
+          select: { id: true, status: true },
+        });
+        if (!user) {
+          throw new BillingError(401, "AUTHENTICATED_USER_NOT_FOUND", "Authenticated user was not found");
+        }
+        if (user.status === "BLOCKED") {
+          throw new BillingError(403, "AUTHENTICATED_USER_BLOCKED", "Authenticated user is blocked");
+        }
+
+        const activeAttempt = await transaction.checkoutAttempt.findFirst({
+          where: {
+            userId: user.id,
+            plan: "MONTHLY",
+            status: "PENDING",
+            expiresAt: { gt: now },
+          },
+          select: { id: true },
+        });
+        if (activeAttempt) {
+          throw new BillingError(
+            409,
+            "ACTIVE_CHECKOUT_ATTEMPT_EXISTS",
+            "An active checkout attempt already exists",
+          );
+        }
+
+        const result = await createCorrelatedCheckoutAttempt(user.id, "MONTHLY", {
+          persistence: transaction.checkoutAttempt,
+          now: () => now,
+          generateToken: dependencies.generateToken,
+        });
+        return { checkoutUrl: result.checkoutUrl };
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch (error: unknown) {
+    if (isTransactionConflict(error)) {
+      throw new BillingError(
+        409,
+        "CHECKOUT_ATTEMPT_CONFLICT",
+        "A concurrent checkout attempt already exists",
+      );
+    }
+    throw error;
+  }
 }

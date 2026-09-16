@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 
 import {
   isSubscriptionPremium,
@@ -22,6 +23,7 @@ import {
 import { caktoCorrelationTokenSchema } from "../dist/schemas/cakto-webhook.schema.js";
 import { generateMealPlan } from "../dist/services/meal-plan-generation.service.js";
 import { checkoutBodySchema } from "../dist/schemas/billing.schema.js";
+import { checkoutController } from "../dist/controllers/billing.controller.js";
 
 const now = new Date("2026-09-03T12:00:00.000Z");
 const subscription = (overrides = {}) => ({
@@ -68,11 +70,188 @@ test("checkout plans resolve only to the trusted Cakto host", () => {
   }
 });
 
-test("checkout fails closed while account correlation is unverified", () => {
-  assert.throws(
-    () => prepareCheckout("user-a", "MONTHLY"),
+test("checkout fails closed while controlled mode is disabled", async () => {
+  await assert.rejects(
+    () => prepareCheckout("user-a", "MONTHLY", { controlledEnabled: false }),
     (error) => error.code === "CHECKOUT_CORRELATION_NOT_VERIFIED",
   );
+});
+
+function controlledCheckoutDatabase(options = {}) {
+  const state = {
+    attempts: [],
+    transactionCalls: 0,
+    transactionOptions: null,
+    subscriptionOperations: 0,
+  };
+  const client = {
+    async $transaction(operation, transactionOptions) {
+      state.transactionCalls += 1;
+      state.transactionOptions = transactionOptions;
+      if (options.transactionConflict) {
+        throw Object.assign(new Error("serialization conflict"), { code: "P2034" });
+      }
+      return operation({
+        user: {
+          findUnique: async () =>
+            Object.hasOwn(options, "user")
+              ? options.user
+              : { id: "authenticated-user", status: "ACTIVE" },
+        },
+        checkoutAttempt: {
+          findFirst: async () => options.activeAttempt ?? null,
+          create: async (args) => {
+            state.attempts.push(structuredClone(args));
+            return { id: "controlled-attempt" };
+          },
+        },
+      });
+    },
+  };
+  return { client, state };
+}
+
+test("controlled checkout creates one MONTHLY attempt from server-side configuration", async () => {
+  const database = controlledCheckoutDatabase();
+  const rawToken = "T".repeat(43);
+  const logCalls = [];
+  const originalInfo = console.info;
+  console.info = (...args) => logCalls.push(args);
+  try {
+    const result = await prepareCheckout("authenticated-user", "MONTHLY", {
+      controlledEnabled: true,
+      controlledUserId: "authenticated-user",
+      client: database.client,
+      now: () => now,
+      generateToken: () => rawToken,
+    });
+    const parsedUrl = new URL(result.checkoutUrl);
+    assert.equal(parsedUrl.origin, "https://pay.cakto.com.br");
+    assert.equal(parsedUrl.pathname, "/ugdtzm4_1082268");
+    assert.equal(parsedUrl.searchParams.get("sck"), rawToken);
+  } finally {
+    console.info = originalInfo;
+  }
+
+  assert.equal(database.state.transactionCalls, 1);
+  assert.deepEqual(database.state.transactionOptions, { isolationLevel: "Serializable" });
+  assert.equal(database.state.attempts.length, 1);
+  const persisted = database.state.attempts[0].data;
+  assert.equal(persisted.userId, "authenticated-user");
+  assert.equal(persisted.plan, "MONTHLY");
+  assert.equal(persisted.status, "PENDING");
+  assert.equal(persisted.token, hashCheckoutCorrelationToken(rawToken));
+  assert.notEqual(persisted.token, rawToken);
+  assert.equal(persisted.checkoutUrl.includes("sck"), false);
+  assert.equal(persisted.expiresAt.getTime(), now.getTime() + CHECKOUT_ATTEMPT_TTL_MS);
+  assert.deepEqual(logCalls, []);
+  assert.equal(database.state.subscriptionOperations, 0);
+});
+
+test("controlled checkout rejects non-MONTHLY plans before database access", async () => {
+  for (const plan of ["QUARTERLY", "ANNUAL"]) {
+    const database = controlledCheckoutDatabase();
+    await assert.rejects(
+      () => prepareCheckout("authenticated-user", plan, {
+        controlledEnabled: true,
+        controlledUserId: "authenticated-user",
+        client: database.client,
+      }),
+      (error) => error.code === "CONTROLLED_CHECKOUT_MONTHLY_ONLY",
+    );
+    assert.equal(database.state.transactionCalls, 0);
+    assert.equal(database.state.attempts.length, 0);
+  }
+});
+
+test("controlled checkout rechecks missing and BLOCKED users", async (t) => {
+  for (const [name, user, expectedCode] of [
+    ["missing", null, "AUTHENTICATED_USER_NOT_FOUND"],
+    ["blocked", { id: "authenticated-user", status: "BLOCKED" }, "AUTHENTICATED_USER_BLOCKED"],
+  ]) {
+    await t.test(name, async () => {
+      const database = controlledCheckoutDatabase({ user });
+      await assert.rejects(
+        () => prepareCheckout("authenticated-user", "MONTHLY", {
+          controlledEnabled: true,
+          controlledUserId: "authenticated-user",
+          client: database.client,
+        }),
+        (error) => error.code === expectedCode,
+      );
+      assert.equal(database.state.attempts.length, 0);
+    });
+  }
+});
+
+test("an active attempt or serialization collision creates no second attempt and has no retry", async (t) => {
+  await t.test("active attempt", async () => {
+    const database = controlledCheckoutDatabase({ activeAttempt: { id: "active" } });
+    await assert.rejects(
+      () => prepareCheckout("authenticated-user", "MONTHLY", {
+        controlledEnabled: true,
+        controlledUserId: "authenticated-user",
+        client: database.client,
+      }),
+      (error) => error.code === "ACTIVE_CHECKOUT_ATTEMPT_EXISTS",
+    );
+    assert.equal(database.state.attempts.length, 0);
+  });
+
+  await t.test("concurrent transaction conflict", async () => {
+    const database = controlledCheckoutDatabase({ transactionConflict: true });
+    await assert.rejects(
+      () => prepareCheckout("authenticated-user", "MONTHLY", {
+        controlledEnabled: true,
+        controlledUserId: "authenticated-user",
+        client: database.client,
+      }),
+      (error) => error.code === "CHECKOUT_ATTEMPT_CONFLICT",
+    );
+    assert.equal(database.state.transactionCalls, 1);
+    assert.equal(database.state.attempts.length, 0);
+  });
+});
+
+test("controlled checkout allows only the server-side selected account", async () => {
+  const database = controlledCheckoutDatabase();
+  await assert.rejects(
+    () => prepareCheckout("other-authenticated-user", "MONTHLY", {
+      controlledEnabled: true,
+      controlledUserId: "controlled-owner-user",
+      client: database.client,
+    }),
+    (error) => error.code === "CONTROLLED_CHECKOUT_USER_NOT_ALLOWED",
+  );
+  assert.equal(database.state.transactionCalls, 0);
+  assert.equal(database.state.attempts.length, 0);
+});
+
+test("checkout endpoint requires authenticated context and rejects frontend identity", async () => {
+  const response = {
+    statusCode: null,
+    body: null,
+    status(value) { this.statusCode = value; return this; },
+    json(value) { this.body = value; return this; },
+  };
+  await checkoutController(
+    { auth: undefined, body: { plan: "MONTHLY", userId: "frontend-user" } },
+    response,
+  );
+  assert.equal(response.statusCode, 401);
+  assert.equal(checkoutBodySchema.safeParse({ plan: "MONTHLY", userId: "frontend-user" }).success, false);
+});
+
+test("controlled checkout flag is server-only, defaults false, and requires literal true", async () => {
+  const [envSource, billingSource] = await Promise.all([
+    readFile("src/config/env.ts", "utf8"),
+    readFile("src/services/billing.service.ts", "utf8"),
+  ]);
+  assert.match(envSource, /NUTRI_CONTROLLED_CHECKOUT_ENABLED/);
+  assert.match(envSource, /NUTRI_CONTROLLED_CHECKOUT_USER_ID/);
+  assert.equal(envSource.includes("VITE_NUTRI_CONTROLLED_CHECKOUT_ENABLED"), false);
+  assert.match(envSource, /=== "true"/);
+  assert.equal(billingSource.includes("console."), false);
 });
 
 test("checkout correlation tokens are opaque, URL-safe, random, and contain no PII", () => {
@@ -152,6 +331,7 @@ test("checkout input rejects prices, URLs, and unknown plans from the frontend",
   assert.equal(checkoutBodySchema.safeParse({ plan: "MONTHLY" }).success, true);
   assert.equal(checkoutBodySchema.safeParse({ plan: "MONTHLY", price: 1 }).success, false);
   assert.equal(checkoutBodySchema.safeParse({ plan: "MONTHLY", checkoutUrl: "https://example.com" }).success, false);
+  assert.equal(checkoutBodySchema.safeParse({ plan: "MONTHLY", userId: "frontend-user" }).success, false);
   assert.equal(checkoutBodySchema.safeParse({ plan: "UNKNOWN" }).success, false);
 });
 

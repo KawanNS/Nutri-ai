@@ -52,7 +52,7 @@ export async function checkoutController(
   }
 
   try {
-    response.status(200).json(prepareCheckout(authenticatedUserId, input.data.plan));
+    response.status(200).json(await prepareCheckout(authenticatedUserId, input.data.plan));
   } catch (error: unknown) {
     handleBillingError(error, response);
   }
