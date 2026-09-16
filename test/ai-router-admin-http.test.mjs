@@ -254,6 +254,88 @@ test("usage query selects only telemetry fields and returns no PII", async () =>
   assert.equal(Object.hasOwn(findManyArguments.select, "email"), false);
 });
 
+test("usage summary remains consistent for every supported status filter", async (t) => {
+  const records = [
+    { success: true, task, provider: "GEMINI", model, startedAt: new Date("2026-09-10T12:00:00.000Z") },
+    { success: false, task, provider: "GEMINI", model, startedAt: new Date("2026-09-11T12:00:00.000Z") },
+    { success: true, task, provider: "GEMINI", model, startedAt: new Date("2026-08-10T12:00:00.000Z") },
+    { success: false, task, provider: "GEMINI", model, startedAt: new Date("2026-08-11T12:00:00.000Z") },
+  ];
+
+  function filtered(where) {
+    return records.filter((record) => {
+      if (where.success !== undefined && record.success !== where.success) return false;
+      if (where.task !== undefined && record.task !== where.task) return false;
+      if (where.provider !== undefined && record.provider !== where.provider) return false;
+      if (where.model !== undefined && record.model !== where.model) return false;
+      if (where.startedAt?.gte && record.startedAt < where.startedAt.gte) return false;
+      if (where.startedAt?.lte && record.startedAt > where.startedAt.lte) return false;
+      return true;
+    });
+  }
+
+  const service = new PrismaAIAdminQueryService({
+    aiUsageEvent: {
+      count: async ({ where }) => filtered(where).length,
+      aggregate: async () => ({
+        _sum: {
+          durationMs: 0,
+          inputTokens: null,
+          outputTokens: null,
+          totalTokens: null,
+          cachedInputTokens: null,
+          reasoningTokens: null,
+        },
+        _avg: { durationMs: null },
+      }),
+      findMany: async () => [],
+      groupBy: async () => [],
+    },
+    aiRouteAuditLog: { count: async () => 0, findMany: async () => [] },
+  });
+
+  for (const [name, query, expected] of [
+    ["without status", {}, { calls: 4, successfulCalls: 2, failedCalls: 2 }],
+    ["SUCCESS", { status: "SUCCESS" }, { calls: 2, successfulCalls: 2, failedCalls: 0 }],
+    ["FAILURE", { status: "FAILURE" }, { calls: 2, successfulCalls: 0, failedCalls: 2 }],
+    [
+      "empty filtered set",
+      { status: "FAILURE", from: "2026-10-01T00:00:00.000Z" },
+      { calls: 0, successfulCalls: 0, failedCalls: 0 },
+    ],
+    [
+      "FAILURE with additional filters",
+      {
+        status: "FAILURE",
+        task,
+        provider: "GEMINI",
+        model,
+        from: "2026-09-01T00:00:00.000Z",
+        to: "2026-09-30T23:59:59.999Z",
+      },
+      { calls: 1, successfulCalls: 0, failedCalls: 1 },
+    ],
+  ]) {
+    await t.test(name, async () => {
+      const result = await service.listUsage({ page: 1, limit: 20, ...query });
+      assert.deepEqual(
+        {
+          calls: result.summary.calls,
+          successfulCalls: result.summary.successfulCalls,
+          failedCalls: result.summary.failedCalls,
+        },
+        expected,
+      );
+      assert.ok(result.summary.successfulCalls >= 0);
+      assert.ok(result.summary.failedCalls >= 0);
+      assert.equal(
+        result.summary.successfulCalls + result.summary.failedCalls,
+        result.summary.calls,
+      );
+    });
+  }
+});
+
 test("cost summary distinguishes unknown cost from zero", async () => {
   let countCalls = 0;
   const service = new PrismaAIAdminQueryService({

@@ -93,9 +93,11 @@ export class PrismaAIAdminQueryService {
 
   async listUsage(query: AIAdminUsageQuery) {
     const where = usageWhere(query);
-    const [total, successfulCalls, aggregate, records] = await Promise.all([
+    const [total, countedSuccessfulCalls, aggregate, records] = await Promise.all([
       this.client.aiUsageEvent.count({ where }),
-      this.client.aiUsageEvent.count({ where: { ...where, success: true } }),
+      query.status === undefined
+        ? this.client.aiUsageEvent.count({ where: { ...where, success: true } })
+        : Promise.resolve(0),
       this.client.aiUsageEvent.aggregate({
         where,
         _sum: {
@@ -132,6 +134,8 @@ export class PrismaAIAdminQueryService {
         },
       }),
     ]);
+    const successfulCalls =
+      query.status === "SUCCESS" ? total : countedSuccessfulCalls;
 
     return {
       summary: {
