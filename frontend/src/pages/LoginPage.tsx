@@ -4,9 +4,9 @@ import { ApiError } from '../services/api'
 import { login } from '../services/authService'
 import { saveRole, saveToken } from '../services/authToken'
 
-interface LoginPageProps { initialEmail?: string; notice?: string; onAuthenticated(role: 'USER' | 'ADMIN'): void; onRegister(): void }
+interface LoginPageProps { initialEmail?: string; notice?: string; onAuthenticated(role: 'USER' | 'ADMIN'): void; onRegister(): void; onHome(): void }
 
-export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegister }: LoginPageProps) {
+export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegister, onHome }: LoginPageProps) {
   const [email, setEmail] = useState(initialEmail), [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false), [error, setError] = useState<string | null>(null)
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -19,10 +19,10 @@ export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegist
   return <AuthLayout eyebrow="Boas-vindas" title="Entre na sua conta" description="Use seus dados para acessar seu histórico.">
     {notice && <div className="notice notice--success" role="status">{notice}</div>}{error && <div className="notice notice--error" role="alert">{error}</div>}
     <form className="form auth-form" onSubmit={(event) => void handleSubmit(event)}>
-      <div className="field"><label htmlFor="login-email">E-mail</label><input id="login-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com"/></div>
-      <div className="field"><label htmlFor="login-password">Senha</label><input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha"/></div>
+      <div className="field"><label htmlFor="login-email">E-mail</label><input id="login-email" type="email" autoComplete="email" maxLength={254} required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com"/></div>
+      <div className="field"><label htmlFor="login-password">Senha</label><input id="login-password" type="password" autoComplete="current-password" maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha"/></div>
       <button className="button button--primary" type="submit" disabled={submitting}>{submitting ? 'Entrando…' : 'Entrar'}</button>
     </form>
-    <p className="auth-switch">Ainda não tem conta? <button type="button" onClick={onRegister}>Cadastre-se</button></p>
+    <p className="auth-switch">Ainda não tem conta? <button type="button" onClick={onRegister}>Cadastre-se</button><br/><button type="button" onClick={onHome}>Voltar ao início</button></p>
   </AuthLayout>
 }

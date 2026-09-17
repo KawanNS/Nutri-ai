@@ -2,11 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { FoodListField } from '../components/FoodListField'
 import { ApiError } from '../services/api'
 import { updateProfile } from '../services/profileService'
-import type { ActivityLevel, Goal, Profile, ProfilePayload, Sex } from '../types/profile'
+import type { ActivityLevel, Goal, Profile, ProfileOnboardingDraft, ProfilePayload, Sex } from '../types/profile'
 import { today } from '../utils/date'
 
 interface ProfilePageProps {
   profile?: Profile
+  draft?: ProfileOnboardingDraft
   required: boolean
   onSaved(profile: Profile, wasFirstProfile: boolean): void
   onMealPlan(): void
@@ -26,10 +27,10 @@ const goalOptions: Array<[Goal, string]> = [['WEIGHT_LOSS', 'Emagrecimento'], ['
 const activityOptions: Array<[ActivityLevel, string]> = [['SEDENTARY', 'Sedentário'], ['LIGHT', 'Levemente ativo'], ['MODERATE', 'Moderadamente ativo'], ['ACTIVE', 'Ativo'], ['VERY_ACTIVE', 'Muito ativo']]
 const listKeys = ['foodPreferences', 'likedFoods', 'dislikedFoods', 'foodRestrictions', 'foodAllergies'] as const
 
-function initialState(profile?: Profile): FormState {
+function initialState(profile?: Profile, draft?: ProfileOnboardingDraft): FormState {
   return {
     birthDate: profile?.birthDate.slice(0, 10) ?? '', sex: profile?.sex ?? '', heightCm: profile?.heightCm ?? '', weightKg: profile?.weightKg ?? '',
-    goal: profile?.goal ?? '', activityLevel: profile?.activityLevel ?? '', mealsPerDay: profile ? String(profile.mealsPerDay) : '', weeklyFoodBudget: profile?.weeklyFoodBudget ?? '',
+    goal: profile?.goal ?? draft?.goal ?? '', activityLevel: profile?.activityLevel ?? draft?.activityLevel ?? '', mealsPerDay: profile ? String(profile.mealsPerDay) : draft ? String(draft.mealsPerDay) : '', weeklyFoodBudget: profile?.weeklyFoodBudget ?? draft?.weeklyFoodBudget ?? '',
     foodPreferences: profile?.foodPreferences ?? [], likedFoods: profile?.likedFoods ?? [], dislikedFoods: profile?.dislikedFoods ?? [], foodRestrictions: profile?.foodRestrictions ?? [], foodAllergies: profile?.foodAllergies ?? [],
   }
 }
@@ -40,8 +41,8 @@ function validDecimal(value: string, maximum: number, allowZero = false): boolea
   return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) && number <= maximum
 }
 
-export function ProfilePage({ profile, required, onSaved, onMealPlan, onProgress, onLogout }: ProfilePageProps) {
-  const [form, setForm] = useState<FormState>(() => initialState(profile)), [saving, setSaving] = useState(false)
+export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onProgress, onLogout }: ProfilePageProps) {
+  const [form, setForm] = useState<FormState>(() => initialState(profile, draft)), [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}), [error, setError] = useState<string | null>(null), [success, setSuccess] = useState<string | null>(null)
   function change<K extends keyof FormState>(key: K, value: FormState[K]) { setForm((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: '' })) }
   function validate(): boolean {

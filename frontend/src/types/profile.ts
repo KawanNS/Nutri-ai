@@ -18,6 +18,11 @@ export interface ProfilePayload {
   foodAllergies: string[]
 }
 
+export type ProfileOnboardingDraft = Pick<
+  ProfilePayload,
+  'goal' | 'activityLevel' | 'mealsPerDay' | 'weeklyFoodBudget'
+>
+
 export interface Profile extends ProfilePayload {
   id: string
   userId: string
