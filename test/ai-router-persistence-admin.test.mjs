@@ -21,14 +21,15 @@ import {
 import { aiPersistedRouteUpdateInputSchema } from "../dist/ai/admin/ai-admin.contracts.js";
 
 const task = "MEAL_PLAN_GENERATION";
+const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 const defaultRoute = {
   task,
   provider: "GEMINI",
-  model: "gemini-3.5-flash-lite",
+  model: configuredModel,
 };
 const validUpdate = {
   provider: "GEMINI",
-  model: "gemini-3.5-flash-lite",
+  model: configuredModel,
   enabled: true,
   expectedVersion: 0,
 };

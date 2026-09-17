@@ -201,7 +201,7 @@ test("Gemini structured JSON mode returns a Zod-validated plan in one call", asy
   assert.equal(result.plan.days.length, 7);
   assert.equal(result.plan.days[0].meals.length, 3);
   assert.equal(result.plan.days[0].meals[0].suggestedTime, null);
-  assert.equal(request.model, "gemini-3.5-flash-lite");
+  assert.equal(request.model, process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite");
   assert.equal(request.config.responseMimeType, "application/json");
   assert.equal("responseJsonSchema" in request.config, false);
   assert.equal(request.config.responseSchema.type, "OBJECT");

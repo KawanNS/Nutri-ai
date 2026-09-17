@@ -19,10 +19,11 @@ import {
 import { createAIProviderRegistry } from "../dist/ai/registry/ai-provider.registry.js";
 import { InMemoryAITelemetrySink } from "../dist/ai/telemetry/ai-telemetry.js";
 
+const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 const defaultRoute = {
   task: "MEAL_PLAN_GENERATION",
   provider: "GEMINI",
-  model: "gemini-3.5-flash-lite",
+  model: configuredModel,
 };
 
 const request = {
@@ -68,7 +69,7 @@ function fakeAdapter(options = {}) {
 
 function createV2Router(adapter, options = {}) {
   return createAIRouter({
-    policy: createAIRoutingPolicy("gemini-3.5-flash-lite"),
+    policy: createAIRoutingPolicy(configuredModel),
     adapters: [adapter, ...(options.adapters ?? [])],
     routeConfigRepository: options.repository,
     telemetrySink: options.telemetrySink,
@@ -87,9 +88,9 @@ test("provider registry exposes Gemini as the only operational provider", () => 
 test("model registry contains only the approved Gemini model", () => {
   const registry = createAIModelRegistry();
   assert.deepEqual(registry.list("GEMINI").map((item) => item.model), [
-    "gemini-3.5-flash-lite",
+    configuredModel,
   ]);
-  assert.equal(isAllowedAIModel("GEMINI", "gemini-3.5-flash-lite"), true);
+  assert.equal(isAllowedAIModel("GEMINI", configuredModel), true);
   assert.equal(isAllowedAIModel("GEMINI", "gemini-unapproved"), false);
 });
 
@@ -248,7 +249,7 @@ test("missing and duplicate adapters fail closed", async (t) => {
   await t.test("missing", async () => {
     await assert.rejects(
       () => createAIRouter({
-        policy: createAIRoutingPolicy("gemini-3.5-flash-lite"),
+        policy: createAIRoutingPolicy(configuredModel),
         adapters: [],
       }).route(request),
       (error) =>
@@ -390,7 +391,7 @@ test("provider summary exposes status without credential fields", () => {
       configured: true,
       status: "ACTIVE",
       capabilities: ["STRUCTURED_JSON"],
-      allowedModels: ["gemini-3.5-flash-lite"],
+      allowedModels: [configuredModel],
     },
   ]);
   assert.equal(/apiKey|secret|token|credential|env/i.test(JSON.stringify(summaries)), false);
@@ -399,7 +400,7 @@ test("provider summary exposes status without credential fields", () => {
 
 test("route summary resolves the current effective route", async () => {
   const summaries = await createAIRouteSummaries(
-    createAIRoutingPolicy("gemini-3.5-flash-lite"),
+    createAIRoutingPolicy(configuredModel),
     new InMemoryAIRouteConfigRepository(),
     createAIProviderRegistry(),
     createAIModelRegistry(),

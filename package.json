@@ -8,6 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "smoke:ai-gateway": "node dist/scripts/smoke-ai-gateway.js",
+    "smoke:ai-gateway:error": "node dist/scripts/smoke-ai-gateway.js --auth-error-only",
     "test": "node --test test/*.test.mjs"
   },
   "keywords": [],

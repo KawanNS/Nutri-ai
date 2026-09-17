@@ -12,7 +12,7 @@ import { createAIAdminControllers } from "../dist/controllers/ai-router-admin.co
 import { createAdminRateLimit } from "../dist/middlewares/admin-rate-limit.middleware.js";
 
 const task = "MEAL_PLAN_GENERATION";
-const model = "gemini-3.5-flash-lite";
+const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 const route = {
   task,
   provider: "GEMINI",

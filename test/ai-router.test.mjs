@@ -9,10 +9,11 @@ import { AIRouterError } from "../dist/ai/ai-router.types.js";
 import { generateMealPlanWithAI } from "../dist/services/ai-provider.service.js";
 import { AIProviderError } from "../dist/services/ai-provider.types.js";
 
+const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 const route = {
   task: "MEAL_PLAN_GENERATION",
   provider: "GEMINI",
-  model: "gemini-3.5-flash-lite",
+  model: configuredModel,
 };
 
 const request = {
@@ -109,7 +110,7 @@ function fakeGemini(options = {}) {
 
 function routerWith(adapter, extra = {}) {
   return createAIRouter({
-    policy: createAIRoutingPolicy("gemini-3.5-flash-lite"),
+    policy: createAIRoutingPolicy(configuredModel),
     adapters: [adapter, ...(extra.adapters ?? [])],
     observe: extra.observe,
     now: extra.now,
@@ -124,7 +125,7 @@ test("MEAL_PLAN_GENERATION selects Gemini", async () => {
 });
 
 test("routing policy selects the current model", () => {
-  assert.equal(createAIRoutingPolicy("gemini-3.5-flash-lite").MEAL_PLAN_GENERATION.model, route.model);
+  assert.equal(createAIRoutingPolicy(configuredModel).MEAL_PLAN_GENERATION.model, route.model);
 });
 
 test("Gemini adapter receives the normalized request mapping", async () => {
