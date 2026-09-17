@@ -12,6 +12,15 @@ import { caktoWebhookRouter } from "./routes/cakto-webhook.routes.js";
 import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
 
 const app = express();
+app.disable("x-powered-by");
+
+app.use((_request, response, next) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-Frame-Options", "DENY");
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 
 app.use(
   cors({

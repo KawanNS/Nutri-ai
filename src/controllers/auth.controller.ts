@@ -1,14 +1,11 @@
 import type { Request, Response } from "express";
+import { loginBodySchema, registerBodySchema } from "../schemas/auth.schema.js";
 
 import {
   AuthError,
   login,
   register,
 } from "../services/auth.service.js";
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
 
 function handleError(error: unknown, response: Response): void {
   if (error instanceof AuthError) {
@@ -23,19 +20,14 @@ export async function registerController(
   request: Request,
   response: Response,
 ): Promise<void> {
-  const { name, email, password } = request.body as Record<string, unknown>;
-
-  if (
-    !isNonEmptyString(name) ||
-    !isNonEmptyString(email) ||
-    !isNonEmptyString(password)
-  ) {
-    response.status(400).json({ error: "Name, email and password are required" });
+  const input = registerBodySchema.safeParse(request.body);
+  if (!input.success) {
+    response.status(400).json({ error: "Invalid registration data", code: "INVALID_REGISTRATION_DATA" });
     return;
   }
 
   try {
-    const user = await register({ name, email, password });
+    const user = await register(input.data);
     response.status(201).json({ user });
   } catch (error: unknown) {
     handleError(error, response);
@@ -46,15 +38,14 @@ export async function loginController(
   request: Request,
   response: Response,
 ): Promise<void> {
-  const { email, password } = request.body as Record<string, unknown>;
-
-  if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
-    response.status(400).json({ error: "Email and password are required" });
+  const input = loginBodySchema.safeParse(request.body);
+  if (!input.success) {
+    response.status(400).json({ error: "Invalid login data", code: "INVALID_LOGIN_DATA" });
     return;
   }
 
   try {
-    const result = await login({ email, password });
+    const result = await login(input.data);
     response.status(200).json(result);
   } catch (error: unknown) {
     handleError(error, response);
