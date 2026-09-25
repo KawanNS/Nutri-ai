@@ -9,7 +9,7 @@ entitlement change, or Premium activation.
 | Step | Current classification | What exists today |
 |---|---|---|
 | Authenticated checkout request | IMPLEMENTED AND PRODUCTION | `POST /billing/checkout` validates one of three internal plans. |
-| Checkout response | IMPLEMENTED BUT FAIL-CLOSED | `prepareCheckout` always returns `CHECKOUT_CORRELATION_NOT_VERIFIED`; no hosted checkout URL is returned. |
+| Checkout response | IMPLEMENTED | `prepareCheckout` accepts an authenticated active user and a logical plan, validates server-side Cakto configuration, creates a short-lived correlated attempt, and returns the matching hosted checkout URL. |
 | CheckoutAttempt creation | IMPLEMENTED, NOT WIRED TO CONTROLLER | A tested helper generates a 32-byte Base64URL token, stores only SHA-256, sets 15-minute expiry, and can build a correlated URL. |
 | Controlled script | LOCAL, PROTECTED | Can call the helper under its own controls, but must not be run, changed, or promoted now. |
 | Hosted checkout and Cakto transaction | DEPENDS ON STAGING | No official staging URL or credentials exist locally. |

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { FoodListField } from '../components/FoodListField'
+import { BrandLogo } from '../components/BrandLogo'
 import { ApiError } from '../services/api'
 import { updateProfile } from '../services/profileService'
 import type { ActivityLevel, Goal, Profile, ProfileOnboardingDraft, ProfilePayload, Sex } from '../types/profile'
@@ -11,6 +12,7 @@ interface ProfilePageProps {
   required: boolean
   onSaved(profile: Profile, wasFirstProfile: boolean): void
   onMealPlan(): void
+  onChat(): void
   onProgress(): void
   onLogout(): void
 }
@@ -41,7 +43,7 @@ function validDecimal(value: string, maximum: number, allowZero = false): boolea
   return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) && number <= maximum
 }
 
-export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onProgress, onLogout }: ProfilePageProps) {
+export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onChat, onProgress, onLogout }: ProfilePageProps) {
   const [form, setForm] = useState<FormState>(() => initialState(profile, draft)), [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}), [error, setError] = useState<string | null>(null), [success, setSuccess] = useState<string | null>(null)
   function change<K extends keyof FormState>(key: K, value: FormState[K]) { setForm((current) => ({ ...current, [key]: value })); setFieldErrors((current) => ({ ...current, [key]: '' })) }
@@ -75,9 +77,9 @@ export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onP
     } finally { setSaving(false) }
   }
   const otherConflictLists = [...form.dislikedFoods, ...form.foodRestrictions, ...form.foodAllergies]
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></div><nav className="topbar__actions" aria-label="Navegação principal">{!required && <button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button>}<button className="nav-button nav-button--active" type="button">Perfil</button>{!required && <button className="nav-button" type="button" onClick={onProgress}>Evolução</button>}<button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
-    <main className="page profile-page"><div className="page-heading"><div><p className="eyebrow">Perfil nutricional</p><h1>{required ? 'Vamos conhecer você.' : 'Suas preferências, do seu jeito.'}</h1><p>{required ? 'Precisamos destes dados para personalizar sua experiência antes de liberar a evolução.' : 'Mantenha seus dados atualizados para recomendações mais alinhadas à sua rotina.'}</p></div></div>
-      {required && <div className="notice notice--info">Complete seu perfil para acessar a área de Evolução.</div>}{error && <div className="notice notice--error" role="alert">{error}</div>}{success && <div className="notice notice--success" role="status">{success}</div>}
+  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal">{!required && <button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button>}{!required && <button className="nav-button" type="button" onClick={onChat}>Assistente</button>}<button className="nav-button nav-button--active" type="button">Perfil</button>{!required && <button className="nav-button" type="button" onClick={onProgress}>Evolução</button>}<button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+    <main className="page profile-page"><div className="page-heading"><div><p className="eyebrow">Perfil nutricional</p><h1>{required ? 'Vamos conhecer você.' : 'Suas preferências, do seu jeito.'}</h1><p>{required ? 'Precisamos destes dados para preparar seu plano alimentar e acompanhar sua evolução.' : 'Mantenha seus dados atualizados para recomendações mais alinhadas à sua rotina.'}</p></div></div>
+      {required && <div className="notice notice--info">Complete os dados essenciais para gerar seu primeiro plano alimentar.</div>}{error && <div className="notice notice--error" role="alert">{error}</div>}{success && <div className="notice notice--success" role="status">{success}</div>}
       <form className="profile-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
         <section className="panel"><div className="panel__header"><div><h2>Dados pessoais</h2><p className="panel__subtitle">Informações essenciais para seus cálculos nutricionais.</p></div></div><div className="profile-fields">
           <div className="field"><label htmlFor="birthDate">Data de nascimento</label><input id="birthDate" type="date" max={today()} value={form.birthDate} onChange={(event) => change('birthDate', event.target.value)}/>{fieldErrors.birthDate && <span className="field-error">{fieldErrors.birthDate}</span>}</div>

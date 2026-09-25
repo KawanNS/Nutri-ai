@@ -10,6 +10,9 @@
     "start": "node dist/server.js",
     "smoke:ai-gateway": "node dist/scripts/smoke-ai-gateway.js",
     "smoke:ai-gateway:error": "node dist/scripts/smoke-ai-gateway.js --auth-error-only",
+    "smoke:meal-plan-real": "node dist/scripts/smoke-real-meal-plan.js",
+    "audit:cakto-order": "npm run build && node dist/scripts/audit-cakto-order.js",
+    "reconcile:cakto-order": "npm run build && node dist/scripts/reconcile-cakto-order.js",
     "test": "node --test test/*.test.mjs"
   },
   "keywords": [],

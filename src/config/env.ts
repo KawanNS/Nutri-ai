@@ -98,17 +98,14 @@ export const env = {
   get caktoWebhookSecret(): string {
     return requireEnvironmentVariable("CAKTO_WEBHOOK_SECRET");
   },
+  get caktoWebhookSecretOrNull(): string | null {
+    return process.env.CAKTO_WEBHOOK_SECRET?.trim() || null;
+  },
   get caktoApiBaseUrl(): string {
     return process.env.CAKTO_API_BASE_URL?.trim() || "https://api.cakto.com.br";
   },
   get caktoApiAccessToken(): string | null {
     return process.env.CAKTO_API_ACCESS_TOKEN?.trim() || null;
-  },
-  get controlledCheckoutEnabled(): boolean {
-    return process.env.NUTRI_CONTROLLED_CHECKOUT_ENABLED?.trim().toLowerCase() === "true";
-  },
-  get controlledCheckoutUserId(): string | null {
-    return process.env.NUTRI_CONTROLLED_CHECKOUT_USER_ID?.trim() || null;
   },
   caktoCheckoutUrls: {
     MONTHLY:

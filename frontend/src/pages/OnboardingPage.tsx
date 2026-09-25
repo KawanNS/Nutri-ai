@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrandLogo } from '../components/BrandLogo'
 import type { ActivityLevel, Goal, ProfileOnboardingDraft } from '../types/profile'
 
 interface Props {
@@ -32,7 +33,7 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
   const [weeklyFoodBudget, setWeeklyFoodBudget] = useState('')
   const complete = goal !== null && activityLevel !== null && mealsPerDay !== null && validBudget(weeklyFoodBudget)
 
-  return <div className="onboarding-page"><header className="landing-header"><div className="landing-nav"><button className="brand brand--button" type="button" onClick={onBack}><span className="brand__mark" aria-hidden="true">N</span><span>Nutri-AI</span></button><button className="nav-button" type="button" onClick={onBack}>Voltar</button></div></header>
+  return <div className="onboarding-page"><header className="landing-header"><div className="landing-nav"><button className="brand brand--button" type="button" onClick={onBack}><BrandLogo/></button><button className="nav-button" type="button" onClick={onBack}>Voltar</button></div></header>
     <main className="onboarding"><div className="onboarding-heading"><p className="eyebrow">Seu ponto de partida</p><h1>Monte a base do seu plano antes de criar a conta.</h1><p>Quatro respostas rápidas. Você completa os dados pessoais somente quando for salvar.</p></div>
       <section className="onboarding-question" aria-labelledby="onboarding-goal"><div><span>01</span><h2 id="onboarding-goal">Qual é seu objetivo?</h2></div><div className="onboarding-goals">{goals.map(([value, label, description]) => <button className={goal === value ? 'choice-card choice-card--selected' : 'choice-card'} type="button" aria-pressed={goal === value} key={value} onClick={() => setGoal(value)}><strong>{label}</strong><small>{description}</small></button>)}</div></section>
       <section className="onboarding-question" aria-labelledby="onboarding-activity"><div><span>02</span><h2 id="onboarding-activity">Como é sua rotina de atividade?</h2></div><div className="choice-chips">{activities.map(([value, label]) => <button className={activityLevel === value ? 'choice-chip choice-chip--selected' : 'choice-chip'} type="button" aria-pressed={activityLevel === value} key={value} onClick={() => setActivityLevel(value)}>{label}</button>)}</div></section>

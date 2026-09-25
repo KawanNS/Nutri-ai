@@ -9,6 +9,7 @@ export interface AIModelDefinition {
   model: string;
   enabled: boolean;
   pricing: AIModelPricing | null;
+  modalities: readonly ("TEXT" | "IMAGE")[];
 }
 
 const MODEL_DEFINITIONS: readonly AIModelDefinition[] = Object.freeze([
@@ -17,6 +18,7 @@ const MODEL_DEFINITIONS: readonly AIModelDefinition[] = Object.freeze([
     model: env.geminiModel,
     enabled: true,
     pricing: null,
+    modalities: Object.freeze(["TEXT", "IMAGE"] as const),
   }),
 ]);
 

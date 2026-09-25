@@ -263,7 +263,7 @@ test("unconfigured provider fails closed without external call", async () => {
 
 test("unknown task fails closed without provider call", async () => {
   const fake = fakeGemini();
-  await assert.rejects(() => routerWith(fake.adapter).route({ ...request, task: "NUTRITION_ASSISTANT" }), (error) =>
+  await assert.rejects(() => routerWith(fake.adapter).route({ ...request, task: "PRIVATE_UNKNOWN_TASK" }), (error) =>
     error instanceof AIRouterError && error.code === "AI_UNSUPPORTED_TASK");
   assert.equal(fake.calls(), 0);
 });

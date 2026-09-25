@@ -25,9 +25,8 @@ export function isSubscriptionPremium(
   subscription: Pick<SubscriptionAccessRecord, "status" | "currentPeriodEnd">,
   now = new Date(),
 ): boolean {
-  if (subscription.status === "ACTIVE") return true;
   return (
-    subscription.status === "CANCELED" &&
+    (subscription.status === "ACTIVE" || subscription.status === "CANCELED") &&
     subscription.currentPeriodEnd !== null &&
     subscription.currentPeriodEnd.getTime() > now.getTime()
   );

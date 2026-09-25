@@ -9,7 +9,10 @@ import {
   type AIRouterResponse,
   type AIUsage,
 } from "../ai-router.types.js";
-import { mealPlanResponseSchema } from "./gemini-response-schema.js";
+import {
+  mealPhotoResponseSchema,
+  mealPlanResponseSchema,
+} from "./gemini-response-schema.js";
 
 interface GeminiRouterResponse {
   text?: string;
@@ -28,11 +31,19 @@ export interface GeminiRouterClient {
   models: {
     generateContent(input: {
       model: string;
-      contents: string;
+      contents:
+        | string
+        | Array<{
+            role: "user";
+            parts: Array<
+              | { text: string }
+              | { inlineData: { mimeType: string; data: string } }
+            >;
+          }>;
       config: {
         systemInstruction: string;
-        responseMimeType: "application/json";
-        responseSchema: Schema;
+        responseMimeType?: "application/json";
+        responseSchema?: Schema;
         httpOptions: { timeout: number };
       };
     }): Promise<GeminiRouterResponse>;
@@ -102,6 +113,7 @@ export function normalizeGeminiAdapterError(error: unknown): AIRouterError {
 
 function responseSchemaFor(route: AIRoute): Schema {
   if (route.task === "MEAL_PLAN_GENERATION") return mealPlanResponseSchema;
+  if (route.task === "MEAL_PHOTO_ANALYSIS") return mealPhotoResponseSchema;
   throw new AIRouterError("AI_UNSUPPORTED_TASK", false, "AI task is not supported");
 }
 
@@ -135,13 +147,32 @@ export function createGeminiAdapter(
 
       const startedAt = dependencies.now();
       try {
+        const structuredConfig = request.responseFormat === "STRUCTURED_JSON"
+          ? {
+              responseMimeType: "application/json" as const,
+              responseSchema: responseSchemaFor(route),
+            }
+          : {};
+        const contents = request.image
+          ? [{
+              role: "user" as const,
+              parts: [
+                { text: request.input },
+                {
+                  inlineData: {
+                    mimeType: request.image.mimeType,
+                    data: Buffer.from(request.image.data).toString("base64"),
+                  },
+                },
+              ],
+            }]
+          : request.input;
         const response = await dependencies.createClient(dependencies.apiKey).models.generateContent({
           model: route.model,
-          contents: request.input,
+          contents,
           config: {
             systemInstruction: request.instructions,
-            responseMimeType: "application/json",
-            responseSchema: responseSchemaFor(route),
+            ...structuredConfig,
             httpOptions: { timeout: request.timeoutMs },
           },
         });

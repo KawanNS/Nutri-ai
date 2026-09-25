@@ -390,7 +390,7 @@ test("provider summary exposes status without credential fields", () => {
       operational: true,
       configured: true,
       status: "ACTIVE",
-      capabilities: ["STRUCTURED_JSON"],
+      capabilities: ["STRUCTURED_JSON", "TEXT", "IMAGE_INPUT"],
       allowedModels: [configuredModel],
     },
   ]);
@@ -405,7 +405,21 @@ test("route summary resolves the current effective route", async () => {
     createAIProviderRegistry(),
     createAIModelRegistry(),
   );
-  assert.deepEqual(summaries, [{ ...defaultRoute, enabled: true }]);
+  assert.deepEqual(summaries, [
+    { ...defaultRoute, enabled: true },
+    {
+      task: "NUTRITION_ASSISTANT",
+      provider: "GEMINI",
+      model: configuredModel,
+      enabled: true,
+    },
+    {
+      task: "MEAL_PHOTO_ANALYSIS",
+      provider: "GEMINI",
+      model: configuredModel,
+      enabled: true,
+    },
+  ]);
 });
 
 test("admin route DTO accepts only an allowed safe contract", () => {

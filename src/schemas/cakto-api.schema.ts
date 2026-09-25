@@ -49,8 +49,19 @@ export const caktoApiOrderTypeSchema = z.enum(["unique", "subscription"]);
 export const caktoApiProductReferenceSchema = z
   .object({
     id: caktoApiIdentifierSchema,
+    name: z.string().min(1).max(255).optional(),
+    price: z.number().finite().nonnegative().optional(),
   })
   .strip();
+
+const caktoApiOrderCustomerSchema = z.object({
+  email: z.email().optional(),
+}).strip();
+
+const caktoApiSubscriptionCustomerSchema = z.union([
+  caktoApiStringSchema,
+  z.object({ email: z.email() }).strip(),
+]);
 
 export const caktoApiOrderSchema = z
   .object({
@@ -59,6 +70,10 @@ export const caktoApiOrderSchema = z
     status: caktoApiOrderStatusSchema,
     type: caktoApiOrderTypeSchema,
     product: caktoApiProductReferenceSchema,
+    offer: caktoApiProductReferenceSchema.optional(),
+    paymentMethod: caktoApiIdentifierSchema.optional(),
+    amount: caktoApiDecimalStringSchema.optional(),
+    customer: caktoApiOrderCustomerSchema.optional(),
     checkout: caktoApiNullableIntegerSchema,
     subscription: caktoApiStringSchema.nullable().optional(),
     subscription_period: caktoApiNullableIntegerSchema,
@@ -122,7 +137,7 @@ export const caktoApiSubscriptionSchema = z
     amount: caktoApiDecimalStringSchema,
     parent_order: caktoApiStringSchema,
     paymentMethod: caktoApiStringSchema,
-    customer: caktoApiStringSchema,
+    customer: caktoApiSubscriptionCustomerSchema,
     product: caktoApiStringSchema,
     offer: caktoApiStringSchema,
     orders: z.array(caktoApiStringSchema),

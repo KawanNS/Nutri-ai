@@ -95,6 +95,7 @@ function fakeBillingClient(options = {}) {
       plan: "MONTHLY",
       status: "PENDING",
       token: hashCheckoutCorrelationToken(token),
+      expiresAt: new Date("2026-12-02T00:00:00Z"),
       completedAt: null,
     }]),
   };
@@ -230,6 +231,7 @@ test("subscription_renewed updates the authoritative period exactly once", async
   assert.equal(duplicate.remote.calls.length, 0);
   assert.equal(db.state.subscriptions.length, 1);
   assert.equal(db.state.subscriptions[0].currentPeriodEnd.toISOString(), "2026-11-10T12:00:00.000Z");
+  assert.equal(isSubscriptionPremium(db.state.subscriptions[0], new Date("2026-10-20T12:00:00Z")), true);
 });
 
 test("concurrent identical deliveries create one receipt and one Subscription", async () => {
@@ -336,6 +338,24 @@ test("out-of-order event is recorded but cannot regress a newer state", async ()
 
 test("invalid first correlation does not create Subscription", async () => {
   const db = fakeBillingClient({ attempts: [] });
+  const { result } = await deliver("purchase_approved", db);
+  assert.equal(result.pendingAssociation, true);
+  assert.equal(db.state.subscriptions.length, 0);
+  assert.equal(db.state.events[0].processingError, "CHECKOUT_ASSOCIATION_NOT_VERIFIED");
+});
+
+test("expired first CheckoutAttempt cannot create Subscription", async () => {
+  const db = fakeBillingClient({
+    attempts: [{
+      id: "attempt-1",
+      userId: "user-1",
+      plan: "MONTHLY",
+      status: "PENDING",
+      token: hashCheckoutCorrelationToken(token),
+      expiresAt: new Date("2026-11-30T23:59:59Z"),
+      completedAt: null,
+    }],
+  });
   const { result } = await deliver("purchase_approved", db);
   assert.equal(result.pendingAssociation, true);
   assert.equal(db.state.subscriptions.length, 0);

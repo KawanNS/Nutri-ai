@@ -103,3 +103,16 @@ export async function login(input: LoginInput) {
     user: publicUser,
   };
 }
+
+export async function getCurrentUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: publicUserSelect,
+  });
+
+  if (!user) {
+    throw new AuthError(401, "Invalid authentication token");
+  }
+
+  return user;
+}

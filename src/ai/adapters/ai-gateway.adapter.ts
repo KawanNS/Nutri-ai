@@ -31,8 +31,16 @@ export interface AIGatewayClient {
       create(
         input: {
           model: string;
-          messages: Array<{ role: "system" | "user"; content: string }>;
-          response_format: { type: "json_object" };
+          messages: Array<{
+            role: "system" | "user";
+            content:
+              | string
+              | Array<
+                  | { type: "text"; text: string }
+                  | { type: "image_url"; image_url: { url: string; detail: "auto" } }
+                >;
+          }>;
+          response_format?: { type: "json_object" };
           stream: false;
         },
         options: { timeout: number },
@@ -153,6 +161,18 @@ export function createAIGatewayAdapter(
 
       const startedAt = dependencies.now();
       try {
+        const userContent = request.image
+          ? [
+              { type: "text" as const, text: request.input },
+              {
+                type: "image_url" as const,
+                image_url: {
+                  url: `data:${request.image.mimeType};base64,${Buffer.from(request.image.data).toString("base64")}`,
+                  detail: "auto" as const,
+                },
+              },
+            ]
+          : request.input;
         const response = await dependencies
           .createClient(dependencies.config)
           .chat.completions.create(
@@ -160,9 +180,11 @@ export function createAIGatewayAdapter(
               model: route.model,
               messages: [
                 { role: "system", content: request.instructions },
-                { role: "user", content: request.input },
+                { role: "user", content: userContent },
               ],
-              response_format: { type: "json_object" },
+              ...(request.responseFormat === "STRUCTURED_JSON"
+                ? { response_format: { type: "json_object" as const } }
+                : {}),
               stream: false,
             },
             { timeout: request.timeoutMs },

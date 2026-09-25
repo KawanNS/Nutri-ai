@@ -1,4 +1,4 @@
-export type AIRouterTask = 'MEAL_PLAN_GENERATION'
+export type AIRouterTask = 'MEAL_PLAN_GENERATION' | 'NUTRITION_ASSISTANT' | 'MEAL_PHOTO_ANALYSIS'
 export type AIRouterProvider = 'GEMINI'
 
 export interface AdminRoute { task: AIRouterTask; provider: AIRouterProvider; model: string; enabled: boolean; source: 'DEFAULT' | 'PERSISTED'; version: number }

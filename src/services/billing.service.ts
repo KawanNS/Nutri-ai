@@ -6,6 +6,11 @@ import {
   getEffectiveSubscriptionAccess,
   serializeSubscriptionAccess,
 } from "./subscription.service.js";
+import {
+  getConfiguredCaktoPlanAllowlist,
+  type CaktoPlanAllowlist,
+  type CaktoProviderPlanIdentifiers,
+} from "./cakto-plan-mapping.service.js";
 
 export class BillingError extends Error {
   constructor(
@@ -58,11 +63,16 @@ interface ControlledCheckoutClient {
 }
 
 interface CheckoutPreparationDependencies {
-  controlledEnabled?: boolean;
-  controlledUserId?: string;
+  caktoConfiguration?: CaktoCheckoutConfiguration;
   client?: ControlledCheckoutClient;
   now?: () => Date;
   generateToken?: () => string;
+}
+
+interface CaktoCheckoutConfiguration {
+  planAllowlist: CaktoPlanAllowlist | null;
+  apiAccessTokenConfigured: boolean;
+  webhookSecretConfigured: boolean;
 }
 
 export function generateCheckoutCorrelationToken(): string {
@@ -88,6 +98,33 @@ export function getConfiguredCheckoutUrl(plan: SubscriptionPlan): string {
   }
 
   return parsed.toString();
+}
+
+function configuredCaktoCheckout(): CaktoCheckoutConfiguration {
+  return {
+    planAllowlist: getConfiguredCaktoPlanAllowlist(),
+    apiAccessTokenConfigured: env.caktoApiAccessToken !== null,
+    webhookSecretConfigured: env.caktoWebhookSecretOrNull !== null,
+  };
+}
+
+export function resolveCaktoCheckoutPlan(
+  plan: SubscriptionPlan,
+  configuration: CaktoCheckoutConfiguration = configuredCaktoCheckout(),
+): CaktoProviderPlanIdentifiers {
+  if (
+    configuration.planAllowlist === null ||
+    !configuration.apiAccessTokenConfigured ||
+    !configuration.webhookSecretConfigured
+  ) {
+    throw new BillingError(
+      503,
+      "CAKTO_CHECKOUT_NOT_CONFIGURED",
+      "Checkout is temporarily unavailable because billing is not fully configured",
+    );
+  }
+
+  return configuration.planAllowlist[plan];
 }
 
 export async function getSubscriptionForUser(userId: string) {
@@ -140,34 +177,7 @@ export async function prepareCheckout(
   dependencies: CheckoutPreparationDependencies = {},
 ) {
   getConfiguredCheckoutUrl(plan);
-
-  const controlledEnabled =
-    dependencies.controlledEnabled ?? env.controlledCheckoutEnabled;
-  if (!controlledEnabled) {
-    throw new BillingError(
-      503,
-      "CHECKOUT_CORRELATION_NOT_VERIFIED",
-      "Checkout is temporarily unavailable while secure account association is finalized",
-    );
-  }
-
-  const controlledUserId =
-    dependencies.controlledUserId ?? env.controlledCheckoutUserId;
-  if (!controlledUserId || userId !== controlledUserId) {
-    throw new BillingError(
-      403,
-      "CONTROLLED_CHECKOUT_USER_NOT_ALLOWED",
-      "This account is not allowed to use the controlled checkout",
-    );
-  }
-
-  if (plan !== "MONTHLY") {
-    throw new BillingError(
-      403,
-      "CONTROLLED_CHECKOUT_MONTHLY_ONLY",
-      "Only the monthly plan is available for the controlled checkout",
-    );
-  }
+  resolveCaktoCheckoutPlan(plan, dependencies.caktoConfiguration);
 
   const client: ControlledCheckoutClient =
     dependencies.client ?? (prisma as unknown as ControlledCheckoutClient);
@@ -190,7 +200,7 @@ export async function prepareCheckout(
         const activeAttempt = await transaction.checkoutAttempt.findFirst({
           where: {
             userId: user.id,
-            plan: "MONTHLY",
+            plan,
             status: "PENDING",
             expiresAt: { gt: now },
           },
@@ -204,7 +214,7 @@ export async function prepareCheckout(
           );
         }
 
-        const result = await createCorrelatedCheckoutAttempt(user.id, "MONTHLY", {
+        const result = await createCorrelatedCheckoutAttempt(user.id, plan, {
           persistence: transaction.checkoutAttempt,
           now: () => now,
           generateToken: dependencies.generateToken,

@@ -54,6 +54,21 @@ export interface CaktoApiClientOptions {
   maxResponseBytes?: number;
 }
 
+export interface CaktoOAuthClientCredentials {
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  fetchImplementation?: typeof fetch;
+  timeoutMs?: number;
+  maxResponseBytes?: number;
+}
+
+export interface CaktoOAuthAccess {
+  accessToken: string;
+  expiresIn: number;
+  scope: string;
+}
+
 function normalizeBaseUrl(value: string): string {
   let parsed: URL;
   try {
@@ -75,6 +90,13 @@ function normalizeBaseUrl(value: string): string {
 
   return parsed.origin;
 }
+
+const caktoOAuthResponseSchema = z.object({
+  access_token: z.string().min(1),
+  expires_in: z.number().int().positive(),
+  token_type: z.literal("Bearer"),
+  scope: z.string(),
+}).strip();
 
 function encodeResourceId(id: string): string {
   const normalized = id.trim();
@@ -130,6 +152,69 @@ async function readLimitedBody(response: Response, maxResponseBytes: number): Pr
     throw new CaktoApiError("CAKTO_API_RESPONSE_TOO_LARGE", response.status);
   }
   return new TextDecoder().decode(bytes);
+}
+
+export async function requestCaktoAccessToken(
+  options: CaktoOAuthClientCredentials,
+): Promise<CaktoOAuthAccess> {
+  const baseUrl = normalizeBaseUrl(options.baseUrl);
+  const clientId = options.clientId.trim();
+  const clientSecret = options.clientSecret.trim();
+  const fetchImplementation = options.fetchImplementation ?? globalThis.fetch;
+  const timeoutMs = options.timeoutMs ?? CAKTO_API_DEFAULT_TIMEOUT_MS;
+  const maxResponseBytes = options.maxResponseBytes ?? CAKTO_API_DEFAULT_MAX_RESPONSE_BYTES;
+
+  if (
+    !clientId ||
+    !clientSecret ||
+    typeof fetchImplementation !== "function" ||
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    !Number.isSafeInteger(maxResponseBytes) ||
+    maxResponseBytes <= 0
+  ) {
+    throw new CaktoApiError("INVALID_CAKTO_API_CONFIGURATION");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImplementation(`${baseUrl}/public_api/token/`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret }),
+      redirect: "error",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new CaktoApiError("CAKTO_API_HTTP_ERROR", response.status);
+    }
+    const body = await readLimitedBody(response, maxResponseBytes);
+    let json: unknown;
+    try {
+      json = JSON.parse(body);
+    } catch {
+      throw new CaktoApiError("CAKTO_API_INVALID_JSON", response.status);
+    }
+    const parsed = caktoOAuthResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new CaktoApiError("CAKTO_API_INVALID_RESPONSE", response.status);
+    }
+    return {
+      accessToken: parsed.data.access_token,
+      expiresIn: parsed.data.expires_in,
+      scope: parsed.data.scope,
+    };
+  } catch (error: unknown) {
+    if (error instanceof CaktoApiError) throw error;
+    if (isAbortError(error)) throw new CaktoApiError("CAKTO_API_TIMEOUT");
+    throw new CaktoApiError("CAKTO_API_UNAVAILABLE");
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function createCaktoApiClient(options: CaktoApiClientOptions): CaktoApiClient {

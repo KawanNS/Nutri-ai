@@ -94,25 +94,39 @@ enum CheckoutAttemptStatus {
   EXPIRED
 }
 
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum FoodEstimateConfidence {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model User {
-  id               String            @id @default(uuid()) @db.Uuid
-  name             String
-  email            String            @unique
-  passwordHash     String
-  status           UserStatus        @default(ACTIVE)
-  role             UserRole          @default(USER)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  profile          Profile?
-  usageControl     UsageControl?
-  usageEvents      UsageEvent[]
-  mealPlans        MealPlan[]
-  progressEntries  ProgressEntry[]
-  subscriptions    Subscription[]
-  checkoutAttempts CheckoutAttempt[]
-  aiRoutesUpdated  AiRouteConfig[]   @relation("AiRouteUpdatedBy")
-  aiRouteChanges   AiRouteAuditLog[] @relation("AiRouteChangedBy")
-  aiPricingCreated AiModelPricing[]  @relation("AiPricingCreatedBy")
+  id                String             @id @default(uuid()) @db.Uuid
+  name              String
+  email             String             @unique
+  passwordHash      String
+  status            UserStatus         @default(ACTIVE)
+  role              UserRole           @default(USER)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  profile           Profile?
+  usageControl      UsageControl?
+  usageEvents       UsageEvent[]
+  mealPlans         MealPlan[]
+  progressEntries   ProgressEntry[]
+  subscriptions     Subscription[]
+  checkoutAttempts  CheckoutAttempt[]
+  aiRoutesUpdated   AiRouteConfig[]    @relation("AiRouteUpdatedBy")
+  aiRouteChanges    AiRouteAuditLog[]  @relation("AiRouteChangedBy")
+  aiPricingCreated  AiModelPricing[]   @relation("AiPricingCreatedBy")
+  chatConversations ChatConversation[]
+  foodLogs          FoodLog[]
 }
 
 model ProgressEntry {
@@ -255,6 +269,66 @@ model MealPlan {
 
   @@unique([usageEventId, userId])
   @@index([userId, createdAt])
+}
+
+model ChatConversation {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt(sort: Desc), id(sort: Desc)])
+}
+
+model ChatMessage {
+  id             String           @id @default(uuid()) @db.Uuid
+  conversationId String           @db.Uuid
+  role           ChatMessageRole
+  content        String           @db.Text
+  createdAt      DateTime         @default(now())
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt, id])
+}
+
+model FoodLog {
+  id                         String        @id @default(uuid()) @db.Uuid
+  userId                     String        @db.Uuid
+  consumedAt                 DateTime      @default(now())
+  estimatedCaloriesKcal      Decimal?      @db.Decimal(8, 2)
+  estimatedProteinGrams      Decimal?      @db.Decimal(8, 2)
+  estimatedCarbohydrateGrams Decimal?      @db.Decimal(8, 2)
+  estimatedFatGrams          Decimal?      @db.Decimal(8, 2)
+  notes                      String?       @db.VarChar(1000)
+  uncertaintyNotes           String[]      @default([])
+  confirmedAt                DateTime      @default(now())
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+  user                       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                      FoodLogItem[]
+
+  @@index([userId, consumedAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model FoodLogItem {
+  id                         String                 @id @default(uuid()) @db.Uuid
+  foodLogId                  String                 @db.Uuid
+  position                   Int
+  name                       String                 @db.VarChar(120)
+  portionDescription         String                 @db.VarChar(240)
+  estimatedCaloriesKcal      Decimal?               @db.Decimal(8, 2)
+  estimatedProteinGrams      Decimal?               @db.Decimal(8, 2)
+  estimatedCarbohydrateGrams Decimal?               @db.Decimal(8, 2)
+  estimatedFatGrams          Decimal?               @db.Decimal(8, 2)
+  confidence                 FoodEstimateConfidence @default(UNKNOWN)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  foodLog                    FoodLog                @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+
+  @@unique([foodLogId, position])
+  @@index([foodLogId])
 }
 
 model AiRouteConfig {

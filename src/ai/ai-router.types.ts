@@ -1,14 +1,26 @@
-export const AI_TASKS = ["MEAL_PLAN_GENERATION"] as const;
+export const AI_TASKS = [
+  "MEAL_PLAN_GENERATION",
+  "NUTRITION_ASSISTANT",
+  "MEAL_PHOTO_ANALYSIS",
+] as const;
 export const AI_ROUTER_PROVIDERS = ["GEMINI"] as const;
 
 export type AITask = (typeof AI_TASKS)[number];
 export type AIRouterProvider = (typeof AI_ROUTER_PROVIDERS)[number];
 
+export type AIImageMimeType = "image/jpeg" | "image/png" | "image/webp";
+
+export interface AIImageInput {
+  mimeType: AIImageMimeType;
+  data: Uint8Array;
+}
+
 export interface AIRouterRequest {
   task: string;
   instructions: string;
   input: string;
-  responseFormat: "STRUCTURED_JSON";
+  image?: AIImageInput;
+  responseFormat: "STRUCTURED_JSON" | "TEXT";
   timeoutMs: number;
 }
 

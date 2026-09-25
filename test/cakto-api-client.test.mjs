@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CaktoApiError,
   createCaktoApiClient,
+  requestCaktoAccessToken,
 } from "../dist/services/cakto-api.service.js";
 
 const accessToken = "synthetic-access-token";
@@ -43,6 +44,67 @@ function jsonResponse(value, init = {}) {
     ...init,
   });
 }
+
+test("Cakto OAuth exchanges client credentials as form data without an Authorization header", async () => {
+  let received;
+  const result = await requestCaktoAccessToken({
+    baseUrl: "https://api.cakto.com.br",
+    clientId: "synthetic-client-id",
+    clientSecret: "synthetic-client-secret",
+    fetchImplementation: async (url, init) => {
+      received = { url, init };
+      return jsonResponse({
+        access_token: "synthetic-jwt-access-token",
+        expires_in: 36_000,
+        token_type: "Bearer",
+        scope: "read orders subscriptions offers",
+      });
+    },
+  });
+
+  assert.equal(received.url, "https://api.cakto.com.br/public_api/token/");
+  assert.equal(received.init.method, "POST");
+  assert.equal(received.init.headers["Content-Type"], "application/x-www-form-urlencoded");
+  assert.equal("Authorization" in received.init.headers, false);
+  assert.equal(received.init.body.get("client_id"), "synthetic-client-id");
+  assert.equal(received.init.body.get("client_secret"), "synthetic-client-secret");
+  assert.deepEqual(result, {
+    accessToken: "synthetic-jwt-access-token",
+    expiresIn: 36_000,
+    scope: "read orders subscriptions offers",
+  });
+});
+
+test("Cakto OAuth rejects missing credentials and invalid token responses without a request retry", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () => requestCaktoAccessToken({
+      baseUrl: "https://api.cakto.com.br",
+      clientId: "",
+      clientSecret: "",
+      fetchImplementation: async () => {
+        calls += 1;
+        return jsonResponse({});
+      },
+    }),
+    { code: "INVALID_CAKTO_API_CONFIGURATION" },
+  );
+  assert.equal(calls, 0);
+
+  await assert.rejects(
+    () => requestCaktoAccessToken({
+      baseUrl: "https://api.cakto.com.br",
+      clientId: "synthetic-client-id",
+      clientSecret: "synthetic-client-secret",
+      fetchImplementation: async () => {
+        calls += 1;
+        return jsonResponse({ access_token: "unsafe-incomplete-response" });
+      },
+    }),
+    { code: "CAKTO_API_INVALID_RESPONSE", providerStatus: 200 },
+  );
+  assert.equal(calls, 1);
+});
 
 test("Cakto API client uses only documented GET resource URLs and Bearer authentication", async () => {
   const requests = [];
@@ -249,18 +311,19 @@ test("Cakto API client rejects schema-invalid JSON", async () => {
   });
 });
 
-test("Cakto API client returns validated data and strips unrelated provider PII", async () => {
+test("Cakto API client preserves only the validated customer email needed for correlation", async () => {
   const client = createCaktoApiClient({
     baseUrl: "https://api.cakto.com.br",
     accessToken,
     fetchImplementation: async () => jsonResponse({
       ...order,
-      customer: { email: "synthetic-user@example.invalid" },
+      customer: { email: "synthetic-user@example.invalid", phone: "must-be-stripped" },
     }),
   });
   const result = await client.getOrder(order.id);
   assert.equal(result.id, order.id);
-  assert.equal("customer" in result, false);
+  assert.deepEqual(result.customer, { email: "synthetic-user@example.invalid" });
+  assert.equal("phone" in result.customer, false);
 });
 
 test("Cakto API client enforces response size from headers and actual bytes", async () => {

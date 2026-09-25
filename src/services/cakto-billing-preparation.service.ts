@@ -319,7 +319,7 @@ export type PreparedCaktoBillingEffect =
       action: CaktoBillingEffectAction;
       orderId: string;
       providerSubscriptionId: string;
-      providerCustomerId: string;
+      providerCustomerId: string | null;
       providerProductId: string;
       providerOfferId: string;
       plan: SubscriptionPlan;
@@ -479,7 +479,7 @@ export async function prepareCaktoBillingEffect(
       action,
       orderId: order.id,
       providerSubscriptionId: subscription.id,
-      providerCustomerId: subscription.customer,
+      providerCustomerId: typeof subscription.customer === "string" ? subscription.customer : null,
       providerProductId: subscription.product,
       providerOfferId: subscription.offer,
       plan,

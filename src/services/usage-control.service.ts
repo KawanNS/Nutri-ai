@@ -81,7 +81,7 @@ export async function reserveUsage(
       where: {
         userId,
         OR: [
-          { status: "ACTIVE" },
+          { status: "ACTIVE", currentPeriodEnd: { gt: new Date() } },
           { status: "CANCELED", currentPeriodEnd: { gt: new Date() } },
         ],
       },

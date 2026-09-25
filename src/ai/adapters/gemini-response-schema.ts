@@ -2,6 +2,7 @@ import { Type, type Schema } from "@google/genai";
 import { z, type ZodType } from "zod";
 
 import { generatedMealPlanSchema } from "../../schemas/meal-plan.schema.js";
+import { mealPhotoAnalysisSchema } from "../../schemas/meal-photo.schema.js";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -90,4 +91,8 @@ export function toGeminiResponseSchema(schema: ZodType): Schema {
 
 export const mealPlanResponseSchema = toGeminiResponseSchema(
   generatedMealPlanSchema,
+);
+
+export const mealPhotoResponseSchema = toGeminiResponseSchema(
+  mealPhotoAnalysisSchema,
 );

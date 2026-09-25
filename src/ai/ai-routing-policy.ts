@@ -10,6 +10,16 @@ export function createAIRoutingPolicy(geminiModel: string): AIRoutingPolicy {
       provider: "GEMINI",
       model: geminiModel,
     }),
+    NUTRITION_ASSISTANT: Object.freeze({
+      task: "NUTRITION_ASSISTANT",
+      provider: "GEMINI",
+      model: geminiModel,
+    }),
+    MEAL_PHOTO_ANALYSIS: Object.freeze({
+      task: "MEAL_PHOTO_ANALYSIS",
+      provider: "GEMINI",
+      model: geminiModel,
+    }),
   });
 }
 

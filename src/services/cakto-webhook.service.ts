@@ -205,6 +205,7 @@ type BillingTransaction = {
       userId: string;
       plan: "MONTHLY" | "QUARTERLY" | "ANNUAL";
       status: "PENDING" | "COMPLETED" | "EXPIRED";
+      expiresAt: Date;
     } | null>;
     update(args: unknown): Promise<unknown>;
   };
@@ -345,9 +346,14 @@ async function applyPreparedEffect(
     }
     const attempt = await transaction.checkoutAttempt.findUnique({
       where: { token: effect.correlationTokenHash },
-      select: { id: true, userId: true, plan: true, status: true },
+      select: { id: true, userId: true, plan: true, status: true, expiresAt: true },
     });
-    if (!attempt || attempt.status !== "PENDING" || attempt.plan !== effect.plan) {
+    if (
+      !attempt ||
+      attempt.status !== "PENDING" ||
+      attempt.plan !== effect.plan ||
+      attempt.expiresAt.getTime() <= now.getTime()
+    ) {
       await markEvent(transaction, eventId, { processingError: "CHECKOUT_ASSOCIATION_NOT_VERIFIED" });
       return { processed: false, ignored: false, reason: "CHECKOUT_ASSOCIATION_NOT_VERIFIED" };
     }

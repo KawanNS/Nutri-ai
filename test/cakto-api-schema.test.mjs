@@ -37,6 +37,24 @@ const minimumOrder = {
   product: { id: "product-id" },
 };
 
+test("Cakto API order preserves documented audit identifiers without accepting unknown data", () => {
+  const parsed = caktoApiOrderSchema.parse({
+    ...minimumOrder,
+    product: { id: "product-id", name: "Nutri-AI Mensal", price: 19.9 },
+    offer: { id: "offer-id", name: "Mensal", price: 19.9, ignored: "removed" },
+    paymentMethod: "pix",
+    amount: "19.90",
+    customer: { email: "owner@example.com", phone: "removed" },
+    ignored: "removed",
+  });
+  assert.deepEqual(parsed.product, { id: "product-id", name: "Nutri-AI Mensal", price: 19.9 });
+  assert.deepEqual(parsed.offer, { id: "offer-id", name: "Mensal", price: 19.9 });
+  assert.equal(parsed.paymentMethod, "pix");
+  assert.equal(parsed.amount, "19.90");
+  assert.deepEqual(parsed.customer, { email: "owner@example.com" });
+  assert.equal("ignored" in parsed, false);
+});
+
 const minimumOffer = {
   id: "offer-id",
   name: "Offer name",
@@ -238,6 +256,19 @@ test("Cakto API subscription accepts a complete documented response", () => {
     canceledAt: null,
   };
   assert.deepEqual(caktoApiSubscriptionSchema.parse(completeSubscription), completeSubscription);
+});
+
+test("Cakto API subscription accepts the observed customer object and retains only email", () => {
+  const parsed = caktoApiSubscriptionSchema.parse({
+    ...minimumSubscription,
+    customer: {
+      name: "Discarded",
+      email: "owner@example.com",
+      phone: "discarded",
+      docNumber: "discarded",
+    },
+  });
+  assert.deepEqual(parsed.customer, { email: "owner@example.com" });
 });
 
 test("Cakto API subscription requires every documented required field", () => {

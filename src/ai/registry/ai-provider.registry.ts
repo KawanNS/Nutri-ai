@@ -9,7 +9,7 @@ export interface AIProviderDefinition {
   provider: AIRouterProvider;
   displayName: string;
   operational: boolean;
-  capabilities: readonly "STRUCTURED_JSON"[];
+  capabilities: readonly ("STRUCTURED_JSON" | "TEXT" | "IMAGE_INPUT")[];
 }
 
 const PROVIDER_DEFINITIONS: Readonly<
@@ -19,7 +19,7 @@ const PROVIDER_DEFINITIONS: Readonly<
     provider: "GEMINI",
     displayName: "Gemini",
     operational: true,
-    capabilities: Object.freeze(["STRUCTURED_JSON"] as const),
+    capabilities: Object.freeze(["STRUCTURED_JSON", "TEXT", "IMAGE_INPUT"] as const),
   }),
 });
 

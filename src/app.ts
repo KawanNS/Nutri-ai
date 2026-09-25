@@ -10,6 +10,8 @@ import { usageControlRouter } from "./routes/usage-control.routes.js";
 import { billingRouter } from "./routes/billing.routes.js";
 import { caktoWebhookRouter } from "./routes/cakto-webhook.routes.js";
 import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
+import { chatRouter } from "./routes/chat.routes.js";
+import { mealPhotoRouter } from "./routes/meal-photo.routes.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -18,7 +20,7 @@ app.use((_request, response, next) => {
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
   response.setHeader("Referrer-Policy", "no-referrer");
-  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
   next();
 });
 
@@ -43,6 +45,8 @@ app.use("/api/profile", profileRouter);
 app.use("/api/progress", progressRouter);
 app.use("/api/usage", usageControlRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/chat", chatRouter);
+app.use("/api/meal-photo", mealPhotoRouter);
 app.use("/api/admin/ai-router", aiRouterAdminRouter);
 app.use("/webhooks/cakto", caktoWebhookRouter);
 

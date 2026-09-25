@@ -1,8 +1,10 @@
 import type { Request, Response } from "express";
+import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 import { loginBodySchema, registerBodySchema } from "../schemas/auth.schema.js";
 
 import {
   AuthError,
+  getCurrentUser,
   login,
   register,
 } from "../services/auth.service.js";
@@ -47,6 +49,23 @@ export async function loginController(
   try {
     const result = await login(input.data);
     response.status(200).json(result);
+  } catch (error: unknown) {
+    handleError(error, response);
+  }
+}
+
+export async function currentUserController(
+  request: AuthenticatedRequest,
+  response: Response,
+): Promise<void> {
+  if (!request.auth?.userId) {
+    response.status(401).json({ error: "Authentication is required" });
+    return;
+  }
+
+  try {
+    const user = await getCurrentUser(request.auth.userId);
+    response.status(200).json({ user });
   } catch (error: unknown) {
     handleError(error, response);
   }
