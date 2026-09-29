@@ -34,6 +34,13 @@ function assertNoSensitiveData(value, ...privateValues) {
   }
 }
 
+function errorResponse(status, error) {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 test("gateway readiness succeeds without making a paid generation request", async () => {
   let receivedUrl = "";
   let receivedAuthorization = "";
@@ -124,6 +131,94 @@ for (const status of [404, 429, 500]) {
     assertNoSensitiveData({ result, diagnostics });
   });
 }
+
+test("gateway HTTP 502 logs only allowlisted safe JSON error fields", async () => {
+  const diagnostics = [];
+  const result = await checkAIReadiness({
+    gatewayConfig,
+    fetchGateway: async () => errorResponse(502, {
+      type: "upstream_error",
+      code: "bad_gateway",
+      status: 502,
+      message: "Model catalog is temporarily unavailable",
+      ignored: "upstream body must not be logged",
+    }),
+    logDiagnostic: (event) => diagnostics.push(event),
+    now: sequenceClock(600, 611),
+  });
+
+  assert.equal(result.code, "AI_GATEWAY_UNAVAILABLE");
+  assert.deepEqual(diagnostics, [{
+    operation: "MODEL_CATALOG",
+    durationMs: 11,
+    category: "UPSTREAM_STATUS",
+    upstreamStatus: 502,
+    safeErrorType: "upstream_error",
+    safeErrorCode: "bad_gateway",
+    safeErrorStatus: 502,
+    safeErrorMessage: "Model catalog is temporarily unavailable",
+  }]);
+  assertNoSensitiveData({ result, diagnostics }, "upstream body must not be logged");
+});
+
+test("gateway HTTP 502 redacts a sensitive upstream message", async () => {
+  const diagnostics = [];
+  const privateMessage = `Authorization Bearer ${gatewayConfig.apiKey}`;
+  const result = await checkAIReadiness({
+    gatewayConfig,
+    fetchGateway: async () => errorResponse(502, {
+      type: "gateway_error",
+      code: "upstream_rejected",
+      status: 502,
+      message: privateMessage,
+    }),
+    logDiagnostic: (event) => diagnostics.push(event),
+    now: sequenceClock(700, 704),
+  });
+
+  assert.equal(result.code, "AI_GATEWAY_UNAVAILABLE");
+  assert.equal(diagnostics[0].safeErrorMessage, "REDACTED");
+  assertNoSensitiveData({ result, diagnostics }, privateMessage);
+});
+
+test("gateway non-JSON error body is never logged", async () => {
+  const diagnostics = [];
+  const rawBody = `Bad Gateway with token ${gatewayConfig.apiKey}`;
+  const result = await checkAIReadiness({
+    gatewayConfig,
+    fetchGateway: async () => new Response(rawBody, { status: 502 }),
+    logDiagnostic: (event) => diagnostics.push(event),
+    now: sequenceClock(800, 806),
+  });
+
+  assert.equal(result.code, "AI_GATEWAY_UNAVAILABLE");
+  assert.equal(diagnostics[0].safeErrorMessage, "REDACTED");
+  assertNoSensitiveData({ result, diagnostics }, rawBody);
+});
+
+test("gateway oversized error body is discarded before JSON parsing", async () => {
+  const diagnostics = [];
+  const oversizedMessage = "x".repeat(17_000);
+  const result = await checkAIReadiness({
+    gatewayConfig,
+    fetchGateway: async () => errorResponse(502, {
+      type: "gateway_error",
+      message: oversizedMessage,
+    }),
+    logDiagnostic: (event) => diagnostics.push(event),
+    now: sequenceClock(900, 908),
+  });
+
+  assert.equal(result.code, "AI_GATEWAY_UNAVAILABLE");
+  assert.deepEqual(diagnostics, [{
+    operation: "MODEL_CATALOG",
+    durationMs: 8,
+    category: "UPSTREAM_STATUS",
+    upstreamStatus: 502,
+    safeErrorMessage: "REDACTED",
+  }]);
+  assert.equal(JSON.stringify(diagnostics).includes(oversizedMessage), false);
+});
 
 test("gateway timeout logs only the sanitized timeout category", async () => {
   const diagnostics = [];
