@@ -2,6 +2,10 @@ import cors from "cors";
 import express from "express";
 
 import { env } from "./config/env.js";
+import {
+  createReadinessController,
+  livenessController,
+} from "./controllers/health.controller.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { mealPlanRouter } from "./routes/meal-plan.routes.js";
 import { profileRouter } from "./routes/profile.routes.js";
@@ -35,9 +39,8 @@ app.use(
 );
 app.use(express.json());
 
-app.get("/health", (_request, response) => {
-  response.status(200).json({ status: "ok" });
-});
+app.get("/health", livenessController);
+app.get("/ready", createReadinessController());
 
 app.use("/auth", authRouter);
 app.use("/api/meal-plans", mealPlanRouter);

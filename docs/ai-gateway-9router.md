@@ -40,3 +40,45 @@ SDK e sem expor credenciais ou conteudo em telemetria.
 
 O dominio real, DNS/tunnel e a rotacao da chave exigem acao humana e nao devem ser
 inferidos nem automatizados sem autorizacao.
+
+## Operacao local
+
+O 9Router e uma dependencia externa do backend. O backend nao inicia, encerra ou
+reinicia esse processo. Isso evita processos duplicados ou orfaos e preserva a
+separacao entre o ciclo de vida da aplicacao e o do gateway.
+
+Inicie uma unica instancia local em um terminal supervisionado:
+
+```powershell
+9router --host 127.0.0.1 --no-browser --log --skip-update
+```
+
+Mantenha o terminal aberto durante o desenvolvimento e encerre com `Ctrl+C`. Nao
+use launchers adicionais se a porta `20128` ja estiver ocupada. O comando restringe
+o listener a loopback, nao abre navegador e nao altera as variaveis do Nutri-AI.
+
+O backend oferece dois checks distintos:
+
+- `GET /health`: liveness do processo HTTP; nao chama banco, gateway ou provider.
+- `GET /ready`: readiness de IA. Quando o gateway esta configurado, consulta
+  `GET /v1/models` com timeout curto e sem gerar conteudo pago. Retorna `200` quando
+  pronto e `503` com codigo sanitizado quando o gateway esta inacessivel ou rejeita
+  autenticacao.
+
+Falha de readiness nao encerra o backend: auth, perfil, historico e demais rotas
+continuam disponiveis. Chamadas de IA permanecem fail-closed e retornam os erros
+publicos sanitizados ja definidos por Plano, Assistente e Foto.
+
+## Local versus producao
+
+- Local com `AI_GATEWAY_BASE_URL` em loopback: o desenvolvedor inicia o 9Router
+  separadamente e usa `/ready` antes de testar IA.
+- Sem o par `AI_GATEWAY_*`: o adapter Gemini direto continua sendo selecionado e
+  readiness verifica somente se sua configuracao server-side esta presente.
+- Producao com gateway: a URL deve ser HTTPS e apontar para um gateway remotamente
+  acessivel pelo backend. `127.0.0.1` so funcionaria se ambos estivessem no mesmo
+  host/container, o que nao deve ser presumido.
+
+Este repositorio nao possui manifesto do Render nem comprova os valores atualmente
+instalados no servico hospedado. A configuracao real de producao deve ser verificada
+no secret store e no health check do ambiente, sem copiar ou imprimir credenciais.
