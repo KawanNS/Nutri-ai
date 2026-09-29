@@ -62,6 +62,6 @@ function App() {
   if (view === 'chat' && getToken() && profile) return <ChatPage onMealPlan={() => setView('meal-plan')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
   if (view === 'meal-photo' && getToken() && profile) return <MealPhotoPage onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
   if (view === 'progress' && getToken() && profile) return <ProgressPage notice={progressNotice} onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onProfile={() => { setProgressNotice(undefined); setView('profile') }} onLogout={logout}/>
-  return <LoginPage initialEmail={loginEmail} notice={loginNotice} onHome={() => setView('landing')} onAuthenticated={() => { setLoginNotice(undefined); setView('checking-profile'); void restoreAuthenticatedSession() }} onRegister={() => { setLoginNotice(undefined); setView('register') }}/>
+  return <LoginPage initialEmail={loginEmail} notice={loginNotice} onHome={() => setView('landing')} onAuthenticated={(role) => { setLoginNotice(undefined); if (role === 'ADMIN') { setView('admin'); return } setView('checking-profile'); void loadProfile() }} onRegister={() => { setLoginNotice(undefined); setView('register') }}/>
 }
 export default App
