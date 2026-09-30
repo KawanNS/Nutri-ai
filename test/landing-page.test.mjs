@@ -2,50 +2,65 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("public landing page presents only implemented Nutri-AI capabilities", async () => {
-  const [app, page, onboarding, profile, brand, plans, paywall] = await Promise.all([
+test("public landing presents the real product without fabricated social proof", async () => {
+  const [app, page, showcase, styles, plans, paywall, mealPhoto, chat, progress, onboarding, profile, brand] = await Promise.all([
     readFile("frontend/src/App.tsx", "utf8"),
     readFile("frontend/src/pages/LandingPage.tsx", "utf8"),
+    readFile("frontend/src/components/landing/PhoneShowcase.tsx", "utf8"),
+    readFile("frontend/src/pages/LandingPage.css", "utf8"),
+    readFile("frontend/src/data/subscriptionPlans.ts", "utf8"),
+    readFile("frontend/src/components/Paywall.tsx", "utf8"),
+    readFile("frontend/src/pages/MealPhotoPage.tsx", "utf8"),
+    readFile("frontend/src/pages/ChatPage.tsx", "utf8"),
+    readFile("frontend/src/pages/ProgressPage.tsx", "utf8"),
     readFile("frontend/src/pages/OnboardingPage.tsx", "utf8"),
     readFile("frontend/src/pages/ProfilePage.tsx", "utf8"),
     readFile("frontend/src/components/BrandLogo.tsx", "utf8"),
-    readFile("frontend/src/data/subscriptionPlans.ts", "utf8"),
-    readFile("frontend/src/components/Paywall.tsx", "utf8"),
   ]);
+
   assert.match(app, /view === 'landing'/);
-  for (const implemented of ["sete dias", "lista de compras", "Histórico de peso", "Três gerações gratuitas"]) {
-    assert.equal(page.includes(implemented), true, implemented);
+  assert.match(app, /onStart=\{\(\) => setView\('onboarding'\)\}/);
+
+  for (const link of ["Início", "Funcionalidades", "Como funciona", "Planos", "FAQ"]) {
+    assert.equal(page.includes(link), true, link);
   }
-  for (const unsupportedClaim of ["chatbot", "foto do prato", "áudio", "clientes satisfeitos", "perdi kg", "emagreci kg"]) {
-    assert.equal(page.toLowerCase().includes(unsupportedClaim), false, unsupportedClaim);
-  }
-  assert.match(page, /\['Depoimentos', '#depoimentos'\]/);
-  assert.match(page, /<section[^>]+id="depoimentos"/i);
-  assert.match(page, /Conteúdo demonstrativo/);
-  assert.match(page, /Nenhuma fala abaixo é atribuída a uma pessoa real/);
-  assert.match(page, /Exemplo demonstrativo/);
-  assert.doesNotMatch(page, /Histórias reais,<br\/><em>resultados reais/);
-  assert.match(page, /não substituem orientação individual/);
-  assert.match(page, /Comece sem cadastro/);
-  assert.match(page, /className="landing-benefits"/);
-  assert.match(page, /Do seu objetivo/);
-  assert.match(page, /Conte seus objetivos/);
-  assert.match(page, /Receba seu plano/);
-  assert.match(page, /Acompanhe e evolua/);
-  assert.match(page, /Mais do que dietas/);
-  assert.match(page, /DIFFERENTIALS_FOOD_PHOTO/);
-  assert.match(page, /hero-food-photo\.png/);
-  assert.match(page, /differentials-food-photo\.png/);
-  assert.match(page, /<BrandLogo className="landing-brand-logo"\/>/);
-  assert.doesNotMatch(page, /brand__mark|FOTOGRAFIA OFICIAL|Fotografia oficial/);
-  assert.match(brand, /nutri-ai-logo\.png/);
-  assert.match(brand, /nutri-ai-symbol\.png/);
-  assert.equal((page.match(/onClick=\{onStart\}/g) ?? []).length, 4);
-  assert.equal((page.match(/onClick=\{onLogin\}/g) ?? []).length, 3);
+  assert.match(page, /Sua alimentação/);
+  assert.match(page, /cabe na sua vida/);
+  assert.match(page, /Plano alimentar personalizado/);
+  assert.match(page, /Foto do prato/);
+  assert.match(page, /Assistente/);
+  assert.match(page, /Evolução/);
+  assert.match(page, /<PhoneShowcase\/>/);
+
+  assert.match(mealPhoto, /analyzeMealPhoto/);
+  assert.match(chat, /sendChatMessage/);
+  assert.match(progress, /createProgress/);
+  assert.doesNotMatch(page.toLowerCase(), /depoimento|clientes satisfeitos|estrelas|perdi kg|emagreci kg/);
+  assert.doesNotMatch(page, /<video|<iframe/);
+  assert.match(page, /não substitui orientação de nutricionista ou profissional de saúde/);
+
+  assert.match(page, /aria-expanded=\{open\}/);
+  assert.match(page, /aria-controls=\{menuId\}/);
+  assert.match(page, /aria-expanded=\{isOpen\}/);
+  assert.match(page, /role="region"/);
+  assert.match(page, /public-mobile-menu/);
+
+  for (const stage of [
+    "public-phone-screen--home",
+    "public-phone-screen--camera",
+    "public-phone-screen--analysis",
+    "public-phone-screen--success",
+  ]) assert.match(showcase, new RegExp(stage));
+  assert.match(showcase, /Analisando sua refeição/);
+  assert.match(showcase, /Refeição registrada/);
+  assert.match(styles, /9\.6s/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /animation: none !important/);
+  assert.match(styles, /overflow-x: clip/);
+
   for (const commercialValue of ["Nutri-AI Mensal", "R$ 19,90", "Nutri-AI Trimestral", "R$ 49,90", "Nutri-AI Anual", "R$ 159,90"]) {
     assert.equal(plans.includes(commercialValue), true, commercialValue);
   }
-  assert.match(page, /subscriptionPlans\.map/);
   for (const verifiedPremiumFeature of [
     "Gerações liberadas durante a assinatura",
     "Plano personalizado de 7 dias",
@@ -55,18 +70,15 @@ test("public landing page presents only implemented Nutri-AI capabilities", asyn
   ]) {
     assert.equal(plans.includes(verifiedPremiumFeature), true, verifiedPremiumFeature);
   }
+  assert.match(page, /subscriptionPlans\.map/);
   assert.match(page, /premiumFeatures\.map/);
-  assert.match(page, /<section className="landing-faq" id="faq"/);
-  assert.match(page, /faqItems\.map/);
-  assert.match(page, /<details key=\{item\.question\}>/);
-  assert.match(page, /não realiza diagnóstico, tratamento ou prescrição clínica/);
-  assert.doesNotMatch(page, /Política de Privacidade|Termos de uso|reembolso garantido/);
-  assert.match(page, /className="landing-final-cta"/);
-  assert.match(page, /Começar agora gratuitamente/);
-  assert.match(page, /className="landing-footer"/);
-  assert.match(page, /Navegação do rodapé/);
-  assert.match(paywall, /subscriptionPlans\.map/);
-  assert.equal((page.match(/onClick=\{onRegister\}/g) ?? []).length, 1);
+  assert.match(paywall, /startCheckout/);
+  assert.doesNotMatch(page, /startCheckout/);
+  assert.match(page, /checkout seguro é apresentado somente depois que você entra na sua conta/);
+  assert.match(page, /Nenhum pagamento é realizado nesta página/);
+
+  assert.match(brand, /nutri-ai-logo\.png/);
+  assert.match(brand, /nutri-ai-symbol\.png/);
   assert.match(app, /view === 'onboarding'/);
   assert.match(app, /setOnboardingDraft\(draft\)/);
   assert.match(profile, /draft\?\.goal/);
