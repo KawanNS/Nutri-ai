@@ -5,6 +5,7 @@ import {
   generateMealPlan,
   MealPlanGenerationError,
 } from "../dist/services/meal-plan-generation.service.js";
+import { generateMealPlanWithAI } from "../dist/services/ai-provider.service.js";
 import { MealPlanError } from "../dist/services/meal-plan.service.js";
 import { AIProviderError } from "../dist/services/ai-provider.types.js";
 import { validateGeneratedMealPlan } from "../dist/schemas/meal-plan.schema.js";
@@ -24,6 +25,10 @@ const profileSnapshot = {
   dislikedFoods: [],
   foodRestrictions: [],
   foodAllergies: [],
+};
+const preparedContext = {
+  profileSnapshot,
+  prompt: { instructions: "prepared instructions", input: "prepared input" },
 };
 
 const createdEvent = {
@@ -45,7 +50,7 @@ function createDependencies(overrides = {}) {
   const dependencies = {
     prepare: async () => {
       calls.prepare += 1;
-      return { profileSnapshot, prompt: { instructions: "", input: "" } };
+      return preparedContext;
     },
     reserve: async () => {
       calls.reserve += 1;
@@ -103,7 +108,14 @@ test("missing profile does not reserve or call OpenAI", async () => {
 });
 
 test("valid generation calls OpenAI once and consumes the reservation", async () => {
-  const { calls, dependencies } = createDependencies();
+  let receivedContext;
+  const { calls, dependencies } = createDependencies({
+    generate: async (context) => {
+      calls.generate += 1;
+      receivedContext = context;
+      return { plan: { valid: true }, model: "mock-model", responseId: "resp-1" };
+    },
+  });
   const result = await generateMealPlan("user-a", "key", dependencies);
 
   assert.equal(result.outcome, "CREATED");
@@ -111,6 +123,7 @@ test("valid generation calls OpenAI once and consumes the reservation", async ()
   assert.equal(result.usage.freeUsesReserved, 0);
   assert.equal(calls.generate, 1);
   assert.equal(calls.persist, 1);
+  assert.strictEqual(receivedContext, preparedContext);
 });
 
 test("AI provider failure fails the pending reservation without consuming usage", async () => {
@@ -164,6 +177,32 @@ test("invalid structured response is rejected by Zod and releases usage", async 
   assert.equal(calls.persist, 0);
   assert.equal(calls.fail, 1);
   assert.deepEqual(state, { status: "FAILED", consumed: 0, reserved: 0 });
+});
+
+test("unvalidated AI output never reaches persistence", async () => {
+  const { calls, dependencies } = createDependencies({
+    generate: (context) => generateMealPlanWithAI(context, {
+      router: {
+        route: async () => ({
+          content: JSON.stringify({ invalid: true }),
+          provider: "GEMINI",
+          model: "gemini-test",
+          latencyMs: 1,
+          usage: {},
+          finishReason: "STOP",
+          requestId: null,
+        }),
+        health: () => [],
+      },
+    }),
+  });
+
+  await assert.rejects(
+    () => generateMealPlan("user-a", "key", dependencies),
+    (error) => error instanceof AIProviderError && error.code === "AI_INVALID_RESPONSE",
+  );
+  assert.equal(calls.persist, 0);
+  assert.equal(calls.fail, 1);
 });
 
 test("no available usage prevents an OpenAI call", async () => {

@@ -4,9 +4,8 @@ import {
   type AIRouter,
   type AIRouterProvider,
 } from "../ai/ai-router.types.js";
-import { buildMealPlanPrompt } from "../prompts/meal-plan.prompt.js";
 import { validateGeneratedMealPlan } from "../schemas/meal-plan.schema.js";
-import type { ProfileSnapshot } from "./meal-plan.service.js";
+import type { MealPlanGenerationContext } from "./meal-plan.service.js";
 import { AIProviderError, type GeneratedMealPlanWithAI } from "./ai-provider.types.js";
 
 interface AIProviderDependencies {
@@ -57,10 +56,10 @@ function toPublicProviderError(error: unknown): AIProviderError {
 }
 
 async function generateThroughRouter(
-  profileSnapshot: ProfileSnapshot,
+  context: MealPlanGenerationContext,
   router: AIRouter,
 ): Promise<GeneratedMealPlanWithAI> {
-  const prompt = buildMealPlanPrompt(profileSnapshot);
+  const { profileSnapshot, prompt } = context;
 
   try {
     const response = await router.route({
@@ -103,10 +102,10 @@ async function generateThroughRouter(
 }
 
 export function generateMealPlanWithAI(
-  profileSnapshot: ProfileSnapshot,
+  context: MealPlanGenerationContext,
   dependencies?: AIProviderDependencies,
 ): Promise<GeneratedMealPlanWithAI> {
-  return generateThroughRouter(profileSnapshot, dependencies?.router ?? createDefaultAIRouter());
+  return generateThroughRouter(context, dependencies?.router ?? createDefaultAIRouter());
 }
 
 export type { AIProviderDependencies };

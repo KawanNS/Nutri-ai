@@ -6,6 +6,7 @@ import { createGeminiAdapter } from "../dist/ai/adapters/gemini.adapter.js";
 import { createAIRouter } from "../dist/ai/ai-router.js";
 import { createAIRoutingPolicy } from "../dist/ai/ai-routing-policy.js";
 import { AIRouterError } from "../dist/ai/ai-router.types.js";
+import { buildMealPlanPrompt } from "../dist/prompts/meal-plan.prompt.js";
 import { generateMealPlanWithAI } from "../dist/services/ai-provider.service.js";
 import { AIProviderError } from "../dist/services/ai-provider.types.js";
 
@@ -72,6 +73,10 @@ const profileSnapshot = {
   dislikedFoods: [],
   foodRestrictions: [],
   foodAllergies: [],
+};
+const generationContext = {
+  profileSnapshot,
+  prompt: buildMealPlanPrompt(profileSnapshot),
 };
 
 function fakeGemini(options = {}) {
@@ -146,7 +151,7 @@ test("Gemini response is normalized without exposing SDK objects", async () => {
 });
 
 test("structured output still passes JSON and Zod validation through the meal-plan entry point", async () => {
-  const result = await generateMealPlanWithAI(profileSnapshot, {
+  const result = await generateMealPlanWithAI(generationContext, {
     router: routerWith(fakeGemini().adapter),
   });
   assert.equal(result.plan.days.length, 7);
@@ -186,7 +191,7 @@ test("empty provider response is blocked", async () => {
 test("schema failure is blocked and preserves the public error contract", async () => {
   const fake = fakeGemini({ response: { text: JSON.stringify({ invalid: true }) } });
   await assert.rejects(
-    () => generateMealPlanWithAI(profileSnapshot, { router: routerWith(fake.adapter) }),
+    () => generateMealPlanWithAI(generationContext, { router: routerWith(fake.adapter) }),
     (error) => error instanceof AIProviderError && error.code === "AI_INVALID_RESPONSE" && error.statusCode === 502,
   );
 });
@@ -194,7 +199,7 @@ test("schema failure is blocked and preserves the public error contract", async 
 test("malformed JSON is blocked and preserves the public error contract", async () => {
   const fake = fakeGemini({ response: { text: "{not-json" } });
   await assert.rejects(
-    () => generateMealPlanWithAI(profileSnapshot, { router: routerWith(fake.adapter) }),
+    () => generateMealPlanWithAI(generationContext, { router: routerWith(fake.adapter) }),
     (error) => error instanceof AIProviderError && error.code === "AI_INVALID_RESPONSE" && error.statusCode === 502,
   );
   assert.equal(fake.calls(), 1);

@@ -4,9 +4,14 @@ import test from "node:test";
 import { ApiError, GenerateContentResponse } from "@google/genai";
 
 import { env } from "../dist/config/env.js";
+import { buildMealPlanPrompt } from "../dist/prompts/meal-plan.prompt.js";
 import { generateMealPlanWithAI } from "../dist/services/ai-provider.service.js";
 import { AIProviderError } from "../dist/services/ai-provider.types.js";
 import { generateMealPlanWithGemini } from "../dist/services/gemini.service.js";
+import {
+  MealPlanError,
+  persistMealPlanAndConfirmUsage,
+} from "../dist/services/meal-plan.service.js";
 import {
   generateMealPlanBodySchema,
   validateGeneratedMealPlan,
@@ -27,6 +32,10 @@ const profileSnapshot = {
   dislikedFoods: [],
   foodRestrictions: [],
   foodAllergies: [],
+};
+const generationContext = {
+  profileSnapshot,
+  prompt: buildMealPlanPrompt(profileSnapshot),
 };
 
 function validMealPlan() {
@@ -131,7 +140,7 @@ test("shopping-list food items enforce the strict documented contract", async (t
 test("AI provider facade sends meal-plan generation through the Router", async () => {
   let routerCalls = 0;
   let request;
-  const result = await generateMealPlanWithAI(profileSnapshot, {
+  const result = await generateMealPlanWithAI(generationContext, {
     router: {
       route: async (input) => {
         routerCalls += 1;
@@ -153,6 +162,66 @@ test("AI provider facade sends meal-plan generation through the Router", async (
   assert.equal(result.provider, "gemini");
   assert.equal(routerCalls, 1);
   assert.equal(request.task, "MEAL_PLAN_GENERATION");
+  assert.equal(request.instructions, generationContext.prompt.instructions);
+  assert.equal(request.input, generationContext.prompt.input);
+});
+
+test("meal-plan prompt is built only during preparation and reused by the provider", async () => {
+  const source = await import("node:fs/promises");
+  const [mealPlanService, provider] = await Promise.all([
+    source.readFile("src/services/meal-plan.service.ts", "utf8"),
+    source.readFile("src/services/ai-provider.service.ts", "utf8"),
+  ]);
+
+  assert.equal((mealPlanService.match(/buildMealPlanPrompt\(/g) ?? []).length, 1);
+  assert.equal(provider.includes("buildMealPlanPrompt"), false);
+  assert.match(provider, /const \{ profileSnapshot, prompt \} = context/);
+});
+
+test("AI output crosses provider and defensive persistence Zod boundaries", async () => {
+  const source = await import("node:fs/promises");
+  const [provider, mealPlanService] = await Promise.all([
+    source.readFile("src/services/ai-provider.service.ts", "utf8"),
+    source.readFile("src/services/meal-plan.service.ts", "utf8"),
+  ]);
+
+  assert.equal((provider.match(/validateGeneratedMealPlan\(/g) ?? []).length, 1);
+  assert.equal((mealPlanService.match(/validateGeneratedMealPlan\(/g) ?? []).length, 1);
+  assert.match(mealPlanService, /generatedPlan: unknown/);
+});
+
+test("direct persistence rejects an invalid plan before database access", async () => {
+  await assert.rejects(
+    () => persistMealPlanAndConfirmUsage({
+      userId: "user-a",
+      usageEventId: "event-1",
+      generatedPlan: { invalid: true },
+      profileSnapshot,
+      model: "gemini-test",
+      promptVersion: "meal-plan-v1",
+    }),
+    (error) =>
+      error instanceof MealPlanError &&
+      error.code === "INVALID_GENERATED_MEAL_PLAN" &&
+      error.statusCode === 502,
+  );
+});
+
+test("valid plan passes defensive persistence validation", async () => {
+  await assert.rejects(
+    () => persistMealPlanAndConfirmUsage({
+      userId: "user-a",
+      usageEventId: "event-1",
+      generatedPlan: validMealPlan(),
+      profileSnapshot,
+      model: " ",
+      promptVersion: "meal-plan-v1",
+    }),
+    (error) =>
+      error instanceof MealPlanError &&
+      error.code === "INVALID_GENERATION_METADATA" &&
+      error.statusCode === 500,
+  );
 });
 
 test("legacy AI_PROVIDER does not override the Router V1 decision", async () => {

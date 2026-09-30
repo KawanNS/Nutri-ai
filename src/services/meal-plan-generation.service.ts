@@ -85,7 +85,7 @@ export async function generateMealPlan(
   }
 
   try {
-    const generated = await dependencies.generate(context.profileSnapshot);
+    const generated = await dependencies.generate(context);
     const result = await dependencies.persist({
       userId,
       usageEventId: reservation.event.id,
