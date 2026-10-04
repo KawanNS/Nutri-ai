@@ -1,5 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { AuthLayout } from '../components/AuthLayout'
+import { PasswordField } from '../components/auth/PasswordField'
+import { Alert } from '../components/ui/Alert'
+import { Button } from '../components/ui/Button'
+import { FormField } from '../components/ui/FormField'
 import { ApiError } from '../services/api'
 import { register } from '../services/authService'
 
@@ -15,14 +19,65 @@ export function RegisterPage({ onLogin, onRegistered, onHome }: RegisterPageProp
     catch (requestError) { setError(requestError instanceof ApiError && requestError.status === 409 ? 'Este e-mail já está cadastrado.' : 'Não foi possível criar sua conta agora. Tente novamente.') }
     finally { setSubmitting(false) }
   }
-  return <AuthLayout eyebrow="Comece agora" title="Crie sua conta" description="Preencha seus dados para começar a acompanhar sua evolução.">
-    {error && <div className="notice notice--error" role="alert">{error}</div>}
-    <form className="form auth-form" onSubmit={(event) => void handleSubmit(event)}>
-      <div className="field"><label htmlFor="register-name">Nome</label><input id="register-name" autoComplete="name" minLength={2} maxLength={120} required value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome"/></div>
-      <div className="field"><label htmlFor="register-email">E-mail</label><input id="register-email" type="email" autoComplete="email" maxLength={254} required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com"/></div>
-      <div className="field"><label htmlFor="register-password">Senha</label><input id="register-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Crie uma senha com pelo menos 8 caracteres"/></div>
-      <button className="button button--primary" type="submit" disabled={submitting}>{submitting ? 'Criando conta…' : 'Criar conta'}</button>
+  return <AuthLayout
+    eyebrow="Comece no seu ritmo"
+    title="Crie sua conta"
+    description="Só precisamos dos dados essenciais para você continuar sua jornada na Alyvora."
+    visualTitle="Um começo simples para organizar sua alimentação."
+    visualDescription="Transforme suas preferências e sua rotina em um plano fácil de consultar e acompanhar."
+    onHome={onHome}
+  >
+    <div className="auth-shell__alerts">
+      {error && <Alert id="register-form-error" variant="error">{error}</Alert>}
+    </div>
+    <form className="auth-shell__form" onSubmit={(event) => void handleSubmit(event)}>
+      <FormField id="register-name" label="Nome" required>
+        {(controlProps) => <input
+          {...controlProps}
+          autoComplete="name"
+          minLength={2}
+          maxLength={120}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Seu nome"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[controlProps['aria-describedby'], error ? 'register-form-error' : undefined].filter(Boolean).join(' ') || undefined}
+        />}
+      </FormField>
+      <FormField id="register-email" label="E-mail" required>
+        {(controlProps) => <input
+          {...controlProps}
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          maxLength={254}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="voce@exemplo.com"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[controlProps['aria-describedby'], error ? 'register-form-error' : undefined].filter(Boolean).join(' ') || undefined}
+        />}
+      </FormField>
+      <PasswordField
+        id="register-password"
+        value={password}
+        autoComplete="new-password"
+        minLength={8}
+        maxLength={128}
+        required
+        invalid={Boolean(error)}
+        describedBy={error ? 'register-form-error' : undefined}
+        hint="Use pelo menos 8 caracteres."
+        onChange={(event) => setPassword(event.target.value)}
+        placeholder="Crie uma senha"
+      />
+      <Button type="submit" fullWidth loading={submitting} loadingLabel="Criando conta">Criar conta <span aria-hidden="true">→</span></Button>
     </form>
-    <p className="auth-switch">Já tem uma conta? <button type="button" onClick={onLogin}>Voltar para login</button><br/><button type="button" onClick={onHome}>Voltar ao início</button></p>
+    <div className="auth-shell__switch">
+      <p>Já tem uma conta? <button type="button" onClick={onLogin}>Entrar</button></p>
+      <button className="auth-shell__back" type="button" onClick={onHome}><span aria-hidden="true">←</span> Voltar para o início</button>
+    </div>
   </AuthLayout>
 }
