@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createAuthRateLimit } from "../dist/middlewares/auth-rate-limit.middleware.js";
+import { resolveFrontendUrl } from "../dist/config/env.js";
 import { loginBodySchema, registerBodySchema } from "../dist/schemas/auth.schema.js";
 
 function response() {
@@ -59,4 +60,13 @@ test("public authentication routes are rate-limited and API headers reduce passi
   assert.match(app, /disable\("x-powered-by"\)/);
   assert.match(app, /X-Content-Type-Options/);
   assert.match(app, /Permissions-Policy/);
+});
+
+test("frontend origin defaults locally but fails closed in production", () => {
+  assert.equal(resolveFrontendUrl(undefined, "development"), "http://localhost:5173");
+  assert.equal(resolveFrontendUrl(" http://localhost:5173/ ", "development"), "http://localhost:5173");
+  assert.equal(resolveFrontendUrl("https://app.example.test/", "production"), "https://app.example.test");
+  assert.throws(() => resolveFrontendUrl(undefined, "production"), /required in production/);
+  assert.throws(() => resolveFrontendUrl("http://app.example.test", "production"), /HTTPS/);
+  assert.throws(() => resolveFrontendUrl("https://app.example.test/path", "production"), /only an origin/);
 });

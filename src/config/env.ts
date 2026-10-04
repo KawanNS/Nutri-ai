@@ -22,6 +22,45 @@ export interface AIGatewayConfig {
   apiKey: string;
 }
 
+export function resolveFrontendUrl(
+  value: string | undefined,
+  nodeEnvironment: string | undefined = process.env.NODE_ENV,
+): string {
+  const configured = value?.trim();
+
+  if (!configured) {
+    if (nodeEnvironment === "production") {
+      throw new Error("FRONTEND_URL is required in production");
+    }
+    return "http://localhost:5173";
+  }
+
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw new Error("FRONTEND_URL must be a valid URL origin");
+  }
+
+  if (
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    (url.pathname !== "/" && url.pathname !== "")
+  ) {
+    throw new Error("FRONTEND_URL must contain only an origin");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("FRONTEND_URL must use HTTP or HTTPS");
+  }
+  if (nodeEnvironment === "production" && url.protocol !== "https:") {
+    throw new Error("FRONTEND_URL must use HTTPS in production");
+  }
+
+  return url.origin;
+}
+
 function normalizeGatewayBaseUrl(value: string): string {
   let url: URL;
   try {
@@ -47,7 +86,7 @@ function normalizeGatewayBaseUrl(value: string): string {
 
 export const env = {
   get frontendUrl(): string {
-    return process.env.FRONTEND_URL?.trim() || "http://localhost:5173";
+    return resolveFrontendUrl(process.env.FRONTEND_URL);
   },
   get databaseUrl(): string {
     return requireEnvironmentVariable("DATABASE_URL");
