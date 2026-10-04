@@ -239,23 +239,66 @@ test("photo task resolves through the shared Router and an image-capable registe
   assert.equal(createAIModelRegistry().get("GEMINI", configuredModel).modalities.includes("IMAGE"), true);
 });
 
-test("frontend exposes camera, preview controls, editable estimates, add/remove, uncertainty, and explicit confirmation", async () => {
+test("frontend exposes the complete accessible meal-photo review flow without invented behavior", async () => {
   const [page, service, route, css] = await Promise.all([
     readFile("frontend/src/pages/MealPhotoPage.tsx", "utf8"),
     readFile("frontend/src/services/mealPhotoService.ts", "utf8"),
     readFile("src/routes/meal-photo.routes.ts", "utf8"),
-    readFile("frontend/src/App.css", "utf8"),
+    readFile("frontend/src/pages/MealPhotoPage.css", "utf8"),
   ]);
   assert.match(page, /capture="environment"/);
   assert.match(page, /Trocar foto/);
   assert.match(page, /Remover/);
   assert.match(page, /Adicionar alimento/);
   assert.match(page, /não garante peso, quantidade, ingredientes escondidos, óleos, molhos ou calorias exatas/i);
-  assert.match(page, /Confirmar e registrar/);
+  assert.match(page, /Registrar refeição/);
   assert.match(page, /type="number"/);
   assert.match(service, /\/api\/meal-photo\/analyze/);
   assert.match(service, /\/api\/meal-photo\/confirm/);
   assert.match(route, /mealPhotoRouter\.use\(authenticate\)/);
   assert.ok(route.indexOf("mealPhotoRouter.use(authenticate)") < route.indexOf('mealPhotoRouter.post("/analyze"'));
-  assert.match(css, /@media \(max-width:560px\)[\s\S]*\.photo-food-fields/);
+  assert.match(css, /@media \(max-width: 34rem\)[\s\S]*\.mp-photo-food__fields/);
+
+  for (const primitive of ["PageHeader", "Surface", "Alert", "Badge", "Button", "FormField", "LoadingState"]) {
+    assert.match(page, new RegExp(`import \\{ ${primitive} \\}`));
+  }
+  assert.match(page, /title="Foto do prato"/);
+  assert.match(page, /type="file" accept="image\/jpeg,image\/png,image\/webp"/);
+  assert.match(page, /Usar câmera/);
+  assert.match(page, /Escolher foto/);
+  assert.match(page, /URL\.createObjectURL\(selected\)/);
+  assert.match(page, /URL\.revokeObjectURL\(preview\)/);
+  assert.match(page, /selected\.size > maxBytes/);
+  assert.match(page, /Remover foto/);
+  assert.match(page, /alt="Prévia da refeição selecionada"/);
+
+  assert.match(page, /loading=\{analyzing\}/);
+  assert.match(page, /Analisando sua refeição…/);
+  assert.doesNotMatch(page, /\d+% concluído/);
+  assert.match(page, /Encontramos estes alimentos/);
+  assert.match(page, /analysis\.observations/);
+  assert.match(page, /analysis\.undeterminedItems/);
+  for (const field of ["estimatedCaloriesKcal", "estimatedProteinGrams", "estimatedCarbohydrateGrams", "estimatedFatGrams"]) {
+    assert.match(page, new RegExp(field));
+  }
+  assert.match(page, /confidenceLabels/);
+  assert.match(page, /food\.limitations/);
+  assert.match(page, /<FormField/);
+  assert.match(page, /onChange=\{updateFood\}/);
+  assert.match(page, /onRemove=\{removeFood\}/);
+
+  assert.match(page, /if \(!analysis \|\| confirming\) return/);
+  assert.match(page, /loading=\{confirming\}/);
+  assert.match(page, /Refeição registrada/);
+  assert.match(page, /A foto não foi armazenada/);
+  assert.match(css, /\.mp-photo-preview img \{[^}]*object-fit: contain/s);
+  assert.match(css, /\.mp-photo-food__fields input,[\s\S]*min-height: var\(--touch-target\)/);
+  for (const breakpoint of ["62rem", "47.99rem", "34rem", "22rem"]) {
+    assert.match(css, new RegExp(`@media \\(max-width: ${breakpoint.replace(".", "\\.")}\\)`));
+  }
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+
+  for (const fabricatedFeature of ["scanner", "bounding", "98%", "score nutricional", "reconhecimento em tempo real"]) {
+    assert.equal(page.toLowerCase().includes(fabricatedFeature), false);
+  }
 });

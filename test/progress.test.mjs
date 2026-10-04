@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -247,4 +248,58 @@ test("missing and foreign individual entries share the same 404", async () => {
       scenario,
     );
   }
+});
+
+test("frontend presents the complete accessible progress flow without invented metrics", async () => {
+  const [page, styles, chart, service, app] = await Promise.all([
+    readFile("frontend/src/pages/ProgressPage.tsx", "utf8"),
+    readFile("frontend/src/pages/ProgressPage.css", "utf8"),
+    readFile("frontend/src/components/WeightChart.tsx", "utf8"),
+    readFile("frontend/src/services/progressService.ts", "utf8"),
+    readFile("frontend/src/App.tsx", "utf8"),
+  ]);
+
+  for (const primitive of ["PageHeader", "Alert", "Badge", "Button", "FormField", "LoadingState", "Surface"]) {
+    assert.match(page, new RegExp(`import \\{ ${primitive} \\}`));
+  }
+
+  assert.match(page, /title="Evolução"/);
+  assert.match(page, /listProgress\(\)/);
+  assert.match(page, /createProgress\(\{ weightKg: weight, recordedAt: date, note:/);
+  assert.match(page, /if \(submitting\) return/);
+  assert.match(page, /loading=\{submitting\}/);
+  assert.match(page, /Registro adicionado com sucesso/);
+  assert.match(page, /Ainda não há registros de evolução/);
+  assert.match(page, /Peso atual/);
+  assert.match(page, /Variação no período carregado/);
+  assert.match(page, /Registros carregados/);
+  assert.match(page, /variation > 0 \? '\+' : ''/);
+  assert.match(page, /<WeightChart entries=\{entries\}/);
+  assert.match(page, /Carregar mais/);
+  assert.match(page, /aria-live="polite"/);
+  assert.match(page, /aria-current="page"/);
+  assert.match(page, /min="0\.01"/);
+  assert.match(page, /max="9999\.99"/);
+  assert.match(page, /step="0\.01"/);
+  assert.match(page, /maxLength=\{1000\}/);
+  assert.doesNotMatch(page, /editar|excluir|meta de peso|imc|gordura corporal|massa muscular|hidratação|streak|medalha|ranking/i);
+
+  assert.match(chart, /role="img"/);
+  assert.match(chart, /aria-labelledby/);
+  assert.match(chart, /<figcaption/);
+  assert.match(chart, /\.sort\(\(a, b\) => a\.recordedAt\.localeCompare/);
+  assert.doesNotMatch(chart, /recharts|chart\.js|d3|projection|previsão/i);
+
+  assert.match(styles, /min-height:\s*var\(--touch-target\)/);
+  assert.match(styles, /overflow-wrap:\s*anywhere/);
+  assert.match(styles, /max-width:\s*47\.99rem/);
+  assert.match(styles, /max-width:\s*34rem/);
+  assert.match(styles, /max-width:\s*22rem/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(styles, /#[0-9a-f]{3,8}/i);
+
+  assert.match(service, /PAGE_SIZE = 20/);
+  assert.match(service, /\/api\/progress/);
+  assert.match(service, /method: 'POST'/);
+  assert.match(app, /view === 'progress'/);
 });

@@ -16,6 +16,7 @@ import { caktoWebhookRouter } from "./routes/cakto-webhook.routes.js";
 import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
 import { mealPhotoRouter } from "./routes/meal-photo.routes.js";
+import { foodLogRouter } from "./routes/food-log.routes.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -50,6 +51,7 @@ app.use("/api/usage", usageControlRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/meal-photo", mealPhotoRouter);
+app.use("/api/food-logs", foodLogRouter);
 app.use("/api/admin/ai-router", aiRouterAdminRouter);
 app.use("/webhooks/cakto", caktoWebhookRouter);
 

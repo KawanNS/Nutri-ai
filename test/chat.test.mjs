@@ -164,18 +164,54 @@ test("NUTRITION_ASSISTANT resolves through the existing AI Router", async () => 
   assert.equal(calls, 1);
 });
 
-test("frontend integrates Premium state, history, Enter submission, loading and paywall", async () => {
-  const [page, service, app, route] = await Promise.all([
+test("frontend presents the complete accessible Premium assistant flow without invented behavior", async () => {
+  const [page, styles, service, app, route] = await Promise.all([
     readFile("frontend/src/pages/ChatPage.tsx", "utf8"),
+    readFile("frontend/src/pages/ChatPage.css", "utf8"),
     readFile("frontend/src/services/chatService.ts", "utf8"),
     readFile("frontend/src/App.tsx", "utf8"),
     readFile("src/routes/chat.routes.ts", "utf8"),
   ]);
+
+  for (const primitive of ["PageHeader", "Alert", "Badge", "Button", "FormField", "LoadingState", "Surface"]) {
+    assert.match(page, new RegExp(`import \\{ ${primitive} \\}`));
+  }
+
+  assert.match(page, /Assistente Alyvora/);
   assert.match(page, /<Paywall\/>/);
+  assert.match(page, /getSubscription/);
+  assert.match(page, /Recurso exclusivo Premium/);
+  assert.match(page, /Como posso ajudar hoje\?/);
+  assert.match(page, /Histórico de conversas/);
+  assert.match(page, /Nova conversa/);
+  assert.match(page, /getChatConversation\(id\)/);
+  assert.match(page, /createChatConversation\(\)/);
+  assert.match(page, /MarkdownMessage/);
+  assert.match(page, /aria-live="polite"/);
+  assert.match(page, /aria-controls="assistant-history"/);
+  assert.match(page, /maxLength=\{2000\}/);
   assert.match(page, /event\.key === 'Enter'/);
-  assert.match(page, /Preparando uma resposta/);
+  assert.match(page, /!event\.shiftKey/);
+  assert.match(page, /sending \|\| !premium/);
+  assert.match(page, /loading=\{sending\}/);
+  assert.match(page, /Alyvora está preparando uma resposta/);
+  assert.match(page, /CHAT_TEMPORARILY_UNAVAILABLE/);
+  assert.match(page, /CHAT_RATE_LIMIT_EXCEEDED/);
   assert.match(page, /scrollIntoView/);
+  assert.doesNotMatch(page, /microphone|microfone|capture=|type="file"|attachment|anexo/i);
+  assert.doesNotMatch(page, /deleteChat|renameChat|excluir conversa|renomear conversa/i);
+
+  assert.match(styles, /min-height:\s*var\(--touch-target\)/);
+  assert.match(styles, /overflow-wrap:\s*anywhere/);
+  assert.match(styles, /100dvh/);
+  assert.match(styles, /max-width:\s*47\.99rem/);
+  assert.match(styles, /max-width:\s*34rem/);
+  assert.match(styles, /max-width:\s*22rem/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(styles, /#[0-9a-f]{3,8}/i);
+
   assert.match(service, /\/api\/chat\/conversations/);
+  assert.match(service, /body: JSON\.stringify\(\{ message \}\)/);
   assert.match(app, /view === 'chat'/);
   assert.match(route, /chatRouter\.use\(authenticate\)/);
   assert.match(route, /chatRateLimit/);

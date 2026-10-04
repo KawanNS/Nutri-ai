@@ -9,6 +9,7 @@ import { ProgressPage } from './pages/ProgressPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ChatPage } from './pages/ChatPage'
 import { MealPhotoPage } from './pages/MealPhotoPage'
+import { DiaryPage } from './pages/DiaryPage'
 import { BrandLogo } from './components/BrandLogo'
 import { ApiError } from './services/api'
 import { getCurrentUser } from './services/authService'
@@ -17,7 +18,7 @@ import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken, saveRole } from './serv
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
 import './App.css'
 
-type View = 'landing' | 'onboarding' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'profile' | 'progress' | 'admin'
+type View = 'landing' | 'onboarding' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'diary' | 'profile' | 'progress' | 'admin'
 
 function App() {
   const [view, setView] = useState<View>(() => getToken() ? 'checking-profile' : 'landing')
@@ -57,11 +58,12 @@ function App() {
   if (view === 'admin' && getToken()) return <AdminRouterPage onApp={checkProfile} onLogout={logout}/>
   if (view === 'checking-profile') return <div className="app-loading"><div className="brand"><BrandLogo/></div><span className="spinner" aria-label="Carregando perfil"/></div>
   if (view === 'profile-error') return <div className="app-loading"><p>Não foi possível carregar seu perfil.</p><button className="button button--primary" type="button" onClick={() => void checkProfile()}>Tentar novamente</button><button className="logout-button" type="button" onClick={logout}>Sair</button></div>
-  if (view === 'profile' && getToken()) return <ProfilePage profile={profile} draft={profile ? undefined : onboardingDraft} required={!profile} onLogout={logout} onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onProgress={() => setView('progress')} onSaved={(savedProfile, wasFirstProfile) => { setProfile(savedProfile); setOnboardingDraft(undefined); if (wasFirstProfile) { setProgressNotice(undefined); setView('meal-plan') } }}/>
-  if (view === 'meal-plan' && getToken() && profile) return <MealPlanPage onProfile={() => setView('profile')} onChat={() => setView('chat')} onMealPhoto={() => setView('meal-photo')} onProgress={() => setView('progress')} onLogout={logout}/>
-  if (view === 'chat' && getToken() && profile) return <ChatPage onMealPlan={() => setView('meal-plan')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
-  if (view === 'meal-photo' && getToken() && profile) return <MealPhotoPage onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
-  if (view === 'progress' && getToken() && profile) return <ProgressPage notice={progressNotice} onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onProfile={() => { setProgressNotice(undefined); setView('profile') }} onLogout={logout}/>
+  if (view === 'profile' && getToken()) return <ProfilePage profile={profile} draft={profile ? undefined : onboardingDraft} required={!profile} onLogout={logout} onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onDiary={() => setView('diary')} onProgress={() => setView('progress')} onSaved={(savedProfile, wasFirstProfile) => { setProfile(savedProfile); setOnboardingDraft(undefined); if (wasFirstProfile) { setProgressNotice(undefined); setView('meal-plan') } }}/>
+  if (view === 'meal-plan' && getToken() && profile) return <MealPlanPage onProfile={() => setView('profile')} onChat={() => setView('chat')} onMealPhoto={() => setView('meal-photo')} onDiary={() => setView('diary')} onProgress={() => setView('progress')} onLogout={logout}/>
+  if (view === 'chat' && getToken() && profile) return <ChatPage onMealPlan={() => setView('meal-plan')} onDiary={() => setView('diary')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
+  if (view === 'meal-photo' && getToken() && profile) return <MealPhotoPage onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onDiary={() => setView('diary')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
+  if (view === 'diary' && getToken() && profile) return <DiaryPage onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onMealPhoto={() => setView('meal-photo')} onProfile={() => setView('profile')} onProgress={() => setView('progress')} onLogout={logout}/>
+  if (view === 'progress' && getToken() && profile) return <ProgressPage notice={progressNotice} onMealPlan={() => setView('meal-plan')} onChat={() => setView('chat')} onDiary={() => setView('diary')} onProfile={() => { setProgressNotice(undefined); setView('profile') }} onLogout={logout}/>
   return <LoginPage initialEmail={loginEmail} notice={loginNotice} onHome={() => setView('landing')} onAuthenticated={(role) => { setLoginNotice(undefined); if (role === 'ADMIN') { setView('admin'); return } setView('checking-profile'); void loadProfile() }} onRegister={() => { setLoginNotice(undefined); setView('register') }}/>
 }
 export default App

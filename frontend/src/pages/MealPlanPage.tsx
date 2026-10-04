@@ -1,26 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { PageHeader } from '../components/layout/PageHeader'
+import { Alert } from '../components/ui/Alert'
+import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
+import { LoadingState } from '../components/ui/LoadingState'
+import { Surface } from '../components/ui/Surface'
 import { ApiError } from '../services/api'
 import { generateMealPlan, getMealPlan, listLatestMealPlan } from '../services/mealPlanService'
 import { getUsage } from '../services/usageService'
 import { getSubscription } from '../services/billingService'
 import { Paywall } from '../components/Paywall'
 import { BrandLogo } from '../components/BrandLogo'
-import type { MealPlan, Nutrition } from '../types/mealPlan'
+import { DiaryNavButton } from '../components/DiaryNavButton'
+import type { Meal, MealPlan, MealPlanDay, Nutrition } from '../types/mealPlan'
 import type { Usage } from '../types/usage'
+import './MealPlanPage.css'
 
-interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onProgress(): void; onLogout(): void }
+interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void; onLogout(): void }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
 const generationAttemptStorageKey = 'nutri-ai:meal-plan-generation-attempt'
 
-function NutritionValues({ nutrition }: { nutrition: Nutrition }) {
-  return <div className="nutrition-grid">
-    <span><strong>{number.format(nutrition.caloriesKcal)}</strong> kcal</span>
-    <span><strong>{number.format(nutrition.proteinGrams)}</strong> g proteína</span>
-    <span><strong>{number.format(nutrition.carbohydrateGrams)}</strong> g carboidratos</span>
-    <span><strong>{number.format(nutrition.fatGrams)}</strong> g gorduras</span>
-  </div>
+const nutritionLabels = [
+  ['caloriesKcal', 'Calorias', 'kcal'],
+  ['proteinGrams', 'Proteínas', 'g'],
+  ['carbohydrateGrams', 'Carboidratos', 'g'],
+  ['fatGrams', 'Gorduras', 'g'],
+] as const
+
+function NutritionValues({ nutrition, compact = false }: { nutrition: Nutrition; compact?: boolean }) {
+  return <dl className={compact ? 'mp-nutrition mp-nutrition--compact' : 'mp-nutrition'}>
+    {nutritionLabels.map(([key, label, unit]) => <div key={key}>
+      <dt>{label}</dt>
+      <dd><strong>{number.format(nutrition[key])}</strong> <span>{unit}</span></dd>
+    </div>)}
+  </dl>
 }
 
 function errorMessage(error: unknown): string {
@@ -47,7 +62,7 @@ function shouldStartFreshAfter(error: unknown): boolean {
   ].includes(error.code ?? '')
 }
 
-export function MealPlanPage({ onProfile, onChat, onMealPhoto, onProgress, onLogout }: MealPlanPageProps) {
+export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgress, onLogout }: MealPlanPageProps) {
   const [usage, setUsage] = useState<Usage | null>(null), [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
   const [loading, setLoading] = useState(true), [generating, setGenerating] = useState(false), [pending, setPending] = useState(false)
   const [hasAttemptKey, setHasAttemptKey] = useState(() => sessionStorage.getItem(generationAttemptStorageKey) !== null)
@@ -99,27 +114,102 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onProgress, onLog
   }
 
   const needsProfile = error?.includes('perfil'), limitReached = usage?.isPremium === false && usage.freeUsesAvailable === 0
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button nav-button--active" type="button">Plano alimentar</button><button className="nav-button" type="button" onClick={onChat}>Assistente</button><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
-    <main className="page meal-plan-page"><div className="page-heading meal-plan-heading"><div><p className="eyebrow">Plano alimentar</p><h1>Comer bem, com um plano possível.</h1><p>Um cardápio de sete dias alinhado ao seu perfil, rotina e orçamento.</p></div>{usage && <div className="usage-card"><strong>{usage.isPremium ? 'Premium ativo' : `${usage.freeUsesAvailable} de ${usage.freeUsesLimit}`}</strong><span>{usage.isPremium ? 'gerações liberadas pela assinatura' : 'gerações gratuitas disponíveis'}</span>{usage.freeUsesReserved > 0 && <small>Há uma geração em processamento.</small>}</div>}</div>
-      <div className="meal-photo-entry"><button className="button button--secondary" type="button" onClick={onMealPhoto}>Analisar foto do prato</button><span>Revise as estimativas antes de registrar.</span></div>
-      {error && <div className="notice notice--error" role="alert">{error}{needsProfile && <button className="notice__action" type="button" onClick={onProfile}>Revisar perfil</button>}</div>}
-      {pending && <div className="notice notice--info" role="status">Seu plano ainda está sendo processado. Verifique novamente em alguns instantes usando a mesma tentativa.</div>}
-      {limitReached && <div className="notice notice--info">Você atingiu o limite de gerações gratuitas. Seus planos anteriores continuam disponíveis.</div>}
-      {limitReached && <Paywall />}
-      {loading ? <div className="panel loading"><span className="spinner" aria-label="Carregando plano alimentar"/></div> : <>
-        <div className="meal-plan-actions"><button className="button button--primary" type="button" disabled={generating || limitReached || pending} onClick={() => void requestGeneration(false)}>{generating ? 'Gerando seu plano…' : mealPlan ? 'Gerar novo plano' : 'Gerar meu plano alimentar'}</button>{pending && hasAttemptKey && <button className="button button--secondary" type="button" disabled={generating} onClick={() => void requestGeneration(true)}>{generating ? 'Verificando…' : 'Verificar novamente'}</button>}</div>
-        {!mealPlan && !generating && <section className="panel empty meal-plan-empty"><h2>Seu plano começa aqui.</h2><p>Quando você solicitar, a IA usará os dados do seu perfil para montar o cardápio. Nenhuma geração acontece automaticamente.</p></section>}
-        {generating && <section className="panel generation-loading" aria-live="polite"><span className="spinner"/><div><h2>Preparando seu plano alimentar…</h2><p>Isso pode levar alguns instantes. Mantenha esta página aberta.</p></div></section>}
-        {mealPlan && <PlanContent mealPlan={mealPlan}/>}</>}
-    </main></div>
+  const generationLabel = mealPlan ? 'Gerar novo plano' : 'Gerar meu plano'
+
+  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button nav-button--active" type="button" aria-current="page">Plano alimentar</button><button className="nav-button" type="button" onClick={onChat}>Assistente</button><DiaryNavButton onClick={onDiary}/><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+    <main className="page meal-plan-page">
+      <PageHeader
+        className="mp-page-header"
+        eyebrow="Plano alimentar"
+        title="Seu plano alimentar"
+        description="Organizado de acordo com seu perfil, objetivo, rotina e orçamento."
+        actions={usage ? <UsageSummary usage={usage}/> : undefined}
+      />
+
+      <div className="mp-actions" aria-label="Ações do plano alimentar">
+        <Button loading={generating} loadingLabel="Gerando seu plano" disabled={limitReached || pending} onClick={() => void requestGeneration(false)}>{generationLabel}</Button>
+        {pending && hasAttemptKey && <Button variant="secondary" loading={generating} loadingLabel="Verificando geração" onClick={() => void requestGeneration(true)}>Verificar novamente</Button>}
+        <Button variant="ghost" onClick={onMealPhoto}>Analisar foto do prato</Button>
+        <span>Revise as estimativas da foto antes de registrar.</span>
+      </div>
+
+      <div className="mp-feedback">
+        {error && <Alert variant="error" title="Não foi possível concluir">{error}{needsProfile && <Button className="mp-alert-action" variant="ghost" onClick={onProfile}>Revisar perfil</Button>}</Alert>}
+        {pending && <Alert variant="info" title="Geração em processamento">Seu plano ainda está sendo processado. Verifique novamente em alguns instantes usando a mesma tentativa.</Alert>}
+        {limitReached && <Alert variant="info" title="Limite gratuito alcançado">Seus planos anteriores continuam disponíveis. Para criar novos planos, escolha uma assinatura Premium.</Alert>}
+      </div>
+
+      {limitReached && <Paywall/>}
+      {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu plano, seu acesso e suas gerações disponíveis."/></Surface> : <>
+        {!mealPlan && !generating && <EmptyPlanState/>}
+        {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Estamos organizando sete dias de refeições com base no seu perfil. Isso pode levar alguns instantes; mantenha esta página aberta."/></Surface>}
+        {mealPlan && <PlanContent key={mealPlan.id} mealPlan={mealPlan}/>}
+      </>}
+    </main>
+  </div>
+}
+
+function UsageSummary({ usage }: { usage: Usage }) {
+  if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Novas gerações liberadas pela assinatura</span></div>
+  return <div className="mp-usage"><strong>{usage.freeUsesAvailable}</strong><span>{usage.freeUsesAvailable === 1 ? 'geração gratuita restante' : 'gerações gratuitas restantes'}</span>{usage.freeUsesReserved > 0 && <small>Uma geração está em processamento.</small>}</div>
+}
+
+function EmptyPlanState() {
+  return <Surface as="section" className="mp-empty" level="soft" aria-labelledby="mp-empty-title">
+    <span className="mp-empty__mark" aria-hidden="true">7</span>
+    <div><p className="mp-kicker">Sua semana, organizada</p><h2 id="mp-empty-title">Seu plano começa aqui.</h2><p>Quando você solicitar, a IA usará os dados do seu perfil para montar o cardápio. Nenhuma geração acontece automaticamente.</p></div>
+  </Surface>
 }
 
 function PlanContent({ mealPlan }: { mealPlan: MealPlan }) {
   const plan = mealPlan.content
-  return <div className="meal-plan-content">
-    <section className="panel plan-overview"><p className="eyebrow">{plan.durationDays} dias</p><h2>{plan.title}</h2><p>{plan.summary}</p><div className="plan-cost"><span>Custo semanal estimado</span><strong>{currency.format(plan.estimatedWeeklyCost)}</strong></div><h3>Metas diárias</h3><NutritionValues nutrition={plan.dailyTargets}/></section>
-    <section className="days-section"><div className="section-heading"><h2>Seus sete dias</h2><p>Refeições, preparo e estimativas nutricionais.</p></div>{plan.days.map((day) => <article className="panel day-card" key={day.day}><header className="day-card__header"><div><span>Dia {day.day}</span><h3>{day.label}</h3></div><strong>{currency.format(day.estimatedDailyCost)} <small>estimados</small></strong></header><div className="meals-list">{day.meals.map((meal, index) => <section className="meal-card" key={`${meal.name}-${index}`}><div className="meal-card__heading"><h4>{meal.name}</h4>{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</div><ul className="food-list">{meal.foods.map((food, foodIndex) => <li key={`${food.name}-${foodIndex}`}><span>{food.name}</span><strong>{number.format(food.quantity)}&nbsp;{food.unit}</strong></li>)}</ul><p className="preparation"><strong>Preparo:</strong> {meal.preparation}</p><NutritionValues nutrition={meal.estimatedNutrition}/></section>)}</div></article>)}</section>
-    <section className="panel shopping"><div className="section-heading"><h2>Lista de compras</h2><p>Organizada por categoria para facilitar sua semana.</p></div><div className="shopping-grid">{plan.shoppingList.map((group) => <article className="shopping-category" key={group.category}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></article>)}</div></section>
-    <div className="plan-notes"><section className="panel"><h2>Observações</h2><ul>{plan.notes.map((note, index) => <li key={index}>{note}</li>)}</ul></section><section className="panel safety"><h2>Avisos importantes</h2><ul>{plan.safetyNotices.map((notice, index) => <li key={index}>{notice}</li>)}</ul></section></div>
+  const [selectedDayNumber, setSelectedDayNumber] = useState(plan.days[0]?.day ?? 1)
+  const selectedDay = plan.days.find((day) => day.day === selectedDayNumber) ?? plan.days[0]
+
+  return <div className="mp-content">
+    <Surface as="section" className="mp-overview" level="base" aria-labelledby="mp-plan-title">
+      <div className="mp-overview__intro"><div className="mp-overview__badges"><Badge>{plan.durationDays} dias</Badge><Badge>{plan.days.reduce((total, day) => total + day.meals.length, 0)} refeições</Badge></div><h2 id="mp-plan-title">{plan.title}</h2><p>{plan.summary}</p></div>
+      <div className="mp-overview__cost"><span>Custo semanal estimado</span><strong>{currency.format(plan.estimatedWeeklyCost)}</strong></div>
+      <div className="mp-targets"><div><p className="mp-kicker">Resumo diário</p><h3>Metas estimadas do plano</h3></div><NutritionValues nutrition={plan.dailyTargets}/></div>
+    </Surface>
+
+    <section className="mp-week" aria-labelledby="mp-week-title">
+      <div className="mp-section-heading"><div><p className="mp-kicker">Sua semana</p><h2 id="mp-week-title">Refeições do dia</h2></div><p>Escolha um dia para consultar refeições, preparo e estimativas nutricionais.</p></div>
+      <DayNavigation days={plan.days} selectedDay={selectedDayNumber} onSelect={setSelectedDayNumber}/>
+      {selectedDay && <DayContent day={selectedDay}/>}
+    </section>
+
+    <Surface as="section" className="mp-shopping" level="base" aria-labelledby="mp-shopping-title">
+      <div className="mp-section-heading"><div><p className="mp-kicker">Para a semana</p><h2 id="mp-shopping-title">Lista de compras</h2></div><p>Quantidades organizadas por categoria conforme o plano gerado.</p></div>
+      <div className="mp-shopping__grid">{plan.shoppingList.map((group, groupIndex) => <article className="mp-shopping__category" key={`${group.category}-${groupIndex}`}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></article>)}</div>
+    </Surface>
+
+    <Surface as="section" className="mp-notes" level="soft" aria-label="Observações e avisos do plano">
+      <div><h2>Observações</h2><ul>{plan.notes.map((note, index) => <li key={index}>{note}</li>)}</ul></div>
+      <div className="mp-notes__safety"><h2>Avisos importantes</h2><ul>{plan.safetyNotices.map((notice, index) => <li key={index}>{notice}</li>)}</ul></div>
+    </Surface>
   </div>
+}
+
+function DayNavigation({ days, selectedDay, onSelect }: { days: MealPlanDay[]; selectedDay: number; onSelect(day: number): void }) {
+  return <nav className="mp-day-nav" aria-label="Dias do plano alimentar">
+    {days.map((day) => {
+      const selected = day.day === selectedDay
+      return <button key={day.day} type="button" aria-pressed={selected} aria-label={`Ver ${day.label}`} onClick={() => onSelect(day.day)}><span>{day.label.slice(0, 3).toLocaleUpperCase('pt-BR')}</span><strong>{day.day}</strong></button>
+    })}
+  </nav>
+}
+
+function DayContent({ day }: { day: MealPlanDay }) {
+  return <Surface as="article" className="mp-day" level="base" aria-labelledby={`mp-day-title-${day.day}`}>
+    <header className="mp-day__header"><div><span>Dia {day.day}</span><h3 id={`mp-day-title-${day.day}`}>{day.label}</h3></div><div><small>Custo diário estimado</small><strong>{currency.format(day.estimatedDailyCost)}</strong></div></header>
+    <div className="mp-meals">{day.meals.map((meal, index) => <MealPresentation meal={meal} index={index} key={`${meal.name}-${index}`}/>)}</div>
+  </Surface>
+}
+
+function MealPresentation({ meal, index }: { meal: Meal; index: number }) {
+  return <article className="mp-meal">
+    <header className="mp-meal__header"><span>{String(index + 1).padStart(2, '0')}</span><div><h4>{meal.name}</h4>{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</div></header>
+    <div className="mp-meal__body"><div className="mp-foods"><h5>Alimentos</h5><ul>{meal.foods.map((food, foodIndex) => <li key={`${food.name}-${foodIndex}`}><span>{food.name}</span><strong>{number.format(food.quantity)}&nbsp;{food.unit}</strong></li>)}</ul></div><div className="mp-preparation"><h5>Preparo</h5><p>{meal.preparation}</p></div><div className="mp-meal__nutrition"><h5>Estimativa nutricional</h5><NutritionValues nutrition={meal.estimatedNutrition} compact/></div></div>
+  </article>
 }

@@ -3,11 +3,13 @@
 .topbar__content,.page { width: min(1120px,calc(100% - 40px)); margin: 0 auto; }
 .topbar__content { min-height: 72px; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; color: var(--ink); }
-.brand-logo { display: block; object-fit: contain; object-position: left center; }
-.brand-logo--full { width: 132px; height: auto; }
-.brand-logo--symbol { width: 34px; height: 34px; }
+.brand-logo { display: block; max-width: 100%; height: auto; object-fit: contain; object-position: left center; }
+.brand-logo--full { width: 132px; }
+.brand-logo--symbol { width: 68px; }
 .topbar__actions { display: flex; align-items: center; gap: 18px; }
 .nav-button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); padding: 10px 2px 8px; font-weight: 700; cursor: pointer; }
+.nav-button--diary { display: inline-flex; align-items: center; gap: 6px; }
+.diary-icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .nav-button:hover,.nav-button--active { color: var(--green-dark); border-bottom-color: var(--green); }
 .logout-button { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--green-dark); padding: 8px 13px; font-weight: 700; cursor: pointer; }
 .logout-button:hover { border-color: var(--green); }
