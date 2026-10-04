@@ -2,7 +2,10 @@ import { useId, useState } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
 import { PhoneShowcase } from '../components/landing/PhoneShowcase'
 import { Button } from '../components/ui/Button'
+import avocadoDecor from '../assets/landing/Abacate Fresco com Caroço e Gotas.png'
 import mealPhoto from '../assets/landing/differentials-food-photo.png'
+import leafDecor from '../assets/landing/Folhas Verdes Flutuando em Transparência.png'
+import tomatoDecor from '../assets/landing/Tomate vermelho com gotas de água.png'
 import { premiumFeatures, subscriptionPlans } from '../data/subscriptionPlans'
 import './LandingPage.css'
 
@@ -24,10 +27,10 @@ const features = [
 ] as const
 
 const faqItems = [
-  { question: 'O que é o Nutri-AI?', answer: 'O Nutri-AI é uma ferramenta de organização e apoio alimentar. Ele reúne plano, registros, assistente e acompanhamento para deixar sua rotina mais clara.' },
-  { question: 'Como funciona o plano alimentar?', answer: 'Você informa seu objetivo, rotina, preferências, restrições, quantidade de refeições e orçamento. Quando solicitado, o Nutri-AI usa esse contexto para gerar um plano personalizado de sete dias com preparos e lista de compras.' },
+  { question: 'O que é a Alyvora?', answer: 'A Alyvora é uma ferramenta de organização e apoio alimentar. Ela reúne plano, registros, assistente e acompanhamento para deixar sua rotina mais clara.' },
+  { question: 'Como funciona o plano alimentar?', answer: 'Você informa seu objetivo, rotina, preferências, restrições, quantidade de refeições e orçamento. Quando solicitado, a Alyvora usa esse contexto para gerar um plano personalizado de sete dias com preparos e lista de compras.' },
   { question: 'Como funciona a análise de foto?', answer: 'Você envia a imagem de uma refeição e recebe uma estimativa visual dos alimentos e valores nutricionais. Antes de registrar, é necessário revisar e confirmar as informações; a foto não garante precisão de porções ou ingredientes.' },
-  { question: 'O Nutri-AI substitui nutricionista?', answer: 'Não. O Nutri-AI auxilia na organização alimentar e não realiza diagnóstico, tratamento ou prescrição clínica. Para orientação individual, procure um nutricionista ou profissional de saúde.' },
+  { question: 'A Alyvora substitui nutricionista?', answer: 'Não. A Alyvora auxilia na organização alimentar e não realiza diagnóstico, tratamento ou prescrição clínica. Para orientação individual, procure um nutricionista ou profissional de saúde.' },
   { question: 'Como funciona o Premium?', answer: 'O Premium libera novas gerações durante a assinatura e dá acesso aos recursos Premium disponíveis. Os planos Mensal, Trimestral e Anual oferecem o mesmo acesso; o checkout seguro aparece no fluxo autenticado.' },
   { question: 'Posso usar no celular?', answer: 'Sim. A experiência web é responsiva e pode ser acessada pelo navegador do celular, tablet ou computador.' },
 ] as const
@@ -47,6 +50,15 @@ function LandingIcon({ name }: { name: IconName }) {
   </svg>
 }
 
+function HeroFoodDecor() {
+  return <div className="public-hero-food" aria-hidden="true">
+    <span className="public-hero-food__crop public-hero-food__crop--tomato" data-required-asset="tomato-transparent"><img src={tomatoDecor} alt="" draggable="false"/></span>
+    <span className="public-hero-food__crop public-hero-food__crop--leaf public-hero-food__crop--leaf-top" data-required-asset="green-leaf-transparent"><img src={leafDecor} alt="" draggable="false"/></span>
+    <span className="public-hero-food__crop public-hero-food__crop--leaf public-hero-food__crop--leaf-bottom" data-required-asset="green-leaf-transparent"><img src={leafDecor} alt="" draggable="false"/></span>
+    <span className="public-hero-food__crop public-hero-food__crop--avocado" data-required-asset="avocado-transparent"><img src={avocadoDecor} alt="" draggable="false"/></span>
+  </div>
+}
+
 function LandingHeader({ onLogin, onStart }: Pick<Props, 'onLogin' | 'onStart'>) {
   const [open, setOpen] = useState(false)
   const menuId = useId()
@@ -54,7 +66,7 @@ function LandingHeader({ onLogin, onStart }: Pick<Props, 'onLogin' | 'onStart'>)
 
   return <header className="public-header">
     <div className="public-header__inner">
-      <a className="public-header__brand" href="#inicio" aria-label="Nutri-AI, início" onClick={close}><BrandLogo/></a>
+      <a className="public-header__brand" href="#inicio" aria-label="Alyvora, início" onClick={close}><BrandLogo/></a>
       <nav className="public-header__nav" aria-label="Navegação principal">
         {publicLinks.map(([label, href]) => <a href={href} key={href}>{label}</a>)}
       </nav>
@@ -83,7 +95,7 @@ function Faq() {
   return <section className="public-section public-faq" id="faq" aria-labelledby="public-faq-title">
     <div className="public-section-heading public-section-heading--split">
       <div><p className="public-eyebrow">Dúvidas frequentes</p><h2 id="public-faq-title">Informação clara<br/>antes de começar.</h2></div>
-      <p>Entenda como o Nutri-AI apoia sua organização e quais são os limites da ferramenta.</p>
+      <p>Entenda como a Alyvora apoia sua organização e quais são os limites da ferramenta.</p>
     </div>
     <div className="public-faq__list">
       {faqItems.map((item, index) => {
@@ -104,6 +116,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
     <LandingHeader onLogin={onLogin} onStart={onStart}/>
     <main>
       <section className="public-hero" aria-labelledby="public-hero-title">
+        <HeroFoodDecor/>
         <div className="public-hero__copy">
           <div className="public-hero__tag"><LandingIcon name="leaf"/> Alimentação inteligente, na sua rotina</div>
           <h1 id="public-hero-title">Sua alimentação<br/><em>cabe na sua vida.</em></h1>
@@ -112,7 +125,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
             <Button className="public-hero__primary" onClick={onStart}>Começar agora <span aria-hidden="true">→</span></Button>
             <a className="public-link-button" href="#como-funciona">Ver como funciona <span aria-hidden="true">↓</span></a>
           </div>
-          <ul className="public-hero__benefits" aria-label="Benefícios do Nutri-AI">
+          <ul className="public-hero__benefits" aria-label="Benefícios da Alyvora">
             <li><LandingIcon name="plan"/><span>Plano alimentar<strong>personalizado</strong></span></li>
             <li><LandingIcon name="assistant"/><span>IA que entende<strong>sua rotina</strong></span></li>
             <li><LandingIcon name="routine"/><span>Organização prática<strong>para o dia a dia</strong></span></li>
@@ -158,7 +171,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
         <div className="public-demo__grid">
           <article><div className="public-demo__screen public-demo__screen--day"><span>Hoje</span><h3>Meu dia</h3><div><b>1.250</b><small>kcal registradas</small></div><ul><li>✓ Café da manhã</li><li>✓ Almoço</li><li>○ Lanche da tarde</li></ul></div><h3>Acompanhe seu plano</h3><p>Consulte refeições e preparos em uma visão simples do dia.</p></article>
           <article><div className="public-demo__screen public-demo__screen--photo"><img src={mealPhoto} alt="Refeição pronta para análise" loading="lazy"/><span aria-hidden="true">◎</span></div><h3>Registre com uma foto</h3><p>Receba uma estimativa para revisar antes de adicionar ao seu dia.</p></article>
-          <article><div className="public-demo__screen public-demo__screen--assistant"><span>Você</span><p>O que posso preparar para o jantar?</p><span>Nutri-AI</span><p>Vamos pensar em uma opção que combine com seu plano e sua rotina.</p></div><h3>Converse com o assistente</h3><p>Use o contexto do seu plano para organizar escolhas práticas.</p></article>
+          <article><div className="public-demo__screen public-demo__screen--assistant"><span>Você</span><p>O que posso preparar para o jantar?</p><span>Alyvora</span><p>Vamos pensar em uma opção que combine com seu plano e sua rotina.</p></div><h3>Converse com o assistente</h3><p>Use o contexto do seu plano para organizar escolhas práticas.</p></article>
           <article><div className="public-demo__screen public-demo__screen--evolution"><h3>Evolução</h3><div aria-hidden="true"><i/><i/><i/><i/><i/><i/></div><strong>Seu histórico, com clareza.</strong></div><h3>Observe sua evolução</h3><p>Acompanhe registros ao longo do tempo, sem promessas irreais.</p></article>
         </div>
       </section>
@@ -204,11 +217,11 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
 
     <footer className="public-footer">
       <div className="public-footer__main">
-        <a href="#inicio" aria-label="Nutri-AI, voltar ao início"><BrandLogo/></a>
+        <a href="#inicio" aria-label="Alyvora, voltar ao início"><BrandLogo/></a>
         <nav aria-label="Navegação do rodapé">{publicLinks.map(([label, href]) => <a href={href} key={href}>{label}</a>)}</nav>
         <div><button type="button" onClick={onLogin}>Entrar</button><button type="button" onClick={onStart}>Começar agora</button></div>
       </div>
-      <div className="public-footer__bottom"><p>O Nutri-AI auxilia na organização alimentar e não substitui orientação de nutricionista ou profissional de saúde.</p><p>© {new Date().getFullYear()} Nutri-AI.</p></div>
+      <div className="public-footer__bottom"><p>A Alyvora auxilia na organização alimentar e não substitui orientação de nutricionista ou profissional de saúde.</p><p>© {new Date().getFullYear()} Alyvora.</p></div>
     </footer>
   </div>
 }

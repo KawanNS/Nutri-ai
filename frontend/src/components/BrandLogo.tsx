@@ -1,5 +1,4 @@
-import logoUrl from '../assets/brand/nutri-ai-logo.png'
-import symbolUrl from '../assets/brand/nutri-ai-symbol.png'
+import alyvoraLogoHorizontal from '../assets/alyvora/alyvora-logo-horizontal.png'
 
 interface BrandLogoProps {
   variant?: 'full' | 'symbol'
@@ -7,7 +6,12 @@ interface BrandLogoProps {
 }
 
 export function BrandLogo({ variant = 'full', className = '' }: BrandLogoProps) {
-  const source = variant === 'symbol' ? symbolUrl : logoUrl
-  const label = variant === 'symbol' ? 'Nutri-AI' : 'Nutri-AI — Nutrição com IA'
-  return <img className={`brand-logo brand-logo--${variant} ${className}`.trim()} src={source} alt={label} draggable="false"/>
+  return <img
+    className={`brand-logo brand-logo--${variant} ${className}`.trim()}
+    src={alyvoraLogoHorizontal}
+    alt="Alyvora"
+    width={2172}
+    height={724}
+    draggable="false"
+  />
 }

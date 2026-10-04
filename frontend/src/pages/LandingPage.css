@@ -36,7 +36,7 @@
   margin-inline: auto;
 }
 
-.public-header__brand { display: inline-flex; width: 8.6rem; }
+.public-header__brand { display: inline-flex; width: 8.6rem; color: inherit; text-decoration: none; }
 .public-header__brand img { width: 100%; height: auto; }
 .public-header__nav { display: flex; align-items: center; justify-content: center; gap: clamp(var(--space-4), 2.2vw, var(--space-8)); }
 .public-header__nav a { color: var(--text-secondary); font-size: var(--type-small-size); font-weight: 700; text-decoration: none; }
@@ -72,6 +72,34 @@
   transform: rotate(20deg);
 }
 
+.public-hero-food {
+  position: absolute;
+  z-index: 1;
+  width: 100vw;
+  height: 100%;
+  top: 0;
+  left: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  transform: translateX(-50%);
+}
+
+.public-hero-food__crop {
+  position: absolute;
+  display: block;
+}
+
+.public-hero-food__crop:empty { display: none; }
+.public-hero-food__crop img { width: 100%; height: auto; display: block; object-fit: contain; }
+.public-hero-food__crop--tomato { z-index: 1; width: clamp(28rem, 34vw, 40rem); left: clamp(-14rem, -10vw, -8rem); bottom: 7%; transform: rotate(-7deg); }
+.public-hero-food__crop--leaf { z-index: 0; width: 24rem; opacity: .58; }
+.public-hero-food__crop--leaf-top { top: -1rem; left: -17rem; filter: blur(5px) saturate(.82); transform: rotate(12deg); }
+.public-hero-food__crop--leaf-top img { clip-path: inset(0 15% 62% 53%); }
+.public-hero-food__crop--leaf-bottom { width: 26rem; right: -8rem; bottom: 14%; filter: blur(3px) saturate(.86); transform: rotate(-14deg); }
+.public-hero-food__crop--leaf-bottom img { clip-path: inset(50% 4% 2% 46%); }
+.public-hero-food__crop--avocado { z-index: 1; width: clamp(22rem, 27vw, 32rem); right: clamp(-12rem, -8vw, -7rem); bottom: -3rem; transform: rotate(7deg); }
+
 .public-hero__copy { position: relative; z-index: 4; width: 100%; min-width: 0; max-width: 42rem; }
 .public-hero__tag { width: max-content; max-width: 100%; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5); color: var(--green-strong); font-size: var(--type-small-size); font-weight: 800; }
 .public-hero__tag svg { width: 1.25rem; height: 1.25rem; fill: var(--brand-green); stroke: var(--brand-green); }
@@ -88,7 +116,7 @@
 .public-hero__benefits strong { display: block; color: var(--text-primary); font-size: .74rem; }
 .public-hero__note { margin: var(--space-4) 0 0; color: var(--text-muted); font-size: var(--type-caption-size); }
 
-.public-showcase { position: relative; min-width: 0; height: 42rem; isolation: isolate; }
+.public-showcase { position: relative; z-index: 3; min-width: 0; height: 42rem; isolation: isolate; }
 .public-showcase__shape { position: absolute; z-index: -2; width: 34rem; height: 33rem; top: 4rem; right: 0; border-radius: 48% 52% 40% 60% / 47% 40% 60% 53%; background: var(--brand-cream); transform: rotate(-8deg); }
 .public-showcase::before,.public-showcase::after { content: ''; position: absolute; z-index: -1; border-radius: 90% 10% 80% 20%; background: var(--brand-green-light); opacity: .7; }
 .public-showcase::before { width: 8rem; height: 4rem; top: 5rem; right: 3rem; transform: rotate(-25deg); }
@@ -98,7 +126,7 @@
 .public-phone__speaker { position: absolute; z-index: 20; width: 5rem; height: 1.35rem; top: .54rem; left: 50%; border-radius: 0 0 .85rem .85rem; background: #1d261f; transform: translateX(-50%); }
 .public-phone__status { height: 2.1rem; display: flex; align-items: center; justify-content: space-between; padding: .55rem 1rem 0; font-size: .48rem; font-weight: 850; }
 .public-phone__brand { display: flex; align-items: center; gap: .38rem; color: var(--green-dark); font-size: .66rem; }
-.public-phone__brand .brand-logo--symbol { width: 1.35rem; height: 1.35rem; }
+.public-phone__brand .brand-logo--symbol { width: 4.25rem; height: auto; }
 .public-phone--main { z-index: 5; width: 19rem; height: 38.5rem; top: 1.5rem; left: 50%; transform: translateX(-48%); animation: public-phone-main-entry .7s var(--ease-standard) both; }
 .public-phone__shell--main { padding: 0 .95rem .95rem; }
 .public-phone-screen { position: absolute; inset: 2.15rem 0 0; padding: .75rem .95rem 1rem; opacity: 0; pointer-events: none; }
@@ -255,6 +283,9 @@
   .public-header__nav a { font-size: .78rem; }
   .public-hero { grid-template-columns: minmax(0, .88fr) minmax(30rem, 1.12fr); }
   .public-showcase { transform: scale(.9); transform-origin: center right; }
+  .public-hero-food__crop--tomato { width: 24rem; left: -8rem; bottom: 9%; }
+  .public-hero-food__crop--leaf { width: 18rem; }.public-hero-food__crop--leaf-top { left: -13rem; }.public-hero-food__crop--leaf-bottom { width: 20rem; right: -6rem; }
+  .public-hero-food__crop--avocado { width: 19rem; right: -6.5rem; bottom: -2rem; }
   .public-demo__grid { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-10); }
 }
 
@@ -269,6 +300,9 @@
   .public-hero { min-height: 0; grid-template-columns: 1fr; padding-top: var(--space-16); text-align: center; }
   .public-hero__copy { max-width: 46rem; margin-inline: auto; }.public-hero__tag { margin-inline: auto; }.public-hero__copy > p:not(.public-hero__note) { margin-inline: auto; }.public-hero__actions { justify-content: center; }.public-hero__benefits { max-width: 40rem; margin-inline: auto; text-align: left; }
   .public-showcase { width: min(43rem, 100%); margin: -2rem auto 0; transform: scale(.95); transform-origin: center; }
+  .public-hero-food__crop--tomato { width: 19rem; left: -6.5rem; bottom: 28%; opacity: .82; }
+  .public-hero-food__crop--leaf { display: none; }
+  .public-hero-food__crop--avocado { width: 15rem; right: -5rem; bottom: 1rem; opacity: .86; }
   .public-section-heading--split,.public-how__inner,.public-benefits__inner { grid-template-columns: 1fr; }
   .public-section-heading--split > p { justify-self: start; }
   .public-how__inner { gap: var(--space-12); }.public-how__steps { max-width: 43rem; }
@@ -282,6 +316,8 @@
   .public-hero h1 { font-size: clamp(3rem, 13vw, 5rem); }
   .public-hero__benefits { grid-template-columns: 1fr; max-width: 20rem; }
   .public-showcase { height: 38rem; margin-top: -1rem; transform: scale(.86); }
+  .public-hero-food__crop--tomato { width: 14rem; left: -5.5rem; bottom: 26%; opacity: .64; }
+  .public-hero-food__crop--avocado { width: 11rem; right: -4rem; bottom: 0; opacity: .68; }
   .public-feature--1,.public-feature--2,.public-feature--3,.public-feature--4 { grid-column: span 12; }
   .public-feature { min-height: 22rem; }
   .public-benefits__inner ul { grid-template-columns: 1fr; }
@@ -297,6 +333,8 @@
   .public-hero h1 { font-size: clamp(2.35rem, 11.5vw, 3.8rem); }
   .public-hero__actions { display: grid; }.public-hero__actions > * { width: 100%; }
   .public-showcase { width: min(23rem, calc(100vw - var(--space-5) - var(--space-5))); height: 31.5rem; margin-top: 0; transform: none; }
+  .public-hero-food__crop--tomato { display: none; }
+  .public-hero-food__crop--avocado { width: 8rem; right: -3.25rem; bottom: 0; opacity: .52; }
   .public-showcase__shape { width: 22rem; height: 24rem; top: 3rem; right: 50%; transform: translateX(50%) rotate(-8deg); }
   .public-showcase::before { width: 5rem; height: 2.5rem; right: -.8rem; }.public-showcase::after { width: 6rem; height: 3rem; right: auto; left: -1rem; bottom: 2rem; }
   .public-phone--secondary { display: none; }
@@ -311,6 +349,7 @@
 }
 
 @media (max-width: 22rem) {
+  .public-hero-food__crop--avocado { display: none; }
   .public-showcase { width: 18rem; transform: scale(.92); transform-origin: top center; margin-bottom: -2rem; }
   .public-feature { padding: var(--space-5); }.public-feature__week,.public-feature__chart { right: var(--space-5); bottom: var(--space-5); left: var(--space-5); }
 }

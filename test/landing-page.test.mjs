@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("public landing presents the real product without fabricated social proof", async () => {
-  const [app, page, showcase, styles, plans, paywall, mealPhoto, chat, progress, onboarding, profile, brand] = await Promise.all([
+  const [app, page, showcase, styles, plans, paywall, mealPhoto, chat, progress, onboarding, profile, brand, metadata] = await Promise.all([
     readFile("frontend/src/App.tsx", "utf8"),
     readFile("frontend/src/pages/LandingPage.tsx", "utf8"),
     readFile("frontend/src/components/landing/PhoneShowcase.tsx", "utf8"),
@@ -16,6 +16,7 @@ test("public landing presents the real product without fabricated social proof",
     readFile("frontend/src/pages/OnboardingPage.tsx", "utf8"),
     readFile("frontend/src/pages/ProfilePage.tsx", "utf8"),
     readFile("frontend/src/components/BrandLogo.tsx", "utf8"),
+    readFile("frontend/index.html", "utf8"),
   ]);
 
   assert.match(app, /view === 'landing'/);
@@ -58,7 +59,7 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(styles, /animation: none !important/);
   assert.match(styles, /overflow-x: clip/);
 
-  for (const commercialValue of ["Nutri-AI Mensal", "R$ 19,90", "Nutri-AI Trimestral", "R$ 49,90", "Nutri-AI Anual", "R$ 159,90"]) {
+  for (const commercialValue of ["Alyvora Mensal", "R$ 19,90", "Alyvora Trimestral", "R$ 49,90", "Alyvora Anual", "R$ 159,90"]) {
     assert.equal(plans.includes(commercialValue), true, commercialValue);
   }
   for (const verifiedPremiumFeature of [
@@ -77,13 +78,19 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(page, /checkout seguro é apresentado somente depois que você entra na sua conta/);
   assert.match(page, /Nenhum pagamento é realizado nesta página/);
 
-  assert.match(brand, /nutri-ai-logo\.png/);
-  assert.match(brand, /nutri-ai-symbol\.png/);
+  assert.match(brand, /alyvora-logo-horizontal\.png/);
+  assert.match(brand, /<img/);
+  assert.match(brand, /alt="Alyvora"/);
+  assert.doesNotMatch(brand, /<span[^>]*>Alyvora<\/span>|assets\/brand|nutri-ai/i);
+  assert.match(metadata, /<title>Alyvora \| Sua alimentação cabe na sua vida<\/title>/);
+  assert.match(metadata, /Alyvora ajuda você a organizar sua alimentação/);
+  assert.doesNotMatch(metadata, /nutri-ai/i);
   assert.match(app, /view === 'onboarding'/);
   assert.match(app, /setOnboardingDraft\(draft\)/);
   assert.match(profile, /draft\?\.goal/);
   assert.match(profile, /draft\?\.activityLevel/);
-  assert.match(onboarding, /aria-pressed/);
+  assert.match(onboarding, /type="radio"/);
+  assert.match(onboarding, /<fieldset/);
   assert.match(onboarding, /Salvar e criar conta/);
   assert.equal((onboarding.match(/type="number"/g) ?? []).length, 1);
 });

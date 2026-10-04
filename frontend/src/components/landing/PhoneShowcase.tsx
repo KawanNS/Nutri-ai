@@ -6,7 +6,7 @@ function PhoneStatus() {
 }
 
 function PhoneBrand() {
-  return <div className="public-phone__brand"><BrandLogo variant="symbol"/><strong>Nutri-AI</strong></div>
+  return <div className="public-phone__brand"><BrandLogo variant="symbol"/></div>
 }
 
 export function PhoneShowcase() {
