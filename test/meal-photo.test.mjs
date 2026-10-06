@@ -12,6 +12,7 @@ import { createAIModelRegistry } from "../dist/ai/registry/ai-model.registry.js"
 import { createAIProviderRegistry } from "../dist/ai/registry/ai-provider.registry.js";
 import { analyzeMealPhotoController } from "../dist/controllers/meal-photo.controller.js";
 import { mealPhotoRateLimit } from "../dist/middlewares/meal-photo-rate-limit.middleware.js";
+import { createRequirePremium } from "../dist/middlewares/premium.middleware.js";
 import { confirmFoodLogSchema, mealPhotoAnalysisSchema } from "../dist/schemas/meal-photo.schema.js";
 import { mealPhotoAnalysisInstructions } from "../dist/prompts/meal-photo.prompt.js";
 import {
@@ -83,6 +84,74 @@ test("meal-photo analysis rejects unauthenticated access before reading an uploa
   await analyzeMealPhotoController({ headers: {}, body: jpeg }, response);
   assert.equal(output.status, 401);
   assert.deepEqual(output.body, { error: "Authentication is required" });
+});
+
+test("FREE users receive PREMIUM_REQUIRED before /analyze can process an image or call AI", async () => {
+  let imageProcessingCalls = 0;
+  let aiCalls = 0;
+  const guard = createRequirePremium(async (userId) => {
+    assert.equal(userId, "free-user");
+    return { isPremium: false };
+  });
+  const { output, response } = responseRecorder();
+
+  await guard(
+    { auth: { userId: "free-user", role: "USER" } },
+    response,
+    () => {
+      imageProcessingCalls += 1;
+      aiCalls += 1;
+    },
+  );
+
+  assert.equal(output.status, 403);
+  assert.deepEqual(output.body, {
+    error: "Premium subscription is required",
+    code: "PREMIUM_REQUIRED",
+  });
+  assert.equal(imageProcessingCalls, 0);
+  assert.equal(aiCalls, 0);
+});
+
+test("FREE users receive PREMIUM_REQUIRED before /confirm can create a FoodLog", async () => {
+  let foodLogWrites = 0;
+  const guard = createRequirePremium(async () => ({ isPremium: false }));
+  const { output, response } = responseRecorder();
+
+  await guard(
+    { auth: { userId: "free-user", role: "USER" } },
+    response,
+    () => { foodLogWrites += 1; },
+  );
+
+  assert.equal(output.status, 403);
+  assert.equal(output.body.code, "PREMIUM_REQUIRED");
+  assert.equal(foodLogWrites, 0);
+});
+
+test("Premium users are authorized for both meal-photo endpoints", async () => {
+  const checkedUsers = [];
+  const guard = createRequirePremium(async (userId) => {
+    checkedUsers.push(userId);
+    return { isPremium: true };
+  });
+  let analyzeCalls = 0;
+  let confirmCalls = 0;
+
+  await guard(
+    { auth: { userId: "premium-user", role: "USER" } },
+    responseRecorder().response,
+    () => { analyzeCalls += 1; },
+  );
+  await guard(
+    { auth: { userId: "premium-user", role: "USER" } },
+    responseRecorder().response,
+    () => { confirmCalls += 1; },
+  );
+
+  assert.deepEqual(checkedUsers, ["premium-user", "premium-user"]);
+  assert.equal(analyzeCalls, 1);
+  assert.equal(confirmCalls, 1);
 });
 
 test("JPEG, PNG, and WebP require matching declared MIME and real signature", () => {
@@ -256,7 +325,10 @@ test("frontend exposes the complete accessible meal-photo review flow without in
   assert.match(service, /\/api\/meal-photo\/analyze/);
   assert.match(service, /\/api\/meal-photo\/confirm/);
   assert.match(route, /mealPhotoRouter\.use\(authenticate\)/);
-  assert.ok(route.indexOf("mealPhotoRouter.use(authenticate)") < route.indexOf('mealPhotoRouter.post("/analyze"'));
+  assert.match(route, /mealPhotoRouter\.use\(requirePremium\)/);
+  assert.ok(route.indexOf("mealPhotoRouter.use(authenticate)") < route.indexOf("mealPhotoRouter.use(requirePremium)"));
+  assert.ok(route.indexOf("mealPhotoRouter.use(requirePremium)") < route.indexOf('mealPhotoRouter.post("/analyze"'));
+  assert.ok(route.indexOf("mealPhotoRouter.use(requirePremium)") < route.indexOf('mealPhotoRouter.post("/confirm"'));
   assert.match(css, /@media \(max-width: 34rem\)[\s\S]*\.mp-photo-food__fields/);
 
   for (const primitive of ["PageHeader", "Surface", "Alert", "Badge", "Button", "FormField", "LoadingState"]) {
@@ -268,6 +340,10 @@ test("frontend exposes the complete accessible meal-photo review flow without in
   assert.match(page, /Escolher foto/);
   assert.match(page, /URL\.createObjectURL\(selected\)/);
   assert.match(page, /URL\.revokeObjectURL\(preview\)/);
+  assert.match(page, /getSubscription\(\)/);
+  assert.match(page, /subscription\.isPremium/);
+  assert.match(page, /PREMIUM_REQUIRED/);
+  assert.match(page, /<Paywall\/>/);
   assert.match(page, /selected\.size > maxBytes/);
   assert.match(page, /Remover foto/);
   assert.match(page, /alt="Prévia da refeição selecionada"/);

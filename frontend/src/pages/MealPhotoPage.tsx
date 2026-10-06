@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
 import { DiaryNavButton } from '../components/DiaryNavButton'
 import { PageHeader } from '../components/layout/PageHeader'
+import { Paywall } from '../components/Paywall'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -9,6 +10,7 @@ import { FormField } from '../components/ui/FormField'
 import { LoadingState } from '../components/ui/LoadingState'
 import { Surface } from '../components/ui/Surface'
 import { ApiError } from '../services/api'
+import { getSubscription } from '../services/billingService'
 import { analyzeMealPhoto, confirmMealPhoto } from '../services/mealPhotoService'
 import type { FoodEstimateConfidence, MealPhotoAnalysis, MealPhotoFood } from '../types/mealPhoto'
 import './MealPhotoPage.css'
@@ -73,10 +75,33 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState<string | null>(null)
+  const [premium, setPremium] = useState<boolean | null>(null)
+  const [premiumCheckError, setPremiumCheckError] = useState(false)
+  const [premiumCheckKey, setPremiumCheckKey] = useState(0)
   const galleryInput = useRef<HTMLInputElement | null>(null)
   const cameraInput = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
+
+  useEffect(() => {
+    let active = true
+    void getSubscription()
+      .then(({ subscription }) => { if (active) setPremium(subscription.isPremium) })
+      .catch((requestError) => {
+        if (active && !(requestError instanceof ApiError && requestError.status === 401)) setPremiumCheckError(true)
+      })
+    return () => { active = false }
+  }, [premiumCheckKey])
+
+  function handleRequestError(requestError: unknown) {
+    if (requestError instanceof ApiError && requestError.code === 'PREMIUM_REQUIRED') {
+      setPremium(false)
+      setPremiumCheckError(false)
+      setError(null)
+      return
+    }
+    setError(messageFor(requestError))
+  }
 
   function choose(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0]
@@ -116,7 +141,7 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
     try {
       setAnalysis((await analyzeMealPhoto(file)).analysis)
     } catch (requestError) {
-      setError(messageFor(requestError))
+      handleRequestError(requestError)
     } finally {
       setAnalyzing(false)
     }
@@ -162,7 +187,7 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
       })
       setConfirmed(result.foodLog.id)
     } catch (requestError) {
-      setError(messageFor(requestError))
+      handleRequestError(requestError)
     } finally {
       setConfirming(false)
     }
@@ -173,6 +198,7 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
     <main className="page meal-photo-page">
       <PageHeader eyebrow="Registro alimentar" title="Foto do prato" description="Envie uma foto da sua refeição para identificar os alimentos e estimar as informações nutricionais. Você revisa tudo antes de registrar."/>
 
+      {premium === null && !premiumCheckError ? <Surface className="meal-photo-access-state"><LoadingState label="Verificando seu acesso Premium" description="Preparando a Foto do Prato com segurança."/></Surface> : premiumCheckError ? <Alert variant="error" title="Não foi possível verificar sua assinatura"><span>Tente novamente antes de enviar uma foto.</span><Button variant="ghost" onClick={() => { setPremium(null); setPremiumCheckError(false); setPremiumCheckKey((value) => value + 1) }}>Tentar novamente</Button></Alert> : premium === false ? <div className="meal-photo-locked"><Alert variant="info" title="Recurso exclusivo Premium">A Foto do Prato está disponível para assinantes Premium.</Alert><Paywall/></div> : <>
       <div className="mp-photo-feedback">
         {error && <Alert variant="error" title="Não foi possível continuar">{error}</Alert>}
         {confirmed && <Alert variant="success" title="Refeição registrada"><span>A confirmação foi salva com os dados revisados. A foto não foi armazenada.</span><Button className="mp-photo-diary-link" variant="ghost" onClick={onDiary}>Ver no Diário</Button></Alert>}
@@ -197,6 +223,7 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
       </Surface>
 
       {analysis && <AnalysisReview analysis={analysis} confirming={confirming} confirmed={Boolean(confirmed)} onChange={updateFood} onRemove={removeFood} onAdd={addFood} onConfirm={() => void confirm()}/>}
+      </>}
     </main>
   </div>
 }

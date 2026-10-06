@@ -5,6 +5,16 @@
   gap: var(--space-6);
 }
 
+.meal-photo-access-state,
+.meal-photo-locked {
+  width: 100%;
+}
+
+.meal-photo-locked {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .meal-photo-page > .ui-page-header { margin-bottom: var(--space-2); }
 .mp-photo-feedback { display: grid; gap: var(--space-3); }
 .mp-photo-feedback:empty { display: none; }

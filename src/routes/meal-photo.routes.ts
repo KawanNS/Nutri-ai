@@ -6,9 +6,11 @@ import {
 } from "../controllers/meal-photo.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { mealPhotoRateLimit } from "../middlewares/meal-photo-rate-limit.middleware.js";
+import { requirePremium } from "../middlewares/premium.middleware.js";
 
 const mealPhotoRouter = Router();
 mealPhotoRouter.use(authenticate);
+mealPhotoRouter.use(requirePremium);
 mealPhotoRouter.post("/analyze", mealPhotoRateLimit, mealPhotoBodyParser, analyzeMealPhotoController);
 mealPhotoRouter.post("/confirm", confirmMealPhotoController);
 

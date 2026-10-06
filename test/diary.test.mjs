@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { listFoodLogsController } from "../dist/controllers/food-log.controller.js";
+import { createRequirePremium } from "../dist/middlewares/premium.middleware.js";
 import { foodLogListQuerySchema } from "../dist/schemas/food-log.schema.js";
 import { listFoodLogs } from "../dist/services/food-log.service.js";
 import { confirmMealPhotoLog } from "../dist/services/meal-photo.service.js";
@@ -112,8 +113,16 @@ test("empty day returns an empty collection without synthetic records", async ()
   assert.deepEqual(result, { date: "2026-10-01", foodLogs: [] });
 });
 
-test("a FoodLog created by meal-photo confirmation appears through the diary data source", async () => {
+test("the Premium meal-photo flow creates a FoodLog that appears through the diary data source", async () => {
   const database = fakeFoodLogStore();
+  const guard = createRequirePremium(async () => ({ isPremium: true }));
+  let premiumAuthorized = false;
+  await guard(
+    { auth: { userId: "user-a", role: "USER" } },
+    responseRecorder().response,
+    () => { premiumAuthorized = true; },
+  );
+  assert.equal(premiumAuthorized, true);
   const confirmed = await confirmMealPhotoLog("user-a", confirmation("2026-10-02T15:00:00.000Z", "Frango grelhado"), { client: database.client });
   const diary = await listFoodLogs("user-a", { date: "2026-10-02", timezoneOffsetMinutes: 180 }, database.store);
   assert.equal(diary.foodLogs[0].id, confirmed.id);
