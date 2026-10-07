@@ -13,7 +13,7 @@ test("fresh login reuses the returned role and loads only the required destinati
   assert.match(loginPage, /saveToken\(response\.token\)/);
   assert.match(loginPage, /saveRole\(response\.user\.role\)/);
   assert.match(loginPage, /onAuthenticated\(response\.user\.role\)/);
-  const freshLoginCallback = app.split("onAuthenticated={(role) =>", 2)[1]?.split("onRegister=", 1)[0] ?? "";
+  const freshLoginCallback = app.split("const handleAuthenticated = (role:", 2)[1]?.split("if (view === 'register')", 1)[0] ?? "";
   assert.match(freshLoginCallback, /role === 'ADMIN'/);
   assert.match(freshLoginCallback, /setView\('admin'\); return/);
   assert.match(freshLoginCallback, /setView\('checking-profile'\); void loadProfile\(\)/);
@@ -43,7 +43,8 @@ test("authentication failures and backend security checks remain fail closed", a
   assert.match(api, /response\.status === 401 && token/);
   assert.match(api, /removeToken\(\)/);
   assert.match(api, /AUTH_UNAUTHORIZED_EVENT/);
-  assert.match(authService, /!user \|\| !\(await bcrypt\.compare\(input\.password, user\.passwordHash\)\)/);
+  assert.match(authService, /!user \|\| !\(await passwordMatches\(input\.password, user\.passwordHash\)\)/);
+  assert.match(authService, /if \(!passwordHash\) return false/);
   assert.match(authService, /user\.status === "BLOCKED"/);
   assert.match(authService, /throw new AuthError\(403, "User is blocked"\)/);
   assert.match(authService, /jwt\.sign\(\{ sub: user\.id \}, env\.jwtSecret/);

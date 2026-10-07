@@ -4,6 +4,7 @@ function requireEnvironmentVariable(
   name:
     | "DATABASE_URL"
     | "JWT_SECRET"
+    | "GOOGLE_CLIENT_ID"
     | "OPENAI_API_KEY"
     | "GEMINI_API_KEY"
     | "CAKTO_WEBHOOK_SECRET",
@@ -93,6 +94,9 @@ export const env = {
   },
   get jwtSecret(): string {
     return requireEnvironmentVariable("JWT_SECRET");
+  },
+  get googleClientId(): string {
+    return requireEnvironmentVariable("GOOGLE_CLIENT_ID");
   },
   get openaiApiKey(): string {
     return requireEnvironmentVariable("OPENAI_API_KEY");

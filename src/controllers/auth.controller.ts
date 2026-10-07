@@ -1,17 +1,18 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
-import { loginBodySchema, registerBodySchema } from "../schemas/auth.schema.js";
+import { googleLoginBodySchema, loginBodySchema, registerBodySchema } from "../schemas/auth.schema.js";
 
 import {
   AuthError,
   getCurrentUser,
   login,
+  loginWithGoogle,
   register,
 } from "../services/auth.service.js";
 
 function handleError(error: unknown, response: Response): void {
   if (error instanceof AuthError) {
-    response.status(error.statusCode).json({ error: error.message });
+    response.status(error.statusCode).json({ error: error.message, ...(error.code ? { code: error.code } : {}) });
     return;
   }
 
@@ -49,6 +50,20 @@ export async function loginController(
   try {
     const result = await login(input.data);
     response.status(200).json(result);
+  } catch (error: unknown) {
+    handleError(error, response);
+  }
+}
+
+export async function googleLoginController(request: Request, response: Response): Promise<void> {
+  const input = googleLoginBodySchema.safeParse(request.body);
+  if (!input.success) {
+    response.status(400).json({ error: "Invalid Google credential", code: "GOOGLE_CREDENTIAL_INVALID" });
+    return;
+  }
+
+  try {
+    response.status(200).json(await loginWithGoogle(input.data.credential));
   } catch (error: unknown) {
     handleError(error, response);
   }

@@ -52,5 +52,6 @@ test("login and registration redesign preserve auth behavior and accessible cont
   assert.match(layout, /<Surface/);
   assert.match(styles, /min-height: var\(--touch-target\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.doesNotMatch(login + register, /Google|Apple|recuperar senha|esqueci minha senha/i);
+  assert.match(login + register, /GoogleSignInButton/);
+  assert.doesNotMatch(login + register, /Apple|recuperar senha|esqueci minha senha/i);
 });

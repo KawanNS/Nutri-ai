@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   currentUserController,
+  googleLoginController,
   loginController,
   registerController,
 } from "../controllers/auth.controller.js";
@@ -13,6 +14,7 @@ authRouter.use(authRateLimit);
 
 authRouter.post("/register", registerController);
 authRouter.post("/login", loginController);
+authRouter.post("/google", googleLoginController);
 authRouter.get("/me", authenticate, currentUserController);
 
 export { authRouter };

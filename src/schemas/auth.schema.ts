@@ -17,3 +17,9 @@ export const loginBodySchema = z
     password: z.string().min(1).max(128),
   })
   .strict();
+
+export const googleLoginBodySchema = z
+  .object({
+    credential: z.string().trim().min(1).max(16_384),
+  })
+  .strict();
