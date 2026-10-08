@@ -72,7 +72,6 @@ export function GoogleSignInButton({ disabled = false, onCredential, onError }: 
           onCredential(credential)
         },
       })
-      containerRef.current.replaceChildren()
       window.google.accounts.id.renderButton(containerRef.current, {
         type: 'standard',
         theme: 'outline',
@@ -91,8 +90,7 @@ export function GoogleSignInButton({ disabled = false, onCredential, onError }: 
   }, [onCredential, onError])
 
   return <div className={`google-sign-in${disabled ? ' google-sign-in--disabled' : ''}`} aria-busy={!ready}>
-    <div ref={containerRef} className="google-sign-in__button" aria-label="Continuar com Google">
-      {!ready && <span>Continuar com Google</span>}
-    </div>
+    <div ref={containerRef} className="google-sign-in__button" aria-label="Continuar com Google"/>
+    {!ready && <button className="google-sign-in__fallback" type="button" disabled>Continuar com Google</button>}
   </div>
 }

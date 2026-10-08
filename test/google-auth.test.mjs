@@ -173,6 +173,8 @@ test("frontend uses GIS credential only and preserves the Alyvora session mechan
   assert.match(button, /https:\/\/accounts\.google\.com\/gsi\/client/);
   assert.match(button, /ux_mode: 'popup'/);
   assert.match(button, /Continuar com Google/);
+  assert.doesNotMatch(button, /replaceChildren|innerHTML/);
+  assert.match(button, /google-sign-in__fallback/);
   assert.match(service, /'\/auth\/google'[\s\S]*JSON\.stringify\(\{ credential \}\)/);
   assert.match(loginPage + registerPage, /saveToken\(response\.token\)/);
   assert.match(loginPage + registerPage, /onAuthenticated\(response\.user\.role\)/);
