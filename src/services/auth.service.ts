@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import {
   GoogleCredentialError,
+  verifyGoogleAuthorizationCode,
   verifyGoogleCredential,
   type GoogleIdentity,
 } from "./google-auth.service.js";
@@ -44,6 +45,7 @@ interface LoginInput {
 }
 
 type GoogleCredentialVerifier = (credential: string) => Promise<GoogleIdentity>;
+type GoogleCodeVerifier = (code: string) => Promise<GoogleIdentity>;
 
 type PasswordComparer = (
   password: string,
@@ -132,20 +134,49 @@ export async function login(input: LoginInput) {
   return createSession(publicUser);
 }
 
+async function resolveGoogleIdentity(verify: () => Promise<GoogleIdentity>): Promise<GoogleIdentity> {
+  try {
+    return await verify();
+  } catch (error: unknown) {
+    if (!(error instanceof GoogleCredentialError)) throw error;
+    console.warn("[auth.google] credential rejected", { reason: error.reason });
+    if (error.reason === "EMAIL_NOT_VERIFIED") {
+      throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_EMAIL_NOT_VERIFIED");
+    }
+    if (error.reason === "AUDIENCE_MISMATCH") {
+      throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_AUDIENCE_MISMATCH");
+    }
+    if (error.reason === "EXPIRED") {
+      throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_CREDENTIAL_EXPIRED");
+    }
+    if (error.reason === "PROVIDER_UNAVAILABLE") {
+      throw new AuthError(503, "Google authentication is temporarily unavailable", "GOOGLE_UNAVAILABLE");
+    }
+    if (error.reason === "CODE_INVALID") {
+      throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_CODE_INVALID");
+    }
+    if (error.reason === "CODE_FLOW_UNAVAILABLE") {
+      throw new AuthError(503, "Google authentication is temporarily unavailable", "GOOGLE_CODE_FLOW_UNAVAILABLE");
+    }
+    throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_CREDENTIAL_INVALID");
+  }
+}
+
 export async function loginWithGoogle(
   credential: string,
   verifyCredential: GoogleCredentialVerifier = verifyGoogleCredential,
 ) {
-  let identity: GoogleIdentity;
-  try {
-    identity = await verifyCredential(credential);
-  } catch (error: unknown) {
-    if (error instanceof GoogleCredentialError && error.reason === "EMAIL_NOT_VERIFIED") {
-      throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_EMAIL_NOT_VERIFIED");
-    }
-    throw new AuthError(401, "Google authentication could not be completed", "GOOGLE_CREDENTIAL_INVALID");
-  }
+  return signInWithGoogleIdentity(await resolveGoogleIdentity(() => verifyCredential(credential)));
+}
 
+export async function loginWithGoogleCode(
+  code: string,
+  verifyCode: GoogleCodeVerifier = verifyGoogleAuthorizationCode,
+) {
+  return signInWithGoogleIdentity(await resolveGoogleIdentity(() => verifyCode(code)));
+}
+
+async function signInWithGoogleIdentity(identity: GoogleIdentity) {
   const providerKey = { provider: "GOOGLE" as const, providerSubject: identity.subject };
   const existingIdentity = await prisma.authIdentity.findUnique({
     where: { provider_providerSubject: providerKey },

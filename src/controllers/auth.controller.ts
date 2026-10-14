@@ -1,12 +1,18 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../middlewares/auth.middleware.js";
-import { googleLoginBodySchema, loginBodySchema, registerBodySchema } from "../schemas/auth.schema.js";
+import {
+  googleCodeLoginBodySchema,
+  googleLoginBodySchema,
+  loginBodySchema,
+  registerBodySchema,
+} from "../schemas/auth.schema.js";
 
 import {
   AuthError,
   getCurrentUser,
   login,
   loginWithGoogle,
+  loginWithGoogleCode,
   register,
 } from "../services/auth.service.js";
 
@@ -64,6 +70,21 @@ export async function googleLoginController(request: Request, response: Response
 
   try {
     response.status(200).json(await loginWithGoogle(input.data.credential));
+  } catch (error: unknown) {
+    handleError(error, response);
+  }
+}
+
+export async function googleCodeLoginController(request: Request, response: Response): Promise<void> {
+  // Requiring JSON forces a CORS preflight, so other origins cannot submit a code on the user's behalf.
+  const input = request.is("application/json") ? googleCodeLoginBodySchema.safeParse(request.body) : null;
+  if (!input?.success) {
+    response.status(400).json({ error: "Invalid Google authorization code", code: "GOOGLE_CODE_INVALID" });
+    return;
+  }
+
+  try {
+    response.status(200).json(await loginWithGoogleCode(input.data.code));
   } catch (error: unknown) {
     handleError(error, response);
   }

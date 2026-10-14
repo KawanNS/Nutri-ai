@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   currentUserController,
+  googleCodeLoginController,
   googleLoginController,
   loginController,
   registerController,
@@ -15,6 +16,7 @@ authRouter.use(authRateLimit);
 authRouter.post("/register", registerController);
 authRouter.post("/login", loginController);
 authRouter.post("/google", googleLoginController);
+authRouter.post("/google/code", googleCodeLoginController);
 authRouter.get("/me", authenticate, currentUserController);
 
 export { authRouter };

@@ -3,10 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import jwt from "jsonwebtoken";
 
-import { loginWithGoogle } from "../dist/services/auth.service.js";
+import { googleCodeLoginController } from "../dist/controllers/auth.controller.js";
+import { loginWithGoogle, loginWithGoogleCode } from "../dist/services/auth.service.js";
 import {
   GoogleCredentialError,
+  classifyGoogleCodeExchangeFailure,
+  classifyGoogleVerificationFailure,
   validateGooglePayload,
+  verifyGoogleAuthorizationCode,
   verifyGoogleCredential,
 } from "../dist/services/google-auth.service.js";
 import { prisma } from "../dist/lib/prisma.js";
@@ -59,8 +63,17 @@ test("invalid Google credentials are rejected without decoding them locally", as
 test("Google payload rejects an incorrect audience", () => {
   assert.throws(
     () => validateGooglePayload({ ...validPayload, aud: "another-client" }, "expected-client-id", 1_500),
-    (error) => error instanceof GoogleCredentialError && error.reason === "INVALID",
+    (error) => error instanceof GoogleCredentialError && error.reason === "AUDIENCE_MISMATCH",
   );
+});
+
+test("Google verifier classifies audience, expiry, issuer, and network failures without logging token data", () => {
+  assert.equal(classifyGoogleVerificationFailure(new Error("Wrong recipient, payload audience != requiredAudience")), "AUDIENCE_MISMATCH");
+  assert.equal(classifyGoogleVerificationFailure(new Error("Token used too late, 1 > 2")), "EXPIRED");
+  assert.equal(classifyGoogleVerificationFailure(new Error("Invalid issuer, expected one of [accounts.google.com]")), "ISSUER_MISMATCH");
+  assert.equal(classifyGoogleVerificationFailure(Object.assign(new Error("request failed"), { code: "ETIMEDOUT" })), "PROVIDER_UNAVAILABLE");
+  assert.equal(classifyGoogleVerificationFailure(Object.assign(new Error("upstream failed"), { response: { status: 503 } })), "PROVIDER_UNAVAILABLE");
+  assert.equal(classifyGoogleVerificationFailure(new Error("Invalid token signature")), "INVALID");
 });
 
 test("Google payload requires a verified email", () => {
@@ -139,6 +152,29 @@ test("existing local email returns a safe conflict and never starts account link
   assert.equal(transactionCalls, 0);
 });
 
+test("Google audience mismatch has a distinct safe response and sanitized log", async () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warnings.push(values);
+  try {
+    await assert.rejects(
+      loginWithGoogle("must-not-appear-in-log", async () => { throw new GoogleCredentialError("AUDIENCE_MISMATCH"); }),
+      (error) => error.statusCode === 401 && error.code === "GOOGLE_AUDIENCE_MISMATCH",
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.deepEqual(warnings, [["[auth.google] credential rejected", { reason: "AUDIENCE_MISMATCH" }]]);
+  assert.doesNotMatch(JSON.stringify(warnings), /must-not-appear-in-log|person@example\.com/);
+});
+
+test("unexpected verifier failures are not mislabeled as invalid user credentials", async () => {
+  await assert.rejects(
+    loginWithGoogle("credential", async () => { throw new Error("unexpected configuration failure"); }),
+    /unexpected configuration failure/,
+  );
+});
+
 test("backend Google flow is transactional, creates required records, and never auto-links by email", async () => {
   const [service, routes, schema] = await Promise.all([
     readFile("src/services/auth.service.ts", "utf8"),
@@ -147,7 +183,10 @@ test("backend Google flow is transactional, creates required records, and never 
   ]);
 
   assert.match(routes, /post\("\/google", googleLoginController\)/);
+  assert.match(routes, /post\("\/google\/code", googleCodeLoginController\)/);
+  assert.match(routes, /authRouter\.use\(authRateLimit\)/);
   assert.match(schema, /googleLoginBodySchema[\s\S]*credential:/);
+  assert.match(schema, /googleCodeLoginBodySchema[\s\S]*code: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(2_048\)[\s\S]*\.strict\(\)/);
   assert.match(service, /providerSubject: identity\.subject/);
   assert.doesNotMatch(service, /providerSubject: identity\.email/);
   assert.match(service, /prisma\.\$transaction/);
@@ -180,4 +219,166 @@ test("frontend uses GIS credential only and preserves the Alyvora session mechan
   assert.match(loginPage + registerPage, /onAuthenticated\(response\.user\.role\)/);
   assert.match(token, /nutri_ai_token/);
   assert.doesNotMatch(button + service + loginPage + registerPage, /CLIENT_SECRET|client_secret|access_token/i);
+});
+
+test("backend normalizes the Google client ID before audience validation", async () => {
+  const config = await readFile("src/config/env.ts", "utf8");
+  assert.match(config, /requireEnvironmentVariable\("GOOGLE_CLIENT_ID"\)\.trim\(\)/);
+});
+
+const futurePayload = () => ({ ...validPayload, exp: Math.floor(Date.now() / 1000) + 600 });
+const ticketFor = (payload) => ({ getPayload: () => payload });
+
+test("authorization code is exchanged with the backend secret and only the ID token is verified", async () => {
+  const exchanged = [];
+  const verified = [];
+  const identity = await verifyGoogleAuthorizationCode(
+    "auth-code",
+    "expected-client-id",
+    "backend-secret",
+    { getToken: async (code) => { exchanged.push(code); return { tokens: { id_token: "id-token", access_token: "discarded" } }; } },
+    { verifyIdToken: async (options) => { verified.push(options); return ticketFor(futurePayload()); } },
+  );
+
+  assert.deepEqual(exchanged, ["auth-code"]);
+  assert.deepEqual(verified, [{ idToken: "id-token", audience: "expected-client-id" }]);
+  assert.equal(identity.subject, "google-subject-123");
+  assert.equal(identity.email, "person@example.com");
+});
+
+test("code flow is unavailable without GOOGLE_CLIENT_SECRET and never calls Google", async () => {
+  let exchanges = 0;
+  await assert.rejects(
+    verifyGoogleAuthorizationCode("auth-code", "expected-client-id", null, {
+      getToken: async () => { exchanges += 1; return { tokens: {} }; },
+    }),
+    (error) => error instanceof GoogleCredentialError && error.reason === "CODE_FLOW_UNAVAILABLE",
+  );
+  assert.equal(exchanges, 0);
+});
+
+test("code exchange failures are classified without exposing the code", async () => {
+  const googleError = (status, error) => Object.assign(new Error("request failed"), { response: { status, data: { error } } });
+  assert.equal(classifyGoogleCodeExchangeFailure(googleError(400, "invalid_grant")), "CODE_INVALID");
+  assert.equal(classifyGoogleCodeExchangeFailure(googleError(400, "invalid_request")), "CODE_INVALID");
+  assert.equal(classifyGoogleCodeExchangeFailure(googleError(401, "invalid_client")), "CODE_FLOW_UNAVAILABLE");
+  assert.equal(classifyGoogleCodeExchangeFailure(googleError(400, "redirect_uri_mismatch")), "CODE_FLOW_UNAVAILABLE");
+  assert.equal(classifyGoogleCodeExchangeFailure(googleError(503, "backend_error")), "PROVIDER_UNAVAILABLE");
+  assert.equal(classifyGoogleCodeExchangeFailure(Object.assign(new Error("timeout"), { code: "ETIMEDOUT" })), "PROVIDER_UNAVAILABLE");
+
+  await assert.rejects(
+    verifyGoogleAuthorizationCode("auth-code", "expected-client-id", "backend-secret", {
+      getToken: async () => { throw googleError(400, "invalid_grant"); },
+    }),
+    (error) => error instanceof GoogleCredentialError && error.reason === "CODE_INVALID",
+  );
+});
+
+test("code exchange without an ID token is rejected before verification", async () => {
+  let verifications = 0;
+  await assert.rejects(
+    verifyGoogleAuthorizationCode(
+      "auth-code",
+      "expected-client-id",
+      "backend-secret",
+      { getToken: async () => ({ tokens: { access_token: "only-access" } }) },
+      { verifyIdToken: async () => { verifications += 1; return ticketFor(futurePayload()); } },
+    ),
+    (error) => error instanceof GoogleCredentialError && error.reason === "INVALID",
+  );
+  assert.equal(verifications, 0);
+});
+
+test("ID tokens from the code exchange keep audience, issuer, and email verification checks", async () => {
+  const exchange = { getToken: async () => ({ tokens: { id_token: "id-token" } }) };
+  for (const [payload, reason] of [
+    [{ ...futurePayload(), aud: "another-client" }, "AUDIENCE_MISMATCH"],
+    [{ ...futurePayload(), iss: "https://evil.example" }, "ISSUER_MISMATCH"],
+    [{ ...futurePayload(), email_verified: false }, "EMAIL_NOT_VERIFIED"],
+  ]) {
+    await assert.rejects(
+      verifyGoogleAuthorizationCode("auth-code", "expected-client-id", "backend-secret", exchange, {
+        verifyIdToken: async () => ticketFor(payload),
+      }),
+      (error) => error instanceof GoogleCredentialError && error.reason === reason,
+    );
+  }
+});
+
+test("code login reuses the account and JWT session flow", async () => {
+  const response = await withPrismaStubs({
+    identityFindUnique: async (query) => {
+      assert.deepEqual(query.where.provider_providerSubject, { provider: "GOOGLE", providerSubject: "google-subject-123" });
+      return { user: publicUser };
+    },
+  }, () => loginWithGoogleCode("auth-code", async (code) => {
+    assert.equal(code, "auth-code");
+    return { subject: "google-subject-123", email: "person@example.com", name: "Pessoa" };
+  }));
+
+  assert.equal(response.expiresIn, "1h");
+  assert.equal(jwt.decode(response.token).sub, publicUser.id);
+});
+
+test("code login maps failures to safe codes and never logs the code", async () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warnings.push(values);
+  try {
+    await assert.rejects(
+      loginWithGoogleCode("must-not-appear-in-log", async () => { throw new GoogleCredentialError("CODE_INVALID"); }),
+      (error) => error.statusCode === 401 && error.code === "GOOGLE_CODE_INVALID",
+    );
+    await assert.rejects(
+      loginWithGoogleCode("must-not-appear-in-log", async () => { throw new GoogleCredentialError("CODE_FLOW_UNAVAILABLE"); }),
+      (error) => error.statusCode === 503 && error.code === "GOOGLE_CODE_FLOW_UNAVAILABLE",
+    );
+    await assert.rejects(
+      loginWithGoogleCode("must-not-appear-in-log", async () => { throw new GoogleCredentialError("PROVIDER_UNAVAILABLE"); }),
+      (error) => error.statusCode === 503 && error.code === "GOOGLE_UNAVAILABLE",
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(warnings.length, 3);
+  assert.doesNotMatch(JSON.stringify(warnings), /must-not-appear-in-log/);
+});
+
+function fakeResponse() {
+  return {
+    statusCode: 0,
+    body: undefined,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+test("code endpoint rejects non-JSON, missing, blank, oversized, and extra-field bodies", async () => {
+  const cases = [
+    { is: () => false, body: { code: "auth-code" } },
+    { is: () => "application/json", body: {} },
+    { is: () => "application/json", body: { code: "   " } },
+    { is: () => "application/json", body: { code: "x".repeat(2_049) } },
+    { is: () => "application/json", body: { code: "auth-code", credential: "extra" } },
+  ];
+  for (const request of cases) {
+    const response = fakeResponse();
+    await googleCodeLoginController(request, response);
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.body, { error: "Invalid Google authorization code", code: "GOOGLE_CODE_INVALID" });
+  }
+});
+
+test("backend reads GOOGLE_CLIENT_SECRET only on the server and uses the popup redirect URI", async () => {
+  const [config, googleService, example, frontendExample] = await Promise.all([
+    readFile("src/config/env.ts", "utf8"),
+    readFile("src/services/google-auth.service.ts", "utf8"),
+    readFile(".env.example", "utf8"),
+    readFile("frontend/.env.example", "utf8"),
+  ]);
+  assert.match(config, /process\.env\.GOOGLE_CLIENT_SECRET\?\.trim\(\) \|\| null/);
+  assert.match(googleService, /GOOGLE_POPUP_REDIRECT_URI = "postmessage"/);
+  assert.match(googleService, /new OAuth2Client\(\{ clientId, clientSecret, redirectUri: GOOGLE_POPUP_REDIRECT_URI \}\)/);
+  assert.match(example, /^GOOGLE_CLIENT_SECRET=$/m);
+  assert.doesNotMatch(frontendExample, /SECRET/i);
 });

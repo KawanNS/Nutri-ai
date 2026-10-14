@@ -96,7 +96,12 @@ export const env = {
     return requireEnvironmentVariable("JWT_SECRET");
   },
   get googleClientId(): string {
-    return requireEnvironmentVariable("GOOGLE_CLIENT_ID");
+    const clientId = requireEnvironmentVariable("GOOGLE_CLIENT_ID").trim();
+    if (!clientId) throw new Error("Environment variable GOOGLE_CLIENT_ID is required");
+    return clientId;
+  },
+  get googleClientSecret(): string | null {
+    return process.env.GOOGLE_CLIENT_SECRET?.trim() || null;
   },
   get openaiApiKey(): string {
     return requireEnvironmentVariable("OPENAI_API_KEY");
