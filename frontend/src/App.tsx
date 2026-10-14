@@ -14,6 +14,7 @@ import { BrandLogo } from './components/BrandLogo'
 import { ApiError } from './services/api'
 import { getCurrentUser } from './services/authService'
 import { getProfile } from './services/profileService'
+import { waitForPremiumConfirmation } from './services/billingService'
 import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken, saveRole } from './services/authToken'
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
 import './App.css'
@@ -36,6 +37,16 @@ function App() {
     try {
       const { user } = await getCurrentUser()
       saveRole(user.role)
+      if (user.role !== 'ADMIN') {
+        const query = new URLSearchParams(window.location.search)
+        const billingReturn = query.get('billing_return')
+        if (billingReturn && /^[A-Za-z0-9_-]{43}$/.test(billingReturn)) {
+          await waitForPremiumConfirmation()
+          query.delete('billing_return')
+          const suffix = query.toString()
+          window.history.replaceState(null, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}${window.location.hash}`)
+        }
+      }
       if (user.role === 'ADMIN') setView('admin')
       else await loadProfile()
     } catch (error) {
