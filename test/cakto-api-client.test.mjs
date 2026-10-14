@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CaktoApiError,
   createCaktoApiClient,
+  createCaktoOAuthApiClient,
   requestCaktoAccessToken,
 } from "../dist/services/cakto-api.service.js";
 
@@ -104,6 +105,35 @@ test("Cakto OAuth rejects missing credentials and invalid token responses withou
     { code: "CAKTO_API_INVALID_RESPONSE", providerStatus: 200 },
   );
   assert.equal(calls, 1);
+});
+
+test("configured OAuth client caches tokens and refreshes once after provider 401", async () => {
+  let tokenCalls = 0;
+  const bearerTokens = [];
+  const client = createCaktoOAuthApiClient({
+    baseUrl: "https://api.cakto.com.br",
+    clientId: "synthetic-client-id",
+    clientSecret: "synthetic-client-secret",
+    fetchImplementation: async (url, init) => {
+      if (url.endsWith("/public_api/token/")) {
+        tokenCalls += 1;
+        return jsonResponse({
+          access_token: `token-${tokenCalls}`,
+          expires_in: 36_000,
+          token_type: "Bearer",
+          scope: "read orders subscriptions offers",
+        });
+      }
+      bearerTokens.push(init.headers.Authorization);
+      if (bearerTokens.length === 1) return new Response(null, { status: 401 });
+      return jsonResponse(order);
+    },
+  });
+
+  assert.equal((await client.getOrder(order.id)).id, order.id);
+  assert.equal((await client.getOrder(order.id)).id, order.id);
+  assert.equal(tokenCalls, 2);
+  assert.deepEqual(bearerTokens, ["Bearer token-1", "Bearer token-2", "Bearer token-2"]);
 });
 
 test("Cakto API client uses only documented GET resource URLs and Bearer authentication", async () => {

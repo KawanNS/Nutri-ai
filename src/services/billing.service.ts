@@ -86,6 +86,7 @@ export function hashCheckoutCorrelationToken(token: string): string {
 export function buildCorrelatedCheckoutUrl(baseUrl: string, token: string): string {
   const checkoutUrl = new URL(baseUrl);
   checkoutUrl.searchParams.set("sck", token);
+  checkoutUrl.searchParams.set("callback", token);
   return checkoutUrl.toString();
 }
 
@@ -103,7 +104,9 @@ export function getConfiguredCheckoutUrl(plan: SubscriptionPlan): string {
 function configuredCaktoCheckout(): CaktoCheckoutConfiguration {
   return {
     planAllowlist: getConfiguredCaktoPlanAllowlist(),
-    apiAccessTokenConfigured: env.caktoApiAccessToken !== null,
+    apiAccessTokenConfigured:
+      env.caktoApiAccessToken !== null ||
+      (env.caktoClientId !== null && env.caktoClientSecret !== null),
     webhookSecretConfigured: env.caktoWebhookSecretOrNull !== null,
   };
 }

@@ -38,6 +38,7 @@ app.use(
     allowedHeaders: ["Authorization", "Content-Type", "Idempotency-Key"],
   }),
 );
+app.use("/webhooks/cakto", caktoWebhookRouter);
 app.use(express.json());
 
 app.get("/health", livenessController);
@@ -53,6 +54,5 @@ app.use("/api/chat", chatRouter);
 app.use("/api/meal-photo", mealPhotoRouter);
 app.use("/api/food-logs", foodLogRouter);
 app.use("/api/admin/ai-router", aiRouterAdminRouter);
-app.use("/webhooks/cakto", caktoWebhookRouter);
 
 export { app };

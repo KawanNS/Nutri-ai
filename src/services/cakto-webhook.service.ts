@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -41,6 +41,60 @@ export function isValidCaktoSecret(received: unknown, expected: string): boolean
 export function authenticateCaktoWebhook(received: unknown): void {
   if (!isValidCaktoSecret(received, env.caktoWebhookSecret)) {
     throw new CaktoWebhookError(401, "INVALID_WEBHOOK_SECRET", "Unauthorized webhook");
+  }
+}
+
+export const CAKTO_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
+
+export function isValidCaktoSignature(
+  rawBody: Buffer,
+  timestamp: unknown,
+  signature: unknown,
+  secret: string,
+  nowSeconds = Math.floor(Date.now() / 1_000),
+): boolean {
+  if (
+    !Buffer.isBuffer(rawBody) ||
+    typeof timestamp !== "string" ||
+    !/^\d{10,}$/.test(timestamp) ||
+    typeof signature !== "string" ||
+    secret.length === 0
+  ) return false;
+
+  const sentAt = Number(timestamp);
+  if (
+    !Number.isSafeInteger(sentAt) ||
+    Math.abs(nowSeconds - sentAt) > CAKTO_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS
+  ) return false;
+
+  const expected = `v1=${createHmac("sha256", secret)
+    .update(`${timestamp}.`)
+    .update(rawBody)
+    .digest("hex")}`;
+  const candidates = signature.split(",").map((item) => item.trim());
+  return candidates.some((candidate) => isValidCaktoSecret(candidate, expected));
+}
+
+export function authenticateCaktoWebhookRequest(input: {
+  rawBody: Buffer;
+  timestamp: unknown;
+  signature: unknown;
+  bodySecret: unknown;
+  nowSeconds?: number;
+}): void {
+  const expected = env.caktoWebhookSecret;
+  const hasSignatureHeaders = input.timestamp !== undefined || input.signature !== undefined;
+  const valid = hasSignatureHeaders
+    ? isValidCaktoSignature(
+        input.rawBody,
+        input.timestamp,
+        input.signature,
+        expected,
+        input.nowSeconds,
+      )
+    : isValidCaktoSecret(input.bodySecret, expected);
+  if (!valid) {
+    throw new CaktoWebhookError(401, "INVALID_WEBHOOK_SIGNATURE", "Unauthorized webhook");
   }
 }
 

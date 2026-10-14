@@ -150,6 +150,12 @@ export const env = {
   get caktoApiAccessToken(): string | null {
     return process.env.CAKTO_API_ACCESS_TOKEN?.trim() || null;
   },
+  get caktoClientId(): string | null {
+    return process.env.CAKTO_CLIENT_ID?.trim() || null;
+  },
+  get caktoClientSecret(): string | null {
+    return process.env.CAKTO_CLIENT_SECRET?.trim() || null;
+  },
   caktoCheckoutUrls: {
     MONTHLY:
       process.env.CAKTO_MONTHLY_CHECKOUT_URL?.trim() ||

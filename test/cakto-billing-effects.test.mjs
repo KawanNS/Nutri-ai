@@ -375,6 +375,21 @@ test("provider read failure leaves Subscription and Premium unchanged", async ()
   assert.equal(db.state.events[0].processingError, "PROVIDER_CONFIRMATION_FAILED");
 });
 
+for (const event of ["pix_gerado", "boleto_gerado", "purchase_refused"]) {
+  test(`${event} is acknowledged without provider reads or Premium activation`, async () => {
+    const db = fakeBillingClient();
+    const remote = provider("purchase_approved");
+    const result = await processCaktoWebhook(
+      { secret: "not-persisted", event, data: { id: remote.orderId } },
+      { client: db.client, apiClient: remote.api, allowlist },
+    );
+    assert.equal(result.pendingAssociation, false);
+    assert.equal(remote.calls.length, 0);
+    assert.equal(db.state.subscriptions.length, 0);
+    assert.equal(db.state.events[0].processingError, "UNSUPPORTED_EVENT");
+  });
+}
+
 test("transaction failure rolls back Subscription and CheckoutAttempt together", async () => {
   const db = fakeBillingClient({ failTransactionOnEventUpdate: true });
   await assert.rejects(() => deliver("purchase_approved", db), /synthetic transaction failure/);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
@@ -18,6 +19,7 @@ import {
 } from "../dist/services/billing.service.js";
 import {
   getCaktoProviderEventId,
+  isValidCaktoSignature,
   isValidCaktoSecret,
   recordCaktoWebhook,
 } from "../dist/services/cakto-webhook.service.js";
@@ -352,6 +354,7 @@ test("correlated checkout preserves trusted query parameters and safely replaces
   assert.equal(parsed.searchParams.get("campaign"), "safe");
   assert.equal(parsed.searchParams.getAll("sck").length, 1);
   assert.equal(parsed.searchParams.get("sck"), "opaque token/+?");
+  assert.equal(parsed.searchParams.get("callback"), "opaque token/+?");
   assert.match(url, /sck=opaque(?:\+|%20)token%2F%2B%3F/);
 });
 
@@ -382,6 +385,21 @@ test("webhook secret comparison accepts exact values and rejects missing or inco
   assert.equal(isValidCaktoSecret("correct", "correct"), true);
   assert.equal(isValidCaktoSecret("incorrect", "correct"), false);
   assert.equal(isValidCaktoSecret(undefined, "correct"), false);
+});
+
+test("webhook HMAC validates the raw body and rejects tampering, missing headers, and stale delivery", () => {
+  const rawBody = Buffer.from('{"event":"purchase_approved","data":{"id":"order-1"}}');
+  const timestamp = "1791806400";
+  const secret = "synthetic-webhook-secret";
+  const signature = `v1=${createHmac("sha256", secret)
+    .update(`${timestamp}.`)
+    .update(rawBody)
+    .digest("hex")}`;
+
+  assert.equal(isValidCaktoSignature(rawBody, timestamp, signature, secret, 1791806400), true);
+  assert.equal(isValidCaktoSignature(Buffer.from(`${rawBody} `), timestamp, signature, secret, 1791806400), false);
+  assert.equal(isValidCaktoSignature(rawBody, timestamp, undefined, secret, 1791806400), false);
+  assert.equal(isValidCaktoSignature(rawBody, timestamp, signature, secret, 1791806701), false);
 });
 
 test("webhook deduplication key separates lifecycle events for the same order", () => {

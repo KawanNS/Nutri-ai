@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { caktoWebhookEnvelopeSchema } from "../schemas/cakto-webhook.schema.js";
 import {
-  authenticateCaktoWebhook,
+  authenticateCaktoWebhookRequest,
   CaktoWebhookError,
   processCaktoWebhook,
 } from "../services/cakto-webhook.service.js";
@@ -11,8 +11,26 @@ export async function caktoWebhookController(
   response: Response,
 ): Promise<void> {
   try {
-    const body = request.body as Record<string, unknown> | undefined;
-    authenticateCaktoWebhook(body?.secret);
+    if (!Buffer.isBuffer(request.body)) {
+      response.status(400).json({ error: "Invalid webhook payload", code: "INVALID_WEBHOOK_PAYLOAD" });
+      return;
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(request.body.toString("utf8"));
+    } catch {
+      response.status(400).json({ error: "Invalid webhook payload", code: "INVALID_WEBHOOK_PAYLOAD" });
+      return;
+    }
+    const record = typeof body === "object" && body !== null
+      ? body as Record<string, unknown>
+      : undefined;
+    authenticateCaktoWebhookRequest({
+      rawBody: request.body,
+      timestamp: request.headers["x-cakto-timestamp"],
+      signature: request.headers["x-cakto-signature"],
+      bodySecret: record?.secret,
+    });
     const parsedPayload = caktoWebhookEnvelopeSchema.safeParse(body);
     if (!parsedPayload.success) {
       response.status(400).json({ error: "Invalid webhook payload", code: "INVALID_WEBHOOK_PAYLOAD" });

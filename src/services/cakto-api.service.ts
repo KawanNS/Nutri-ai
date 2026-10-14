@@ -63,6 +63,10 @@ export interface CaktoOAuthClientCredentials {
   maxResponseBytes?: number;
 }
 
+export interface CaktoOAuthApiClientOptions extends CaktoOAuthClientCredentials {
+  now?: () => number;
+}
+
 export interface CaktoOAuthAccess {
   accessToken: string;
   expiresIn: number;
@@ -301,8 +305,63 @@ export function createCaktoApiClient(options: CaktoApiClientOptions): CaktoApiCl
 }
 
 export function createConfiguredCaktoApiClient(): CaktoApiClient {
+  if (env.caktoClientId && env.caktoClientSecret) {
+    return createCaktoOAuthApiClient({
+      baseUrl: env.caktoApiBaseUrl,
+      clientId: env.caktoClientId,
+      clientSecret: env.caktoClientSecret,
+    });
+  }
   return createCaktoApiClient({
     baseUrl: env.caktoApiBaseUrl,
     accessToken: env.caktoApiAccessToken,
   });
+}
+
+/**
+ * Exchanges long-lived server credentials for short-lived access tokens and
+ * caches them only in memory. A small safety window prevents starting a
+ * provider read with a token that is about to expire.
+ */
+export function createCaktoOAuthApiClient(options: CaktoOAuthApiClientOptions): CaktoApiClient {
+  const now = options.now ?? Date.now;
+  let cached: { accessToken: string; expiresAt: number } | null = null;
+  let tokenRequest: Promise<string> | null = null;
+
+  async function accessToken(): Promise<string> {
+    if (cached && cached.expiresAt - 60_000 > now()) return cached.accessToken;
+    if (!tokenRequest) {
+      tokenRequest = requestCaktoAccessToken(options)
+        .then((result) => {
+          cached = {
+            accessToken: result.accessToken,
+            expiresAt: now() + result.expiresIn * 1_000,
+          };
+          return result.accessToken;
+        })
+        .finally(() => {
+          tokenRequest = null;
+        });
+    }
+    return tokenRequest;
+  }
+
+  async function withToken<T>(operation: (client: CaktoApiClient) => Promise<T>): Promise<T> {
+    const token = await accessToken();
+    const client = createCaktoApiClient({ ...options, accessToken: token });
+    try {
+      return await operation(client);
+    } catch (error: unknown) {
+      if (!(error instanceof CaktoApiError) || error.providerStatus !== 401) throw error;
+      cached = null;
+      const refreshed = await accessToken();
+      return operation(createCaktoApiClient({ ...options, accessToken: refreshed }));
+    }
+  }
+
+  return {
+    getOrder: (id) => withToken((client) => client.getOrder(id)),
+    getSubscription: (id) => withToken((client) => client.getSubscription(id)),
+    getOffer: (id) => withToken((client) => client.getOffer(id)),
+  };
 }
