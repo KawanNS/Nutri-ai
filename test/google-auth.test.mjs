@@ -199,9 +199,10 @@ test("backend Google flow is transactional, creates required records, and never 
   assert.equal((service.match(/return createSession\(/g) ?? []).length >= 4, true);
 });
 
-test("frontend uses GIS credential only and preserves the Alyvora session mechanism", async () => {
-  const [button, service, loginPage, registerPage, token] = await Promise.all([
+test("frontend uses a custom GIS code-client button and preserves the Alyvora session mechanism", async () => {
+  const [button, styles, service, loginPage, registerPage, token] = await Promise.all([
     readFile("frontend/src/components/auth/GoogleSignInButton.tsx", "utf8"),
+    readFile("frontend/src/components/AuthLayout.css", "utf8"),
     readFile("frontend/src/services/authService.ts", "utf8"),
     readFile("frontend/src/pages/LoginPage.tsx", "utf8"),
     readFile("frontend/src/pages/RegisterPage.tsx", "utf8"),
@@ -210,15 +211,40 @@ test("frontend uses GIS credential only and preserves the Alyvora session mechan
 
   assert.match(button, /import\.meta\.env\.VITE_GOOGLE_CLIENT_ID/);
   assert.match(button, /https:\/\/accounts\.google\.com\/gsi\/client/);
+  assert.match(button, /oauth2\.initCodeClient\(/);
   assert.match(button, /ux_mode: 'popup'/);
+  assert.match(button, /scope: GOOGLE_SCOPES/);
+  assert.match(button, /'openid email profile'/);
+  assert.match(button, /select_account: true/);
+  assert.match(button, /crypto\.getRandomValues/);
+  assert.match(button, /state !== expectedState/);
+  assert.match(button, /client\.requestCode\(\)/);
+  assert.match(button, /popup_failed_to_open/);
+  assert.doesNotMatch(button, /accounts\.id\b|renderButton|initialize\(|replaceChildren|innerHTML|Continuar como/);
+  assert.match(button, /<button className="google-sign-in" type="button"/);
   assert.match(button, /Continuar com Google/);
-  assert.doesNotMatch(button, /replaceChildren|innerHTML/);
-  assert.match(button, /google-sign-in__fallback/);
-  assert.match(service, /'\/auth\/google'[\s\S]*JSON\.stringify\(\{ credential \}\)/);
+  for (const color of ["#EA4335", "#4285F4", "#FBBC05", "#34A853"]) assert.match(button, new RegExp(color));
+  assert.doesNotMatch(button, /Apple/);
+
+  assert.match(styles, /\.google-sign-in \{[\s\S]*width: min\(100%, var\(--auth-control-width\)\)/);
+  assert.match(styles, /\.google-sign-in \{[\s\S]*min-height: 3\.25rem/);
+  assert.match(styles, /\.auth-shell__form input \{[\s\S]*min-height: 3\.25rem/);
+  assert.match(styles, /\.google-sign-in \{[\s\S]*border: 1px solid #747775[\s\S]*border-radius: var\(--radius-md\)[\s\S]*color: #1f1f1f[\s\S]*background: #fff/);
+  assert.match(styles, /\.google-sign-in:focus-visible/);
+  assert.match(styles, /\.google-sign-in:disabled/);
+  assert.doesNotMatch(styles, /social-sign-in|google-sign-in__fallback/);
+
+  assert.match(service, /'\/auth\/google\/code'[\s\S]*JSON\.stringify\(\{ code \}\)/);
+  assert.match(loginPage + registerPage, /loginWithGoogleCode\(code\)/);
+  assert.match(loginPage + registerPage, /onCode=\{\(code\) => void handleGoogleCode\(code\)\}/);
   assert.match(loginPage + registerPage, /saveToken\(response\.token\)/);
   assert.match(loginPage + registerPage, /onAuthenticated\(response\.user\.role\)/);
   assert.match(token, /nutri_ai_token/);
-  assert.doesNotMatch(button + service + loginPage + registerPage, /CLIENT_SECRET|client_secret|access_token/i);
+  for (const code of ["GOOGLE_AUDIENCE_MISMATCH", "GOOGLE_UNAVAILABLE", "GOOGLE_CODE_INVALID", "GOOGLE_CODE_FLOW_UNAVAILABLE"]) {
+    assert.match(loginPage, new RegExp(code));
+    assert.match(registerPage, new RegExp(code));
+  }
+  assert.doesNotMatch(button + service + loginPage + registerPage, /CLIENT_SECRET|client_secret|access_token|refresh_token/i);
 });
 
 test("backend normalizes the Google client ID before audience validation", async () => {

@@ -9,8 +9,8 @@ export function register(input: RegisterInput): Promise<RegisterResponse> {
   return apiRequest<RegisterResponse>('/auth/register', { method: 'POST', body: JSON.stringify(input) })
 }
 
-export function loginWithGoogle(credential: string): Promise<LoginResponse> {
-  return apiRequest<LoginResponse>('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) })
+export function loginWithGoogleCode(code: string): Promise<LoginResponse> {
+  return apiRequest<LoginResponse>('/auth/google/code', { method: 'POST', body: JSON.stringify({ code }) })
 }
 
 export function getCurrentUser(): Promise<CurrentUserResponse> {
