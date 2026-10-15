@@ -1,15 +1,19 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState, type CSSProperties } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
+import { DecorHerb, DecorLeaf, DecorLemon, DecorSeeds, DecorSprig, DecorStem, DecorWave } from '../components/landing/LandingDecor'
 import { PhoneShowcase } from '../components/landing/PhoneShowcase'
+import { revealDelay, useRevealOnScroll } from '../components/landing/useRevealOnScroll'
 import { Button } from '../components/ui/Button'
-import avocadoDecor from '../assets/landing/Abacate Fresco com Caroço e Gotas.png'
-import mealPhoto from '../assets/landing/differentials-food-photo.png'
-import leafDecor from '../assets/landing/Folhas Verdes Flutuando em Transparência.png'
-import tomatoDecor from '../assets/landing/Tomate vermelho com gotas de água.png'
+import avocadoDecor from '../assets/landing/avocado.webp'
+import mealPhoto from '../assets/landing/differentials-food-photo.webp'
+import tomatoDecor from '../assets/landing/tomato.webp'
 import { premiumFeatures, subscriptionPlans } from '../data/subscriptionPlans'
 import './LandingPage.css'
 
 interface Props { onLogin(): void; onRegister(): void; onStart(): void }
+
+/** Staggered entrance for sibling cards (see useRevealOnScroll). */
+const revealStyle = (index: number) => ({ '--reveal-delay': revealDelay(index) }) as CSSProperties
 
 const publicLinks = [
   ['Início', '#inicio'],
@@ -51,11 +55,14 @@ function LandingIcon({ name }: { name: IconName }) {
 }
 
 function HeroFoodDecor() {
+  // Above-the-fold decor: eager loading, with intrinsic sizes so nothing shifts while the images arrive.
   return <div className="public-hero-food" aria-hidden="true">
-    <span className="public-hero-food__crop public-hero-food__crop--tomato" data-required-asset="tomato-transparent"><img src={tomatoDecor} alt="" draggable="false"/></span>
-    <span className="public-hero-food__crop public-hero-food__crop--leaf public-hero-food__crop--leaf-top" data-required-asset="green-leaf-transparent"><img src={leafDecor} alt="" draggable="false"/></span>
-    <span className="public-hero-food__crop public-hero-food__crop--leaf public-hero-food__crop--leaf-bottom" data-required-asset="green-leaf-transparent"><img src={leafDecor} alt="" draggable="false"/></span>
-    <span className="public-hero-food__crop public-hero-food__crop--avocado" data-required-asset="avocado-transparent"><img src={avocadoDecor} alt="" draggable="false"/></span>
+    <DecorLeaf className="public-hero-decor public-hero-decor--leaf-top"/>
+    <DecorSeeds className="public-hero-decor public-hero-decor--seeds"/>
+    <DecorSprig className="public-hero-decor public-hero-decor--sprig"/>
+    <DecorLeaf className="public-hero-decor public-hero-decor--leaf-low"/>
+    <span className="public-hero-food__crop public-hero-food__crop--tomato" data-required-asset="tomato-transparent"><img src={tomatoDecor} alt="" width={1200} height={800} loading="eager" decoding="async" draggable="false"/></span>
+    <span className="public-hero-food__crop public-hero-food__crop--avocado" data-required-asset="avocado-transparent"><img src={avocadoDecor} alt="" width={1200} height={879} loading="eager" decoding="async" draggable="false"/></span>
   </div>
 }
 
@@ -111,8 +118,18 @@ function Faq() {
   </section>
 }
 
+/** Scrolls to the section in the URL hash; the browser tries before React has rendered the page. */
+function scrollToHashSection() {
+  let id = ''
+  try { id = decodeURIComponent(window.location.hash.slice(1)) } catch { return }
+  if (id) document.getElementById(id)?.scrollIntoView()
+}
+
 export function LandingPage({ onLogin, onRegister, onStart }: Props) {
-  return <div className="public-landing" id="inicio">
+  const revealRoot = useRevealOnScroll<HTMLDivElement>()
+  // Runs after the reveal hook's effect, whose on-screen check waits a frame and so sees the new position.
+  useEffect(scrollToHashSection, [])
+  return <div className="public-landing" id="inicio" ref={revealRoot}>
     <LandingHeader onLogin={onLogin} onStart={onStart}/>
     <main>
       <section className="public-hero" aria-labelledby="public-hero-title">
@@ -137,11 +154,11 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
 
       <section className="public-section public-features" id="funcionalidades" aria-labelledby="public-features-title">
         <div className="public-section-heading public-section-heading--split">
-          <div><p className="public-eyebrow">Funcionalidades</p><h2 id="public-features-title">Tudo o que você precisa<br/>em um só lugar.</h2></div>
+          <div data-reveal><p className="public-eyebrow">Funcionalidades</p><h2 id="public-features-title">Tudo o que você precisa<br/>em um só lugar.</h2></div>
           <p>Do planejamento ao registro da refeição, com apoio para acompanhar sua rotina sem complicação.</p>
         </div>
         <div className="public-feature-grid">
-          {features.map((feature, index) => <article className={`public-feature public-feature--${index + 1}`} key={feature.title}>
+          {features.map((feature, index) => <article className={`public-feature public-feature--${index + 1}`} key={feature.title} data-reveal style={revealStyle(index)}>
             <span className="public-feature__icon"><LandingIcon name={feature.icon}/></span>
             <span className="public-feature__number">0{index + 1}</span>
             <h3>{feature.title}</h3><p>{feature.description}</p>
@@ -154,43 +171,53 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
       </section>
 
       <section className="public-how" id="como-funciona" aria-labelledby="public-how-title">
+        <DecorWave className="public-how__wave"/>
+        <DecorLeaf className="public-section-decor public-section-decor--how"/>
+        <DecorSeeds className="public-section-decor public-section-decor--how-seeds"/>
         <div className="public-section public-how__inner">
-          <div className="public-how__intro"><p className="public-eyebrow">Como funciona</p><h2 id="public-how-title">Simples, prático e feito para a sua rotina.</h2><p>Comece com suas informações e transforme decisões soltas em uma semana mais organizada.</p><Button onClick={onStart}>Quero começar <span aria-hidden="true">→</span></Button></div>
+          <div className="public-how__intro"><div data-reveal><p className="public-eyebrow">Como funciona</p><h2 id="public-how-title">Simples, prático e feito para a sua rotina.</h2></div><p>Comece com suas informações e transforme decisões soltas em uma semana mais organizada.</p><Button className="landing-cta-button" onClick={onStart}>Quero começar <span className="landing-cta-button__arrow" aria-hidden="true">→</span></Button></div>
+          <div className="public-how__steps-wrap">
+          <DecorStem className="public-how__stem"/>
           <ol className="public-how__steps">
-            <li><span>1</span><div><h3>Conte sobre sua rotina</h3><p>Objetivos, preferências, restrições e horários ajudam a criar contexto.</p></div></li>
-            <li><span>2</span><div><h3>Receba seu plano</h3><p>Tenha sete dias de refeições, preparos e lista de compras organizados.</p></div></li>
-            <li><span>3</span><div><h3>Acompanhe e ajuste</h3><p>Registre refeições, converse com o assistente e acompanhe sua evolução.</p></div></li>
+            <li data-reveal style={revealStyle(0)}><span className="public-how__number" aria-hidden="true">01</span><div><h3>Conte sobre sua rotina</h3><p>Objetivos, preferências, restrições e horários ajudam a criar contexto.</p></div><DecorLeaf className="public-how__stem-leaf"/></li>
+            <li data-reveal style={revealStyle(1)}><span className="public-how__number" aria-hidden="true">02</span><div><h3>Receba seu plano</h3><p>Tenha sete dias de refeições, preparos e lista de compras organizados.</p></div><DecorLeaf className="public-how__stem-leaf public-how__stem-leaf--mirror"/></li>
+            <li data-reveal style={revealStyle(2)}><span className="public-how__number" aria-hidden="true">03</span><div><h3>Acompanhe e ajuste</h3><p>Registre refeições, converse com o assistente e acompanhe sua evolução.</p></div></li>
           </ol>
+          </div>
         </div>
+        <DecorWave className="public-how__wave" flip/>
       </section>
 
       <section className="public-section public-demo" aria-labelledby="public-demo-title">
+        <DecorHerb className="public-section-decor public-section-decor--demo"/>
         <div className="public-section-heading">
-          <p className="public-eyebrow">Veja na prática</p><h2 id="public-demo-title">Uma experiência conectada<br/>do plano ao acompanhamento.</h2><p>As ferramentas se complementam para apoiar a organização da sua alimentação.</p>
+          <div data-reveal><p className="public-eyebrow">Veja na prática</p><h2 id="public-demo-title">Uma experiência conectada<br/>do plano ao acompanhamento.</h2></div><p>As ferramentas se complementam para apoiar a organização da sua alimentação.</p>
         </div>
         <div className="public-demo__grid">
-          <article><div className="public-demo__screen public-demo__screen--day"><span>Hoje</span><h3>Meu dia</h3><div><b>1.250</b><small>kcal registradas</small></div><ul><li>✓ Café da manhã</li><li>✓ Almoço</li><li>○ Lanche da tarde</li></ul></div><h3>Acompanhe seu plano</h3><p>Consulte refeições e preparos em uma visão simples do dia.</p></article>
-          <article><div className="public-demo__screen public-demo__screen--photo"><img src={mealPhoto} alt="Refeição pronta para análise" loading="lazy"/><span aria-hidden="true">◎</span></div><h3>Registre com uma foto</h3><p>Receba uma estimativa para revisar antes de adicionar ao seu dia.</p></article>
-          <article><div className="public-demo__screen public-demo__screen--assistant"><span>Você</span><p>O que posso preparar para o jantar?</p><span>Alyvora</span><p>Vamos pensar em uma opção que combine com seu plano e sua rotina.</p></div><h3>Converse com o assistente</h3><p>Use o contexto do seu plano para organizar escolhas práticas.</p></article>
-          <article><div className="public-demo__screen public-demo__screen--evolution"><h3>Evolução</h3><div aria-hidden="true"><i/><i/><i/><i/><i/><i/></div><strong>Seu histórico, com clareza.</strong></div><h3>Observe sua evolução</h3><p>Acompanhe registros ao longo do tempo, sem promessas irreais.</p></article>
+          <article data-reveal style={revealStyle(0)}><div className="public-demo__screen public-demo__screen--day"><span>Hoje</span><h3>Meu dia</h3><div><b>1.250</b><small>kcal registradas</small></div><ul><li>✓ Café da manhã</li><li>✓ Almoço</li><li>○ Lanche da tarde</li></ul></div><h3>Acompanhe seu plano</h3><p>Consulte refeições e preparos em uma visão simples do dia.</p></article>
+          <article data-reveal style={revealStyle(1)}><div className="public-demo__screen public-demo__screen--photo"><img src={mealPhoto} alt="Refeição pronta para análise" loading="lazy"/><span aria-hidden="true">◎</span></div><h3>Registre com uma foto</h3><p>Receba uma estimativa para revisar antes de adicionar ao seu dia.</p></article>
+          <article data-reveal style={revealStyle(2)}><div className="public-demo__screen public-demo__screen--assistant"><span>Você</span><p>O que posso preparar para o jantar?</p><span>Alyvora</span><p>Vamos pensar em uma opção que combine com seu plano e sua rotina.</p></div><h3>Converse com o assistente</h3><p>Use o contexto do seu plano para organizar escolhas práticas.</p></article>
+          <article data-reveal style={revealStyle(3)}><div className="public-demo__screen public-demo__screen--evolution"><h3>Evolução</h3><div aria-hidden="true"><i/><i/><i/><i/><i/><i/></div><strong>Seu histórico, com clareza.</strong></div><h3>Observe sua evolução</h3><p>Acompanhe registros ao longo do tempo, sem promessas irreais.</p></article>
         </div>
       </section>
 
       <section className="public-benefits" aria-labelledby="public-benefits-title">
+        <DecorWave className="public-benefits__wave"/>
         <div className="public-section public-benefits__inner">
-          <div><p className="public-eyebrow">Feito para a vida real</p><h2 id="public-benefits-title">Mais organização.<br/>Menos decisões soltas.</h2></div>
+          <div className="public-benefits__heading" data-reveal><DecorLemon className="public-benefits__lemon"/><DecorSeeds className="public-benefits__seeds"/><p className="public-eyebrow">Feito para a vida real</p><h2 id="public-benefits-title">Mais organização.<br/>Menos decisões soltas.</h2></div>
           <ul>
-            <li><LandingIcon name="routine"/><div><strong>Praticidade</strong><span>Informações reunidas em um só fluxo.</span></div></li>
-            <li><LandingIcon name="plan"/><div><strong>Personalização</strong><span>Contexto da sua rotina orientando o plano.</span></div></li>
-            <li><LandingIcon name="basket"/><div><strong>Organização</strong><span>Refeições e compras mais fáceis de consultar.</span></div></li>
-            <li><LandingIcon name="progress"/><div><strong>Acompanhamento</strong><span>Registros para observar sua trajetória.</span></div></li>
+            <li data-reveal style={revealStyle(0)}><LandingIcon name="routine"/><div><strong>Praticidade</strong><span>Informações reunidas em um só fluxo.</span></div></li>
+            <li data-reveal style={revealStyle(1)}><LandingIcon name="plan"/><div><strong>Personalização</strong><span>Contexto da sua rotina orientando o plano.</span></div></li>
+            <li data-reveal style={revealStyle(2)}><LandingIcon name="basket"/><div><strong>Organização</strong><span>Refeições e compras mais fáceis de consultar.</span></div></li>
+            <li data-reveal style={revealStyle(3)}><LandingIcon name="progress"/><div><strong>Acompanhamento</strong><span>Registros para observar sua trajetória.</span></div></li>
           </ul>
         </div>
+        <DecorWave className="public-benefits__wave" flip/>
       </section>
 
       <section className="public-section public-pricing" id="planos" aria-labelledby="public-pricing-title">
         <div className="public-section-heading public-section-heading--split">
-          <div><p className="public-eyebrow">Planos</p><h2 id="public-pricing-title">Escolha o período<br/>que combina com você.</h2></div>
+          <div data-reveal><p className="public-eyebrow">Planos</p><h2 id="public-pricing-title">Escolha o período<br/>que combina com você.</h2></div>
           <p>Todos os períodos oferecem o mesmo acesso Premium. O checkout seguro é apresentado somente depois que você entra na sua conta.</p>
         </div>
         <div className="public-pricing__grid">
@@ -207,11 +234,12 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
 
       <Faq/>
 
-      <section className="public-final-cta" aria-labelledby="public-final-title">
-        <div className="public-final-cta__leaf public-final-cta__leaf--left" aria-hidden="true"/>
+      <section className="public-final-cta" aria-labelledby="public-final-title" data-reveal>
+        <DecorLeaf className="public-final-cta__leaf public-final-cta__leaf--left"/>
+        <DecorSprig className="public-final-cta__leaf public-final-cta__sprig"/>
         <div><p className="public-eyebrow">No seu ritmo</p><h2 id="public-final-title">Comece a organizar sua alimentação de um jeito que cabe na sua rotina.</h2><p>Reúna seu planejamento, seus registros e seu acompanhamento em uma experiência simples.</p></div>
-        <Button onClick={onStart}>Começar agora <span aria-hidden="true">→</span></Button>
-        <div className="public-final-cta__leaf public-final-cta__leaf--right" aria-hidden="true"/>
+        <Button className="landing-cta-button" onClick={onStart}>Começar agora <span className="landing-cta-button__arrow" aria-hidden="true">→</span></Button>
+        <DecorLeaf className="public-final-cta__leaf public-final-cta__leaf--right"/>
       </section>
     </main>
 

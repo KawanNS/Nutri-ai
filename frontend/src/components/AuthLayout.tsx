@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import mealPhoto from '../assets/landing/differentials-food-photo.png'
+import mealPhoto from '../assets/landing/differentials-food-photo.webp'
 import { BrandLogo } from './BrandLogo'
 import { Surface } from './ui/Surface'
 import './AuthLayout.css'

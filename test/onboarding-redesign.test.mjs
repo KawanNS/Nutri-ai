@@ -47,16 +47,16 @@ test("landing edge-food structure waits safely for approved transparent assets a
     readFile("frontend/src/components/landing/PhoneShowcase.tsx", "utf8"),
   ]);
 
-  assert.match(page, /differentials-food-photo\.png/);
+  assert.match(page, /differentials-food-photo\.webp/);
   assert.match(page, /<HeroFoodDecor\/>/);
   assert.match(page, /aria-hidden="true"/);
   assert.match(page, /data-required-asset="tomato-transparent"/);
   assert.match(page, /data-required-asset="avocado-transparent"/);
-  assert.match(page, /data-required-asset="green-leaf-transparent"/);
+  // The blurred leaf PNG was replaced by the hand-drawn SVG leaves from LandingDecor.
+  assert.match(page, /<DecorLeaf className="public-hero-decor/);
   assert.match(styles, /public-hero-food__crop--tomato/);
   assert.match(styles, /public-hero-food__crop--avocado/);
   assert.match(styles, /public-hero-food__crop:empty \{ display: none; \}/);
-  assert.match(styles, /filter: blur\(5px\)/);
   assert.match(styles, /pointer-events: none/);
   assert.match(styles, /@media \(max-width: 34rem\)/);
   assert.match(showcase, /public-phone-screen--home/);

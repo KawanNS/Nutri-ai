@@ -1,5 +1,5 @@
 import { BrandLogo } from '../BrandLogo'
-import mealPhoto from '../../assets/landing/differentials-food-photo.png'
+import mealPhoto from '../../assets/landing/differentials-food-photo.webp'
 
 function PhoneStatus() {
   return <div className="public-phone__status" aria-hidden="true"><span>9:41</span><span>● ● ●</span></div>
