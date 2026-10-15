@@ -9,5 +9,8 @@ export interface SubscriptionAccess {
   canceledAt: string | null
 }
 
-export interface SubscriptionResponse { subscription: SubscriptionAccess }
+/** Premium granted by the ADMIN role (decided by the server), not by a paid subscription. */
+export interface BillingSubscription extends SubscriptionAccess { adminAccess: boolean }
+
+export interface SubscriptionResponse { subscription: BillingSubscription }
 export interface CheckoutResponse { checkoutUrl: string }

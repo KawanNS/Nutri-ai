@@ -78,7 +78,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
     setLoading(true); setError(null)
     try {
       const [{ usage: currentUsage }, list, { subscription }] = await Promise.all([getUsage(), listLatestMealPlan(), getSubscription()])
-      setUsage({ ...currentUsage, ...subscription })
+      setUsage({ ...subscription, ...currentUsage })
       setPending(currentUsage.freeUsesReserved > 0)
       if (currentUsage.freeUsesReserved === 0) clearGenerationAttempt()
       if (list.mealPlans[0]) setMealPlan((await getMealPlan(list.mealPlans[0].id)).mealPlan)

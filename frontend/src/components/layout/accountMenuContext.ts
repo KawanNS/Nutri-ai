@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type PremiumState = 'loading' | 'premium' | 'free' | 'unavailable'
+export type PremiumState = 'loading' | 'premium' | 'admin' | 'free' | 'unavailable'
 
 export interface AccountIdentity {
   name: string

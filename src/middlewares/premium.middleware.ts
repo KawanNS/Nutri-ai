@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from "express";
 
-import { getEffectiveSubscriptionAccess } from "../services/subscription.service.js";
+import { getPremiumAccess } from "../services/subscription.service.js";
 import type { AuthenticatedRequest } from "./auth.middleware.js";
 
 type PremiumAccessResolver = (
@@ -8,7 +8,7 @@ type PremiumAccessResolver = (
 ) => Promise<{ isPremium: boolean }>;
 
 export function createRequirePremium(
-  getPremiumAccess: PremiumAccessResolver = getEffectiveSubscriptionAccess,
+  resolvePremiumAccess: PremiumAccessResolver = getPremiumAccess,
 ) {
   return async function requirePremiumAccess(
     request: AuthenticatedRequest,
@@ -23,7 +23,7 @@ export function createRequirePremium(
 
     let isPremium: boolean;
     try {
-      isPremium = (await getPremiumAccess(userId)).isPremium;
+      isPremium = (await resolvePremiumAccess(userId)).isPremium;
     } catch {
       response.status(500).json({ error: "Internal server error" });
       return;

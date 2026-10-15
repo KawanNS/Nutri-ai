@@ -37,7 +37,7 @@ function App() {
     setPremium('loading')
     try {
       const { subscription } = await getSubscription()
-      if (request === premiumRequest.current) setPremium(subscription.isPremium ? 'premium' : 'free')
+      if (request === premiumRequest.current) setPremium(subscription.adminAccess ? 'admin' : subscription.isPremium ? 'premium' : 'free')
     } catch {
       if (request === premiumRequest.current) setPremium('unavailable')
     }

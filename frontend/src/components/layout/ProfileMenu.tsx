@@ -47,6 +47,7 @@ export function AccountAvatar({ account, size = 'md' }: { account?: AccountIdent
 function PremiumStatus({ premium }: { premium: PremiumState }) {
   if (premium === 'loading') return <Badge className="profile-menu__status" aria-busy="true">Verificando…</Badge>
   if (premium === 'premium') return <Badge className="profile-menu__status" variant="success">Premium</Badge>
+  if (premium === 'admin') return <Badge className="profile-menu__status" variant="success">Premium (admin)</Badge>
   if (premium === 'free') return <Badge className="profile-menu__status">Gratuito</Badge>
   return <Badge className="profile-menu__status">Indisponível</Badge>
 }

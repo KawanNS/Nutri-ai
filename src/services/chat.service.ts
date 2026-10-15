@@ -5,7 +5,7 @@ import {
   buildNutritionAssistantInput,
   nutritionAssistantInstructions,
 } from "../prompts/nutrition-assistant.prompt.js";
-import { getEffectiveSubscriptionAccess } from "./subscription.service.js";
+import { getPremiumAccess } from "./subscription.service.js";
 
 export class ChatError extends Error {
   constructor(
@@ -20,11 +20,11 @@ export class ChatError extends Error {
 interface ChatDependencies {
   client?: typeof prisma;
   router?: AIRouter;
-  getPremiumAccess?: typeof getEffectiveSubscriptionAccess;
+  getPremiumAccess?: (userId: string) => Promise<{ isPremium: boolean }>;
 }
 
 async function requirePremium(userId: string, dependencies: ChatDependencies): Promise<void> {
-  const access = await (dependencies.getPremiumAccess ?? getEffectiveSubscriptionAccess)(userId);
+  const access = await (dependencies.getPremiumAccess ?? getPremiumAccess)(userId);
   if (!access.isPremium) {
     throw new ChatError(403, "PREMIUM_REQUIRED", "Premium subscription is required");
   }

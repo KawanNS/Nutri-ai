@@ -3,8 +3,8 @@ import type { SubscriptionPlan } from "../generated/prisma/client.js";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import {
-  getEffectiveSubscriptionAccess,
-  serializeSubscriptionAccess,
+  getPremiumAccess,
+  serializePremiumAccess,
 } from "./subscription.service.js";
 import {
   getConfiguredCaktoPlanAllowlist,
@@ -131,7 +131,7 @@ export function resolveCaktoCheckoutPlan(
 }
 
 export async function getSubscriptionForUser(userId: string) {
-  return serializeSubscriptionAccess(await getEffectiveSubscriptionAccess(userId));
+  return serializePremiumAccess(await getPremiumAccess(userId));
 }
 
 export async function createCorrelatedCheckoutAttempt(

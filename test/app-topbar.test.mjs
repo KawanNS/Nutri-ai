@@ -106,7 +106,7 @@ test("App reuses the existing subscription endpoint and syncs it with the checko
 
   assert.match(app, /import \{ getSubscription, waitForPremiumConfirmation \} from '\.\/services\/billingService'/);
   assert.match(app, /useState<PremiumState>\('loading'\)/);
-  assert.match(app, /setPremium\(subscription\.isPremium \? 'premium' : 'free'\)/);
+  assert.match(app, /setPremium\(subscription\.adminAccess \? 'admin' : subscription\.isPremium \? 'premium' : 'free'\)/);
   assert.match(app, /if \(request === premiumRequest\.current\) setPremium\('unavailable'\)/);
   assert.match(app, /premiumConfirmed = await waitForPremiumConfirmation\(\)/);
   assert.match(app, /if \(premiumConfirmed\) \{ premiumRequest\.current \+= 1; setPremium\('premium'\) \}\s*else void refreshPremium\(\)/);
