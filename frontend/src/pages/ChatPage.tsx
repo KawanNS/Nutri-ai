@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { BrandLogo } from '../components/BrandLogo'
-import { DiaryNavButton } from '../components/DiaryNavButton'
+import { AppTopbar } from '../components/layout/AppTopbar'
 import { MarkdownMessage } from '../components/MarkdownMessage'
 import { Paywall } from '../components/Paywall'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -16,7 +15,7 @@ import { getSubscription } from '../services/billingService'
 import type { ChatConversationSummary, ChatMessage } from '../types/chat'
 import './ChatPage.css'
 
-interface ChatPageProps { onMealPlan(): void; onDiary(): void; onProfile(): void; onProgress(): void; onLogout(): void }
+interface ChatPageProps { onMealPlan(): void; onDiary(): void; onProgress(): void }
 
 function chatError(error: unknown): string {
   if (error instanceof ApiError && error.code === 'CHAT_TEMPORARILY_UNAVAILABLE') return 'O assistente está temporariamente indisponível. Tente novamente em alguns instantes.'
@@ -77,7 +76,7 @@ function ConversationHistory({ conversations, activeId, sending, mobileOpen, onC
   </Surface>
 }
 
-export function ChatPage({ onMealPlan, onDiary, onProfile, onProgress, onLogout }: ChatPageProps) {
+export function ChatPage({ onMealPlan, onDiary, onProgress }: ChatPageProps) {
   const [premium, setPremium] = useState<boolean | null>(null), [loading, setLoading] = useState(true)
   const [conversations, setConversations] = useState<ChatConversationSummary[]>([]), [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([]), [draft, setDraft] = useState(''), [sending, setSending] = useState(false), [error, setError] = useState<string | null>(null)
@@ -144,7 +143,7 @@ export function ChatPage({ onMealPlan, onDiary, onProfile, onProgress, onLogout 
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void submit() }
   }
 
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button><button className="nav-button nav-button--active" type="button" aria-current="page">Assistente</button><DiaryNavButton onClick={onDiary}/><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+  return <div className="app-shell"><AppTopbar active="chat" onMealPlan={onMealPlan} onDiary={onDiary} onProgress={onProgress}/>
     <main className="page assistant-page">
       <PageHeader eyebrow="Orientação para sua rotina" title="Assistente Alyvora" description="Converse sobre seu plano e encontre caminhos práticos para organizar sua alimentação." actions={<Badge variant="success">Premium</Badge>}/>
       {error && <Alert variant="error" title="Não foi possível obter uma resposta agora.">{error}</Alert>}

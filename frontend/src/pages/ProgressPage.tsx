@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { BrandLogo } from '../components/BrandLogo'
-import { DiaryNavButton } from '../components/DiaryNavButton'
+import { AppTopbar } from '../components/layout/AppTopbar'
 import { WeightChart } from '../components/WeightChart'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
@@ -32,9 +31,9 @@ function formatWeight(value: string | number): string {
   return Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })
 }
 
-interface ProgressPageProps { notice?: string; onMealPlan(): void; onChat(): void; onDiary(): void; onProfile(): void; onLogout(): void }
+interface ProgressPageProps { notice?: string; onMealPlan(): void; onChat(): void; onDiary(): void }
 
-export function ProgressPage({ notice, onMealPlan, onChat, onDiary, onProfile, onLogout }: ProgressPageProps) {
+export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPageProps) {
   const [entries, setEntries] = useState<ProgressEntry[]>([]), [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true), [loadingMore, setLoadingMore] = useState(false), [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null), [success, setSuccess] = useState<string | null>(null)
@@ -80,7 +79,7 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary, onProfile, o
     weightInputRef.current?.focus()
   }
 
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button><button className="nav-button" type="button" onClick={onChat}>Assistente</button><DiaryNavButton onClick={onDiary}/><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button nav-button--active" type="button" aria-current="page">Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+  return <div className="app-shell"><AppTopbar active="progress" onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary}/>
     <main className="page progress-page">
       <PageHeader eyebrow="Seu histórico" title="Evolução" description="Acompanhe seus registros de peso ao longo do tempo, com uma visão simples e responsável da sua trajetória."/>
 

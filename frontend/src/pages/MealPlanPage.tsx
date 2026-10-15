@@ -10,13 +10,12 @@ import { generateMealPlan, getMealPlan, listLatestMealPlan } from '../services/m
 import { getUsage } from '../services/usageService'
 import { getSubscription } from '../services/billingService'
 import { Paywall } from '../components/Paywall'
-import { BrandLogo } from '../components/BrandLogo'
-import { DiaryNavButton } from '../components/DiaryNavButton'
+import { AppTopbar } from '../components/layout/AppTopbar'
 import type { Meal, MealPlan, MealPlanDay, Nutrition } from '../types/mealPlan'
 import type { Usage } from '../types/usage'
 import './MealPlanPage.css'
 
-interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void; onLogout(): void }
+interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
@@ -62,7 +61,7 @@ function shouldStartFreshAfter(error: unknown): boolean {
   ].includes(error.code ?? '')
 }
 
-export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgress, onLogout }: MealPlanPageProps) {
+export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgress }: MealPlanPageProps) {
   const [usage, setUsage] = useState<Usage | null>(null), [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
   const [loading, setLoading] = useState(true), [generating, setGenerating] = useState(false), [pending, setPending] = useState(false)
   const [hasAttemptKey, setHasAttemptKey] = useState(() => sessionStorage.getItem(generationAttemptStorageKey) !== null)
@@ -116,7 +115,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
   const needsProfile = error?.includes('perfil'), limitReached = usage?.isPremium === false && usage.freeUsesAvailable === 0
   const generationLabel = mealPlan ? 'Gerar novo plano' : 'Gerar meu plano'
 
-  return <div className="app-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button nav-button--active" type="button" aria-current="page">Plano alimentar</button><button className="nav-button" type="button" onClick={onChat}>Assistente</button><DiaryNavButton onClick={onDiary}/><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+  return <div className="app-shell"><AppTopbar active="meal-plan" onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
     <main className="page meal-plan-page">
       <PageHeader
         className="mp-page-header"

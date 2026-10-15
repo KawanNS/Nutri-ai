@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { BrandLogo } from '../components/BrandLogo'
-import { DiaryNavButton } from '../components/DiaryNavButton'
+import { AppTopbar } from '../components/layout/AppTopbar'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Paywall } from '../components/Paywall'
 import { Alert } from '../components/ui/Alert'
@@ -19,9 +18,7 @@ interface MealPhotoPageProps {
   onMealPlan(): void
   onChat(): void
   onDiary(): void
-  onProfile(): void
   onProgress(): void
-  onLogout(): void
 }
 
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
@@ -67,7 +64,7 @@ function nullableNumber(value: string): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
 }
 
-export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgress, onLogout }: MealPhotoPageProps) {
+export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProgress }: MealPhotoPageProps) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<MealPhotoAnalysis | null>(null)
@@ -194,7 +191,7 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProfile, onProgre
   }
 
   return <div className="app-shell">
-    <header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button" onClick={onMealPlan}>Plano alimentar</button><button className="nav-button" onClick={onChat}>Assistente</button><button className="nav-button nav-button--active" aria-current="page">Foto do prato</button><DiaryNavButton onClick={onDiary}/><button className="nav-button" onClick={onProfile}>Perfil</button><button className="nav-button" onClick={onProgress}>Evolução</button><button className="logout-button" onClick={onLogout}>Sair</button></nav></div></header>
+    <AppTopbar active="meal-photo" onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
     <main className="page meal-photo-page">
       <PageHeader eyebrow="Registro alimentar" title="Foto do prato" description="Envie uma foto da sua refeição para identificar os alimentos e estimar as informações nutricionais. Você revisa tudo antes de registrar."/>
 

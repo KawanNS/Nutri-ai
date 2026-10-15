@@ -277,7 +277,8 @@ test("frontend presents the complete accessible progress flow without invented m
   assert.match(page, /<WeightChart entries=\{entries\}/);
   assert.match(page, /Carregar mais/);
   assert.match(page, /aria-live="polite"/);
-  assert.match(page, /aria-current="page"/);
+  // The shared topbar applies aria-current="page" to the active section (see app-topbar.test.mjs).
+  assert.match(page, /<AppTopbar active="progress"/);
   assert.match(page, /min="0\.01"/);
   assert.match(page, /max="9999\.99"/);
   assert.match(page, /step="0\.01"/);

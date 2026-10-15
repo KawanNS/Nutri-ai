@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BrandLogo } from '../components/BrandLogo'
-import { DiaryIcon, DiaryNavButton } from '../components/DiaryNavButton'
+import { AppTopbar } from '../components/layout/AppTopbar'
+import { DiaryIcon } from '../components/DiaryNavButton'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
@@ -16,9 +16,7 @@ interface DiaryPageProps {
   onMealPlan(): void
   onChat(): void
   onMealPhoto(): void
-  onProfile(): void
   onProgress(): void
-  onLogout(): void
 }
 
 type NutrientKey = 'estimatedCaloriesKcal' | 'estimatedProteinGrams' | 'estimatedCarbohydrateGrams' | 'estimatedFatGrams'
@@ -49,7 +47,7 @@ function errorMessage(): string {
   return 'Não foi possível carregar seu diário agora. Tente novamente.'
 }
 
-export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProfile, onProgress, onLogout }: DiaryPageProps) {
+export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: DiaryPageProps) {
   const [date, setDate] = useState(today())
   const [foodLogs, setFoodLogs] = useState<DiaryFoodLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,7 +87,7 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProfile, onProgre
   }), [foodLogs])
 
   return <div className="app-shell">
-    <header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/></div><nav className="topbar__actions" aria-label="Navegação principal"><button className="nav-button" type="button" onClick={onMealPlan}>Plano alimentar</button><button className="nav-button" type="button" onClick={onChat}>Assistente</button><DiaryNavButton active/><button className="nav-button" type="button" onClick={onProfile}>Perfil</button><button className="nav-button" type="button" onClick={onProgress}>Evolução</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
+    <AppTopbar active="diary" onMealPlan={onMealPlan} onChat={onChat} onProgress={onProgress}/>
     <main className="page diary-page">
       <PageHeader eyebrow="Seus registros" title="Diário alimentar" description="Acompanhe suas refeições e veja como está sua alimentação ao longo do dia."/>
 
