@@ -46,6 +46,23 @@ select {
   font: inherit;
 }
 
+/* iOS Safari gives date/time inputs a native min width that ignores width: 100%
+   and pushes them past their container; reset it so they fit like text fields. */
+input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"])::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  margin: 0;
+  text-align: left;
+}
+
 :where(a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
