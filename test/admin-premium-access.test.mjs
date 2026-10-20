@@ -168,16 +168,31 @@ test("Premium gates and the billing endpoint use the role-aware access", async (
   assert.match(billing, /return serializePremiumAccess\(await getPremiumAccess\(userId\)\);/);
 });
 
-test("free usage counters and billing flows keep using paid subscriptions only", async () => {
-  const [usage, mealPlan, webhook] = await Promise.all([
+test("ADMIN meal plan generations skip the free-use counters while billing flows stay subscription-only", async () => {
+  const [usage, mealPlan, webhook, schema, migration] = await Promise.all([
     read("src/services/usage-control.service.ts"),
     read("src/services/meal-plan.service.ts"),
     read("src/services/cakto-webhook.service.ts"),
+    read("prisma/schema.prisma"),
+    read("prisma/migrations/20261019120000_add_admin_usage_entitlement/migration.sql"),
   ]);
+  // getUsage still reports paid access only; the page merges the role-aware billing status.
   assert.match(usage, /getEffectiveSubscriptionAccess\(userId\)/);
-  for (const source of [usage, mealPlan, webhook]) {
-    assert.doesNotMatch(source, /getPremiumAccess|adminAccess|"ADMIN"/);
-  }
+  // The role is read from the database inside the reservation, and a paid subscription wins.
+  assert.match(usage, /const adminAccess = !subscription && \(await transaction\.user\.findUnique\(\{\s*where: \{ id: userId \},\s*select: \{ role: true \},/);
+  assert.match(usage, /const entitlement = subscription \? "SUBSCRIPTION" : adminAccess \? "ADMIN" : "FREE";/);
+  assert.match(usage, /if \(entitlement !== "FREE"\) \{/);
+  assert.match(usage, /const updatedUsage = transition\.entitlement !== "FREE"/);
+  // Saving a generated plan confirms the usage on its own; ADMIN must not decrement free counters there either.
+  assert.match(mealPlan, /const updatedUsage = transitioned\[0\]\.entitlement !== "FREE"/);
+  assert.doesNotMatch(`${usage}\n${mealPlan}`, /entitlement === "SUBSCRIPTION"/);
+  assert.match(schema, /enum UsageEntitlement \{\s*FREE\s*SUBSCRIPTION\s*ADMIN\s*\}/);
+  assert.match(migration, /ALTER TYPE "UsageEntitlement" ADD VALUE IF NOT EXISTS 'ADMIN';/);
+  assert.match(migration, /\("entitlement"::text IN \('FREE', 'ADMIN'\) AND "subscriptionId" IS NULL\)/);
+  assert.match(migration, /\("entitlement"::text = 'SUBSCRIPTION' AND "subscriptionId" IS NOT NULL\)/);
+  // The role is decided only at reservation time; saving plans and billing never check it.
+  assert.doesNotMatch(mealPlan, /getPremiumAccess|adminAccess|role/);
+  assert.doesNotMatch(webhook, /getPremiumAccess|adminAccess|"ADMIN"/);
 });
 
 test("profile menu and subscription page show the Premium (admin) badge without a paywall", async () => {
@@ -199,10 +214,12 @@ test("profile menu and subscription page show the Premium (admin) badge without 
   assert.doesNotMatch(adminBranch, /Paywall/);
 });
 
-test("meal plan summary keeps the free-usage view from /api/usage for admins", async () => {
+test("meal plan summary shows admins as Premium instead of the free-usage limit", async () => {
   const page = await read("frontend/src/pages/MealPlanPage.tsx");
-  assert.match(page, /setUsage\(\{ \.\.\.subscription, \.\.\.currentUsage \}\)/);
+  assert.match(page, /setUsage\(\{ \.\.\.currentUsage, \.\.\.subscription \}\)/);
+  assert.match(page, /if \(usage\.adminAccess\) return <div className="mp-usage"><Badge variant="success">Premium \(admin\)<\/Badge>/);
   assert.match(page, /if \(usage\.isPremium\) return <div className="mp-usage"><Badge variant="success">Premium ativo<\/Badge>/);
+  assert.match(page, /limitReached = usage\?\.isPremium === false && usage\.freeUsesAvailable === 0/);
 });
 
 test("admin panel offers the path into the regular app", async () => {

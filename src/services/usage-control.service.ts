@@ -23,7 +23,7 @@ interface InsertedEventRow {
 interface TransitionedEventRow {
   id: string;
   usageControlId: string;
-  entitlement: "FREE" | "SUBSCRIPTION";
+  entitlement: "FREE" | "SUBSCRIPTION" | "ADMIN";
 }
 
 export class UsageControlError extends Error {
@@ -88,6 +88,12 @@ export async function reserveUsage(
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       select: { id: true },
     });
+    // ADMIN accounts are Premium everywhere; a real subscription still wins so billing stays accurate.
+    const adminAccess = !subscription && (await transaction.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    }))?.role === "ADMIN";
+    const entitlement = subscription ? "SUBSCRIPTION" : adminAccess ? "ADMIN" : "FREE";
     const eventId = randomUUID();
     const inserted = await transaction.$queryRaw<InsertedEventRow[]>`
       INSERT INTO "UsageEvent" (
@@ -108,7 +114,7 @@ export async function reserveUsage(
         ${action}::"UsageAction",
         'PENDING'::"UsageStatus",
         ${idempotencyKey},
-        ${subscription ? "SUBSCRIPTION" : "FREE"}::"UsageEntitlement",
+        ${entitlement}::"UsageEntitlement",
         ${subscription?.id ?? null}::uuid,
         CURRENT_TIMESTAMP
       FROM "UsageControl"
@@ -156,7 +162,7 @@ export async function reserveUsage(
       };
     }
 
-    if (subscription) {
+    if (entitlement !== "FREE") {
       const usage = await transaction.usageControl.findUniqueOrThrow({
         where: { userId },
         select: {
@@ -251,7 +257,8 @@ async function finalizeUsage(
     }
 
     const [transition] = transitioned;
-    const updatedUsage = transition.entitlement === "SUBSCRIPTION"
+    // Only FREE reservations touch the free-use counters.
+    const updatedUsage = transition.entitlement !== "FREE"
       ? [await transaction.usageControl.findUniqueOrThrow({
           where: { userId },
           select: {

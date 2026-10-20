@@ -109,8 +109,8 @@ export function selectPremiumAccess(
 /**
  * Premium access for feature gates (assistant, meal photo) and the billing status
  * endpoint. The role is always read from the database, never from the client.
- * Free usage counters (reserveUsage/getUsage) intentionally keep using the
- * subscription-only access.
+ * getUsage keeps reporting subscription-only access; reserveUsage reads the role
+ * itself so ADMIN meal plan generations skip the free-use counters.
  */
 export async function getPremiumAccess(
   userId: string,

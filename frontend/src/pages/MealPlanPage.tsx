@@ -78,7 +78,8 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
     setLoading(true); setError(null)
     try {
       const [{ usage: currentUsage }, list, { subscription }] = await Promise.all([getUsage(), listLatestMealPlan(), getSubscription()])
-      setUsage({ ...subscription, ...currentUsage })
+      // Billing access goes last: it is role-aware, so ADMIN accounts show as Premium.
+      setUsage({ ...currentUsage, ...subscription })
       setPending(currentUsage.freeUsesReserved > 0)
       if (currentUsage.freeUsesReserved === 0) clearGenerationAttempt()
       if (list.mealPlans[0]) setMealPlan((await getMealPlan(list.mealPlans[0].id)).mealPlan)
@@ -149,6 +150,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
 }
 
 function UsageSummary({ usage }: { usage: Usage }) {
+  if (usage.adminAccess) return <div className="mp-usage"><Badge variant="success">Premium (admin)</Badge><span>Novas gerações liberadas para administradores</span></div>
   if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Novas gerações liberadas pela assinatura</span></div>
   return <div className="mp-usage"><strong>{usage.freeUsesAvailable}</strong><span>{usage.freeUsesAvailable === 1 ? 'geração gratuita restante' : 'gerações gratuitas restantes'}</span>{usage.freeUsesReserved > 0 && <small>Uma geração está em processamento.</small>}</div>
 }

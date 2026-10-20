@@ -18,7 +18,7 @@ interface UsageCountersRow {
 
 interface TransitionedEventRow {
   id: string;
-  entitlement: "FREE" | "SUBSCRIPTION";
+  entitlement: "FREE" | "SUBSCRIPTION" | "ADMIN";
 }
 
 export interface ProfileSnapshot {
@@ -291,7 +291,8 @@ export async function persistMealPlanAndConfirmUsage(
       },
     });
 
-    const updatedUsage = transitioned[0].entitlement === "SUBSCRIPTION"
+    // Only FREE reservations touch the free-use counters (SUBSCRIPTION and ADMIN never reserve one).
+    const updatedUsage = transitioned[0].entitlement !== "FREE"
       ? [await transaction.usageControl.findUniqueOrThrow({
           where: { userId: input.userId },
           select: {
