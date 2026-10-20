@@ -84,7 +84,7 @@
   .onboarding-flow__question legend { font-size: clamp(1.85rem, 9vw, 2.5rem); }.onboarding-flow__question > p { margin-bottom: var(--space-4); font-size: var(--type-small-size); }
   .onboarding-flow__options--goals { grid-template-columns: 1fr; }.onboarding-option { min-height: 6.5rem; padding: var(--space-4); }.onboarding-option--compact { min-height: 4.75rem; }
   .onboarding-flow__meal-options { grid-template-columns: repeat(2, 1fr); }.onboarding-meal { min-height: 6.5rem; }
-  .onboarding-flow__actions { position: sticky; z-index: 5; bottom: 0; margin-inline: calc(-1 * var(--space-2)); padding: var(--space-5) var(--space-2) var(--space-1); background: linear-gradient(180deg, transparent, var(--surface) 22%); }.onboarding-flow__actions .ui-button { min-width: 0; }
+  .onboarding-flow__actions { position: sticky; z-index: 5; bottom: 0; margin-inline: calc(-1 * var(--space-2)); padding: var(--space-5) var(--space-2) var(--space-1); background: linear-gradient(180deg, transparent, var(--surface) 22%); }.onboarding-flow__actions .ui-button { min-width: 0; }.onboarding-flow__actions .ui-button { padding-inline: var(--space-4); white-space: nowrap; }.onboarding-flow__actions .ui-button[type="submit"] { flex: 1 1 auto; }
 }
 
 @media (max-width: 22rem) {
