@@ -16,19 +16,3 @@ export const foodLogListQuerySchema = z
   .strict();
 
 export type FoodLogListQuery = z.infer<typeof foodLogListQuerySchema>;
-
-export const planMealsQuerySchema = foodLogListQuerySchema;
-
-export type PlanMealsQuery = z.infer<typeof planMealsQuerySchema>;
-
-export const logPlanMealBodySchema = z
-  .object({
-    mealPlanId: z.string().uuid(),
-    day: z.number().int().min(1).max(7),
-    mealIndex: z.number().int().min(0).max(9),
-    date: civilDateSchema,
-    timezoneOffsetMinutes: z.number().int().min(-840).max(840).default(0),
-  })
-  .strict();
-
-export type LogPlanMealBody = z.infer<typeof logPlanMealBodySchema>;
