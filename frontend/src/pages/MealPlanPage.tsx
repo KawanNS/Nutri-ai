@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
@@ -11,6 +11,9 @@ import { getUsage } from '../services/usageService'
 import { getSubscription } from '../services/billingService'
 import { Paywall } from '../components/Paywall'
 import { AppTopbar } from '../components/layout/AppTopbar'
+import { CountUp } from '../components/motion/CountUp'
+import { MacroBar } from '../components/motion/MacroBar'
+import { SpotlightCard } from '../components/motion/SpotlightCard'
 import type { Meal, MealPlan, MealPlanDay, Nutrition } from '../types/mealPlan'
 import type { Usage } from '../types/usage'
 import { nextMealIndex, shortDayLabel, todayPlanDay } from '../utils/mealPlanSchedule'
@@ -20,6 +23,12 @@ interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): 
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
+const whole = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
+const formatWhole = (value: number) => whole.format(value)
+const formatCurrency = (value: number) => currency.format(value)
+
+/** The brand green the spotlight cards glow with (React Bits' SpotlightCard on the app's light surface). */
+const spotlight = { theme: 'light', spotlightColor: 'var(--brand-green)', intensity: 0.7, borderGlow: 0.9, spotlightSize: 320, style: { '--spotlight-card-surface': 'var(--surface)', '--spotlight-card-border': 'var(--border)', '--spotlight-card-shadow': 'var(--shadow-soft)' } as CSSProperties } as const
 const generationAttemptStorageKey = 'nutri-ai:meal-plan-generation-attempt'
 
 const nutritionLabels = [
@@ -175,8 +184,13 @@ function EmptyPlanState() {
   </section>
 }
 
-function dayCalories(day: MealPlanDay): number {
-  return day.meals.reduce((total, meal) => total + meal.estimatedNutrition.caloriesKcal, 0)
+function dayNutrition(day: MealPlanDay): Nutrition {
+  return day.meals.reduce((total, meal) => ({
+    caloriesKcal: total.caloriesKcal + meal.estimatedNutrition.caloriesKcal,
+    proteinGrams: total.proteinGrams + meal.estimatedNutrition.proteinGrams,
+    carbohydrateGrams: total.carbohydrateGrams + meal.estimatedNutrition.carbohydrateGrams,
+    fatGrams: total.fatGrams + meal.estimatedNutrition.fatGrams,
+  }), { caloriesKcal: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0 })
 }
 
 type SwapFeedback = { kind: 'error' | 'info' | 'success'; message: string }
@@ -224,22 +238,22 @@ function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanCont
     <DayTabs days={ordered} selectedDay={selectedDay?.day ?? selectedDayNumber} todayDay={todayNumber} onSelect={setSelectedDayNumber}/>
 
     {selectedDay && <div className="mp-day" id="mp-day-panel" role="tabpanel" aria-labelledby={`mp-day-tab-${selectedDay.day}`}>
-      <header className="mp-day__header">
-        <h2>{isToday ? `Hoje, ${selectedDay.label.toLocaleLowerCase('pt-BR')}` : selectedDay.label}</h2>
-        <p>{number.format(dayCalories(selectedDay))} kcal · {currency.format(selectedDay.estimatedDailyCost)}</p>
-      </header>
+      <DaySummary key={selectedDay.day} day={selectedDay} isToday={isToday}/>
 
       {typeof next === 'number' && <NextMeal meal={selectedDay.meals[next]} onMealPhoto={onMealPhoto}/>}
       {next === 'done' && tomorrow?.meals[0] && <button className="mp-tomorrow" type="button" onClick={() => setSelectedDayNumber(tomorrow.day)}>
         <span>Refeições de hoje concluídas. Amanhã começa com</span>
         <strong>{tomorrow.meals[0].name}{tomorrow.meals[0].suggestedTime && ` · ${tomorrow.meals[0].suggestedTime}`}</strong>
+        <svg className="mp-tomorrow__arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
       </button>}
 
-      <ol className="mp-meals" aria-label={`Refeições de ${selectedDay.label}`}>
+      {/* Keyed by day so the timeline builds up again whenever another day is picked. */}
+      <ol className="mp-meals" aria-label={`Refeições de ${selectedDay.label}`} key={`meals-${selectedDay.day}`}>
         {selectedDay.meals.map((meal, index) => {
           const key = `${selectedDay.day}-${index}`
+          const past = next === 'done' || (typeof next === 'number' && index < next)
           // Keyed by position so an open meal stays open when a swap replaces it.
-          return <MealPresentation meal={meal} next={index === next} key={key} swapping={swappingKey === key} swapDisabled={swappingKey !== null && swappingKey !== key} feedback={swapFeedback[key]} onSwap={() => void requestSwap(selectedDay.day, index)}/>
+          return <MealPresentation meal={meal} order={index} next={index === next} past={past} key={key} swapping={swappingKey === key} swapDisabled={swappingKey !== null && swappingKey !== key} feedback={swapFeedback[key]} onSwap={() => void requestSwap(selectedDay.day, index)}/>
         })}
       </ol>
     </div>}
@@ -247,7 +261,7 @@ function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanCont
     <div className="mp-more">
       <details className="mp-disclosure">
         <summary><span>Lista de compras</span><small>{shoppingItems} {shoppingItems === 1 ? 'item' : 'itens'} · {currency.format(plan.estimatedWeeklyCost)}</small></summary>
-        <div className="mp-shopping">{plan.shoppingList.map((group, groupIndex) => <section key={`${group.category}-${groupIndex}`}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></section>)}</div>
+        <div className="mp-shopping">{plan.shoppingList.map((group, groupIndex) => <section key={`${group.category}-${groupIndex}`} style={{ '--i': groupIndex } as CSSProperties}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></section>)}</div>
       </details>
       <details className="mp-disclosure">
         <summary><span>Sobre este plano</span><small>Metas diárias e custo</small></summary>
@@ -283,7 +297,9 @@ function DayTabs({ days, selectedDay, todayDay, onSelect }: { days: MealPlanDay[
     tabs.current[index]?.focus()
   }
 
+  const selectedIndex = Math.max(0, days.findIndex((day) => day.day === selectedDay))
   return <div className="mp-day-tabs" role="tablist" aria-label="Dias do plano alimentar" onKeyDown={handleKeyDown}>
+    <span className="mp-day-tabs__indicator" aria-hidden="true" style={{ '--index': selectedIndex } as CSSProperties}/>
     {days.map((day, index) => {
       const selected = day.day === selectedDay, today = day.day === todayDay
       return <button
@@ -307,26 +323,43 @@ function FoodList({ meal }: { meal: Meal }) {
   return <ul className="mp-foods">{meal.foods.map((food, foodIndex) => <li key={`${food.name}-${foodIndex}`}><span>{food.name}</span><strong>{number.format(food.quantity)}&nbsp;{food.unit}</strong></li>)}</ul>
 }
 
+function DaySummary({ day, isToday }: { day: MealPlanDay; isToday: boolean }) {
+  const totals = dayNutrition(day)
+  return <SpotlightCard as="section" className="mp-day__summary" aria-labelledby="mp-day-title" {...spotlight}>
+    <div className="mp-day__heading">
+      <h2 id="mp-day-title">{isToday ? `Hoje, ${day.label.toLocaleLowerCase('pt-BR')}` : day.label}</h2>
+      <span>{day.meals.length} {day.meals.length === 1 ? 'refeição' : 'refeições'}</span>
+    </div>
+    <dl className="mp-day__stats">
+      <div><dt>Calorias</dt><dd><CountUp value={totals.caloriesKcal} format={formatWhole}/><span>kcal</span></dd></div>
+      <div><dt>Custo do dia</dt><dd><CountUp value={day.estimatedDailyCost} format={formatCurrency} delay={80}/></dd></div>
+      <div><dt>Proteína</dt><dd><CountUp value={totals.proteinGrams} format={formatWhole} delay={160}/><span>g</span></dd></div>
+    </dl>
+    <MacroBar proteinGrams={totals.proteinGrams} carbohydrateGrams={totals.carbohydrateGrams} fatGrams={totals.fatGrams}/>
+  </SpotlightCard>
+}
+
 function NextMeal({ meal, onMealPhoto }: { meal: Meal; onMealPhoto(): void }) {
-  return <Surface as="section" className="mp-next" level="soft" aria-labelledby="mp-next-title">
-    <p className="mp-next__when">Próxima refeição{meal.suggestedTime && <> · <time>{meal.suggestedTime}</time></>}</p>
+  return <SpotlightCard as="section" className="mp-next" aria-labelledby="mp-next-title" {...spotlight} style={{ ...spotlight.style, '--spotlight-card-surface': 'var(--green-soft)', '--spotlight-card-border': 'color-mix(in srgb, var(--brand-green-light) 70%, transparent)' } as CSSProperties}>
+    <p className="mp-next__when"><span className="mp-next__pulse" aria-hidden="true"/>Próxima refeição{meal.suggestedTime && <> · <time>{meal.suggestedTime}</time></>}</p>
     <h3 id="mp-next-title">{meal.name}</h3>
     <FoodList meal={meal}/>
     <div className="mp-next__footer">
       <span>{number.format(meal.estimatedNutrition.caloriesKcal)} kcal · {number.format(meal.estimatedNutrition.proteinGrams)} g de proteína</span>
       <Button variant="secondary" onClick={onMealPhoto}>Registrar com foto</Button>
     </div>
-  </Surface>
+  </SpotlightCard>
 }
 
-interface MealPresentationProps { meal: Meal; next: boolean; swapping: boolean; swapDisabled: boolean; feedback?: SwapFeedback; onSwap(): void }
+interface MealPresentationProps { meal: Meal; order: number; next: boolean; past: boolean; swapping: boolean; swapDisabled: boolean; feedback?: SwapFeedback; onSwap(): void }
 
-function MealPresentation({ meal, next, swapping, swapDisabled, feedback, onSwap }: MealPresentationProps) {
-  const classes = ['mp-meal', next ? 'mp-meal--next' : '', swapping ? 'mp-meal--swapping' : ''].filter(Boolean).join(' ')
-  return <li className={classes} aria-busy={swapping || undefined}>
+function MealPresentation({ meal, order, next, past, swapping, swapDisabled, feedback, onSwap }: MealPresentationProps) {
+  const classes = ['mp-meal', next ? 'mp-meal--next' : '', past ? 'mp-meal--past' : '', swapping ? 'mp-meal--swapping' : ''].filter(Boolean).join(' ')
+  return <li className={classes} aria-busy={swapping || undefined} style={{ '--i': order } as CSSProperties}>
     <details>
       <summary>
         <span className="mp-meal__time">{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</span>
+        <span className="mp-meal__dot" aria-hidden="true"/>
         <span className="mp-meal__title"><strong>{meal.name}</strong><small>{meal.foods.map((food) => food.name).join(', ')}</small></span>
         <span className="mp-meal__kcal">{number.format(meal.estimatedNutrition.caloriesKcal)} kcal</span>
       </summary>
