@@ -74,7 +74,6 @@ export interface MealSwapTarget {
   mealIndex: number;
 }
 
-export const SWAPPED_MEALS_SHOPPING_CATEGORY = "Itens de refeições trocadas";
 const MAX_WRITE_ATTEMPTS = 3;
 
 function publicAIError(error: unknown): MealSwapError {
@@ -140,34 +139,58 @@ async function requestAlternative(
   }
 }
 
+const normalize = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+const roundQuantity = (value: number) => Math.round(value * 100) / 100;
+
 /**
- * Adds the new meal's foods to a dedicated shopping-list category. Items the old
- * meal needed are kept: buying a little extra is safer than silently dropping
- * an ingredient another meal still uses. Skipped when the list limits are full.
+ * Applies the swap's shopping-list adjustment to the existing list, in purchase quantities: what only the
+ * old meal needed is subtracted (and dropped at zero), what the new meal needs is added to the matching item
+ * or to the category the AI picked. A removal that matches no item is ignored: buying a little extra is safer
+ * than dropping an ingredient another meal still uses. The list never ends up empty.
  */
-function addToShoppingList(
+export function applyShoppingListChanges(
   shoppingList: GeneratedMealPlan["shoppingList"],
-  foods: GeneratedMeal["foods"],
+  changes: MealSwapAIResponse["shoppingListChanges"],
 ): GeneratedMealPlan["shoppingList"] {
   const next = shoppingList.map((group) => ({ ...group, items: group.items.map((item) => ({ ...item })) }));
-  let group = next.find((item) => item.category === SWAPPED_MEALS_SHOPPING_CATEGORY);
-  if (!group) {
-    if (next.length >= 20) return next;
-    group = { category: SWAPPED_MEALS_SHOPPING_CATEGORY, items: [] };
-    next.push(group);
-  }
-  for (const food of foods) {
-    const key = food.name.trim().toLocaleLowerCase("pt-BR");
-    const existing = group.items.find(
-      (item) => item.name.trim().toLocaleLowerCase("pt-BR") === key && item.unit === food.unit,
-    );
-    if (existing) {
-      existing.quantity = Math.min(100_000, existing.quantity + food.quantity);
-    } else if (group.items.length < 50) {
-      group.items.push({ ...food });
+  const find = (name: string, unit: string) => {
+    for (const group of next) {
+      const item = group.items.find((candidate) => normalize(candidate.name) === normalize(name) && normalize(candidate.unit) === normalize(unit));
+      if (item) return { group, item };
     }
+    return undefined;
+  };
+
+  for (const removal of changes.remove) {
+    const found = find(removal.name, removal.unit);
+    if (!found) continue;
+    found.item.quantity = roundQuantity(found.item.quantity - removal.quantity);
+    if (found.item.quantity <= 0) found.group.items = found.group.items.filter((item) => item !== found.item);
   }
-  return group.items.length > 0 ? next : next.filter((item) => item !== group);
+
+  for (const addition of changes.add) {
+    const found = find(addition.name, addition.unit);
+    if (found) {
+      found.item.quantity = Math.min(100_000, roundQuantity(found.item.quantity + addition.quantity));
+      continue;
+    }
+    let group = next.find((candidate) => normalize(candidate.category) === normalize(addition.category));
+    if (!group) {
+      if (next.length >= 20) continue;
+      group = { category: addition.category, items: [] };
+      next.push(group);
+    }
+    if (group.items.length < 50) group.items.push({ name: addition.name, quantity: addition.quantity, unit: addition.unit });
+  }
+
+  const kept = next.filter((group) => group.items.length > 0);
+  return kept.length > 0 ? kept : shoppingList;
+}
+
+/** The new meal fills the same slot: it keeps the replaced meal's name and time, only the foods change. */
+function inSameSlot(replaced: GeneratedMeal, alternative: GeneratedMeal): GeneratedMeal {
+  return { ...alternative, name: replaced.name, suggestedTime: replaced.suggestedTime };
 }
 
 export function applyMealSwap(
@@ -175,13 +198,14 @@ export function applyMealSwap(
   target: MealSwapTarget,
   alternative: MealSwapAIResponse,
 ): GeneratedMealPlan {
-  const { dayIndex, day } = findTarget(plan, target);
+  const { dayIndex, day, meal: replaced } = findTarget(plan, target);
   // The AI estimates both costs; never subtract more than the day is worth.
   const previousCost = Math.min(alternative.previousMealEstimatedCost, day.estimatedDailyCost);
   const delta = alternative.estimatedMealCost - previousCost;
+  const meal = inSameSlot(replaced, alternative.meal);
   const days = plan.days.map((current, index) => index !== dayIndex ? current : {
     ...current,
-    meals: current.meals.map((meal, mealIndex) => mealIndex === target.mealIndex ? alternative.meal : meal),
+    meals: current.meals.map((existing, mealIndex) => mealIndex === target.mealIndex ? meal : existing),
     estimatedDailyCost: roundMoney(Math.max(0, current.estimatedDailyCost + delta)),
   });
 
@@ -189,7 +213,7 @@ export function applyMealSwap(
     ...plan,
     days,
     estimatedWeeklyCost: roundMoney(Math.max(0, plan.estimatedWeeklyCost + delta)),
-    shoppingList: addToShoppingList(plan.shoppingList, alternative.meal.foods),
+    shoppingList: applyShoppingListChanges(plan.shoppingList, alternative.shoppingListChanges),
   };
 }
 
@@ -259,7 +283,7 @@ export async function swapMeal(
       const mealPlan = await loadPlan();
       return {
         mealPlan,
-        swappedMeal: { day: target.day, mealIndex: target.mealIndex, meal: alternative.meal },
+        swappedMeal: { day: target.day, mealIndex: target.mealIndex, meal: inSameSlot(replacedMeal, alternative.meal) },
       };
     }
   }

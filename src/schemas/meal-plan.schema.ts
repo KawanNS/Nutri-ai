@@ -110,11 +110,29 @@ export type GeneratedMeal = z.infer<typeof mealSchema>;
 const mealCostSchema = finiteNumber.nonnegative().max(1_000_000);
 
 /** What the AI returns when swapping one meal: the meal plus both cost estimates. */
+const shoppingAdditionSchema = z
+  .object({
+    category: boundedText(80),
+    name: boundedText(120),
+    quantity: finiteNumber.positive().max(100_000),
+    unit: boundedText(30),
+  })
+  .strict();
+
+/** How the week's shopping list changes with the swap, in purchase quantities (as bought, not cooked). */
+const shoppingListChangesSchema = z
+  .object({
+    remove: z.array(foodItemSchema).max(20),
+    add: z.array(shoppingAdditionSchema).max(20),
+  })
+  .strict();
+
 export const mealSwapAIResponseSchema = z
   .object({
     meal: mealSchema,
     estimatedMealCost: mealCostSchema,
     previousMealEstimatedCost: mealCostSchema,
+    shoppingListChanges: shoppingListChangesSchema,
   })
   .strict();
 

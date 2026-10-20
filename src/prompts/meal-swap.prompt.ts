@@ -2,7 +2,7 @@ import type { GeneratedMeal, GeneratedMealPlan } from "../schemas/meal-plan.sche
 import type { ProfileSnapshot } from "../services/meal-plan.service.js";
 import { serializeUntrustedData } from "./meal-plan.prompt.js";
 
-export const MEAL_SWAP_PROMPT_VERSION = "meal-swap-v1";
+export const MEAL_SWAP_PROMPT_VERSION = "meal-swap-v2";
 
 export interface MealSwapPrompt {
   instructions: string;
@@ -36,10 +36,14 @@ Follow this priority order without exception:
 Requirements:
 - Create one alternative meal that fills the same slot (same purpose and time of day) as CURRENT_MEAL.
 - The alternative must be clearly different from CURRENT_MEAL: change the main foods, not only quantities.
+- meal.name must be exactly CURRENT_MEAL.name and meal.suggestedTime exactly CURRENT_MEAL.suggestedTime: the slot keeps its name and time, only the foods change. Never add words such as "Alternativo", "Opção 2" or "Novo" to the name.
 - Do not repeat the other meals of the same day listed in OTHER_MEALS_OF_THE_DAY.
 - Keep estimatedNutrition close to CURRENT_MEAL (each value within about 10%), so the day still matches DAILY_TARGETS.
 - Prefer common ingredients available in Brazil. Use BRL for costs and treat every cost and nutrition value as an estimate.
 - estimatedMealCost is the estimated cost of the new meal; previousMealEstimatedCost is your estimate for CURRENT_MEAL. Both must use the same pricing assumptions.
+- shoppingListChanges adjusts SHOPPING_LIST for this one swap, in purchase quantities (raw, as bought at the market, such as "Arroz branco 1 kg"), never cooked portions.
+- shoppingListChanges.remove lists what CURRENT_MEAL needed that the new meal no longer needs: use the exact name and unit of the SHOPPING_LIST item and the quantity to subtract for one serving of CURRENT_MEAL. Leave out items other meals of the week still need in that amount.
+- shoppingListChanges.add lists what the new meal needs to buy: when the item already exists in SHOPPING_LIST use its exact name, unit and category; otherwise use the existing SHOPPING_LIST category that fits best (only create a new category when none fits).
 - Return only one valid, compact JSON object that follows the response contract below exactly.
 - Do not use Markdown, code fences, comments, or text before or after the JSON object.
 - Use double quotes for every property name and string. Use JSON numbers, not numeric strings. Never use NaN or Infinity.
@@ -54,6 +58,17 @@ root object:
 - meal: Meal object
 - estimatedMealCost: finite non-negative number, maximum 1000000
 - previousMealEstimatedCost: finite non-negative number, maximum 1000000
+- shoppingListChanges: shoppingListChanges object
+
+shoppingListChanges object:
+- remove: array of at most 20 Food objects
+- add: array of at most 20 ShoppingAddition objects
+
+ShoppingAddition object:
+- category: non-empty string, maximum 80 characters
+- name: non-empty string, maximum 120 characters
+- quantity: finite positive number, maximum 100000
+- unit: non-empty string, maximum 30 characters
 
 Meal object:
 - name: non-empty string, maximum 100 characters
@@ -81,6 +96,7 @@ Nutrition object:
     OTHER_MEALS_OF_THE_DAY: day.meals
       .filter((_, index) => index !== mealIndex)
       .map((meal) => meal.name),
+    SHOPPING_LIST: plan.shoppingList,
   };
 
   const input = `Replace CURRENT_MEAL using the following data.

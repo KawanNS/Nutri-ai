@@ -13,8 +13,8 @@ import {
 } from "../dist/schemas/meal-plan.schema.js";
 import {
   applyMealSwap,
+  applyShoppingListChanges,
   MealSwapError,
-  SWAPPED_MEALS_SHOPPING_CATEGORY,
   swapMeal,
 } from "../dist/services/meal-swap.service.js";
 
@@ -64,6 +64,13 @@ function alternativeResponse(overrides = {}) {
     },
     estimatedMealCost: 15,
     previousMealEstimatedCost: 10,
+    shoppingListChanges: {
+      remove: [{ name: "Arroz", quantity: 100, unit: "g" }],
+      add: [
+        { category: "Carnes", name: "Peito de frango", quantity: 0.12, unit: "kg" },
+        { category: "Hortifrúti", name: "Batata-doce", quantity: 150, unit: "g" },
+      ],
+    },
     ...overrides,
   };
 }
@@ -145,8 +152,8 @@ const now = () => new Date(Date.UTC(2026, 9, 19, 13, 0, ++clock));
 test("MEAL_REPLACEMENT is a routed AI task with its own Gemini response schema", () => {
   assert.ok(AI_TASKS.includes("MEAL_REPLACEMENT"));
   assert.deepEqual(createAIRoutingPolicy("test-model").MEAL_REPLACEMENT, { task: "MEAL_REPLACEMENT", provider: "GEMINI", model: "test-model" });
-  assert.deepEqual(Object.keys(mealSwapResponseSchema.properties).sort(), ["estimatedMealCost", "meal", "previousMealEstimatedCost"]);
-  assert.deepEqual(mealSwapResponseSchema.required.sort(), ["estimatedMealCost", "meal", "previousMealEstimatedCost"]);
+  assert.deepEqual(Object.keys(mealSwapResponseSchema.properties).sort(), ["estimatedMealCost", "meal", "previousMealEstimatedCost", "shoppingListChanges"]);
+  assert.deepEqual(mealSwapResponseSchema.required.sort(), ["estimatedMealCost", "meal", "previousMealEstimatedCost", "shoppingListChanges"]);
 });
 
 test("Free users are blocked before the profile, plan, or AI are touched", async () => {
@@ -176,6 +183,7 @@ test("Premium swap replaces only the target meal, recalculates costs, and saves 
   assert.match(request.input, /sem lactose/);
   assert.match(request.input, /fígado/);
   assert.match(request.input, /"CURRENT_MEAL"/);
+  assert.match(request.input, /"SHOPPING_LIST"/);
   assert.match(request.input, /"Almoço"/);
   assert.match(request.instructions, /Food allergies are absolute exclusions/);
   assert.equal(/userId|passwordHash|token/i.test(request.input), false);
@@ -184,24 +192,26 @@ test("Premium swap replaces only the target meal, recalculates costs, and saves 
   assert.deepEqual(db.state.updates[0].where, { id: PLAN_ID, userId: "user-a", updatedAt: new Date("2026-10-19T12:00:00Z") });
   const saved = db.state.plan.content;
   assert.equal(validateGeneratedMealPlan(saved, 3).success, true);
-  assert.equal(saved.days[1].meals[1].name, "Almoço de frango");
+  // The slot keeps its name and time; only the foods change.
+  assert.equal(saved.days[1].meals[1].name, "Almoço");
+  assert.equal(saved.days[1].meals[1].suggestedTime, null);
+  assert.deepEqual(saved.days[1].meals[1].foods, alternativeResponse().meal.foods);
   assert.deepEqual(saved.days[1].meals[0], before.days[1].meals[0]);
   assert.deepEqual(saved.days[1].meals[2], before.days[1].meals[2]);
   for (const index of [0, 2, 3, 4, 5, 6]) assert.deepEqual(saved.days[index], before.days[index]);
   assert.equal(saved.days[1].estimatedDailyCost, 45);
   assert.equal(saved.estimatedWeeklyCost, 285);
-  assert.deepEqual(saved.shoppingList.at(-1), {
-    category: SWAPPED_MEALS_SHOPPING_CATEGORY,
-    items: [
-      { name: "Frango grelhado", quantity: 120, unit: "g" },
-      { name: "Batata-doce", quantity: 150, unit: "g" },
-    ],
-  });
-  assert.deepEqual(saved.shoppingList[0], before.shoppingList[0]);
+  // The list is adjusted in purchase quantities: rice the old meal used goes down, new items land in categories.
+  assert.deepEqual(saved.shoppingList, [
+    { category: "Grãos", items: [{ name: "Arroz", quantity: 600, unit: "g" }] },
+    { category: "Carnes", items: [{ name: "Peito de frango", quantity: 0.12, unit: "kg" }] },
+    { category: "Hortifrúti", items: [{ name: "Batata-doce", quantity: 150, unit: "g" }] },
+  ]);
+  assert.equal(saved.shoppingList.some((group) => /trocadas/i.test(group.category)), false);
 
   assert.equal(result.mealPlan.id, PLAN_ID);
-  assert.equal(result.mealPlan.content.days[1].meals[1].name, "Almoço de frango");
-  assert.deepEqual(result.swappedMeal, { day: 2, mealIndex: 1, meal: alternativeResponse().meal });
+  assert.equal(result.mealPlan.content.days[1].meals[1].name, "Almoço");
+  assert.deepEqual(result.swappedMeal, { day: 2, mealIndex: 1, meal: { ...alternativeResponse().meal, name: "Almoço", suggestedTime: null } });
 });
 
 test("cost recalculation never subtracts more than the day is worth and merges repeated swaps", () => {
@@ -211,9 +221,51 @@ test("cost recalculation never subtracts more than the day is worth and merges r
   assert.equal(swapped.estimatedWeeklyCost, 245);
 
   const twice = applyMealSwap(swapped, { mealPlanId: PLAN_ID, day: 3, mealIndex: 2 }, alternativeResponse());
-  const category = twice.shoppingList.find((group) => group.category === SWAPPED_MEALS_SHOPPING_CATEGORY);
-  assert.deepEqual(category.items.map((item) => item.quantity), [240, 300]);
-  assert.equal(twice.shoppingList.filter((group) => group.category === SWAPPED_MEALS_SHOPPING_CATEGORY).length, 1);
+  assert.deepEqual(twice.shoppingList.map((group) => [group.category, group.items.map((item) => item.quantity)]), [
+    ["Grãos", [500]],
+    ["Carnes", [0.24]],
+    ["Hortifrúti", [300]],
+  ]);
+  assert.equal(twice.days[2].meals[2].name, "Jantar");
+});
+
+test("shopping list changes match items by name and unit, ignore unknown removals and never empty the list", () => {
+  const list = [
+    { category: "Grãos e Cereais", items: [{ name: "Arroz branco", quantity: 1, unit: "kg" }, { name: "Feijão carioca", quantity: 0.5, unit: "kg" }] },
+    { category: "Carnes e Ovos", items: [{ name: "Peito de frango", quantity: 1, unit: "kg" }] },
+  ];
+  const next = applyShoppingListChanges(list, {
+    remove: [
+      { name: "FEIJAO CARIOCA", quantity: 0.5, unit: "KG" },
+      { name: "Salmão", quantity: 0.2, unit: "kg" },
+      { name: "Arroz branco", quantity: 100, unit: "g" },
+    ],
+    add: [
+      { category: "Carnes e Ovos", name: "peito de frango", quantity: 0.25, unit: "kg" },
+      { category: "carnes e ovos", name: "Ovos", quantity: 6, unit: "unidades" },
+      { category: "Laticínios", name: "Iogurte natural", quantity: 2, unit: "potes" },
+    ],
+  });
+  assert.deepEqual(next, [
+    { category: "Grãos e Cereais", items: [{ name: "Arroz branco", quantity: 1, unit: "kg" }] },
+    { category: "Carnes e Ovos", items: [{ name: "Peito de frango", quantity: 1.25, unit: "kg" }, { name: "Ovos", quantity: 6, unit: "unidades" }] },
+    { category: "Laticínios", items: [{ name: "Iogurte natural", quantity: 2, unit: "potes" }] },
+  ]);
+  assert.deepEqual(list[0].items.length, 2, "the original list is not mutated");
+
+  const single = [{ category: "Grãos", items: [{ name: "Arroz", quantity: 1, unit: "kg" }] }];
+  assert.deepEqual(applyShoppingListChanges(single, { remove: [{ name: "Arroz", quantity: 2, unit: "kg" }], add: [] }), single);
+});
+
+test("the swap prompt keeps the meal's name and asks for purchase quantities", () => {
+  const plan = validMealPlan();
+  const prompt = buildMealSwapPrompt({ profile: fakeProfile(), plan, day: plan.days[0], mealIndex: 0 });
+  assert.match(prompt.instructions, /meal\.name must be exactly CURRENT_MEAL\.name and meal\.suggestedTime exactly CURRENT_MEAL\.suggestedTime/);
+  assert.match(prompt.instructions, /Never add words such as "Alternativo"/);
+  assert.match(prompt.instructions, /purchase quantities \(raw, as bought at the market/);
+  assert.match(prompt.input, /"SHOPPING_LIST"/);
+  const gemini = JSON.stringify(mealSwapResponseSchema);
+  assert.match(gemini, /shoppingListChanges/);
 });
 
 test("shopping list stays within the schema limits when it is already full", () => {
@@ -228,6 +280,7 @@ for (const [label, content, code, status] of [
   ["malformed JSON", "{not json", "MEAL_SWAP_INVALID_RESPONSE", 502],
   ["an extra property", JSON.stringify({ ...alternativeResponse(), price: 3 }), "MEAL_SWAP_INVALID_RESPONSE", 502],
   ["an invalid meal", JSON.stringify(alternativeResponse({ meal: { ...alternativeResponse().meal, foods: [] } })), "MEAL_SWAP_INVALID_RESPONSE", 502],
+  ["no shopping list changes", JSON.stringify(alternativeResponse({ shoppingListChanges: undefined })), "MEAL_SWAP_INVALID_RESPONSE", 502],
   ["a provider outage", new AIRouterError("AI_PROVIDER_UNAVAILABLE", true, "private gateway details"), "MEAL_SWAP_TEMPORARILY_UNAVAILABLE", 503],
   ["an auth failure", new AIRouterError("AI_AUTH_ERROR", false, "private key details"), "MEAL_SWAP_FAILED", 500],
 ]) {
@@ -271,7 +324,7 @@ test("a concurrent swap of another meal is preserved instead of overwritten", as
   await swapMeal("user-a", target, { client: db.client, router: fakeRouter().router, getPremiumAccess: premium, now });
   assert.equal(db.state.updates.length, 2);
   assert.equal(db.state.plan.content.days[4].meals[0].name, "Café trocado em paralelo");
-  assert.equal(db.state.plan.content.days[1].meals[1].name, "Almoço de frango");
+  assert.equal(db.state.plan.content.days[1].meals[1].foods[0].name, "Frango grelhado");
 });
 
 test("a concurrent change to the same meal is reported instead of overwritten", async () => {
