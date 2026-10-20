@@ -173,9 +173,20 @@ test("frontend presents the complete accessible Premium assistant flow without i
     readFile("src/routes/chat.routes.ts", "utf8"),
   ]);
 
-  for (const primitive of ["PageHeader", "Alert", "Badge", "Button", "FormField", "LoadingState", "Surface"]) {
+  for (const primitive of ["Alert", "Button", "LoadingState", "Surface"]) {
     assert.match(page, new RegExp(`import \\{ ${primitive} \\}`));
   }
+  // Clean, full-screen chat: its own back/logo header instead of the app topbar,
+  // with the greeting shown as the assistant's first message.
+  assert.doesNotMatch(page, /PageHeader|<Badge|<AppTopbar/);
+  assert.match(page, /<header className="assistant-header">/);
+  assert.match(page, /aria-label="Voltar para o plano alimentar" onClick=\{onMealPlan\}/);
+  assert.match(page, /<BrandLogo /);
+  assert.match(page, /assistant-message--greeting"><AssistantMark\/><p>\{WELCOME_MESSAGE\}/);
+  // Failures are answered inline by the assistant, and a message the API already saved stays on screen.
+  assert.match(page, /SAVED_BEFORE_FAILURE = \['CHAT_TEMPORARILY_UNAVAILABLE', 'CHAT_INVALID_RESPONSE', 'CHAT_GENERATION_FAILED'\]/);
+  assert.match(page, /\{error && !sending && <article className="assistant-message assistant-message--assistant" role="alert">/);
+  assert.match(page, /<label className="ui-visually-hidden" htmlFor="chat-message">Sua mensagem<\/label>/);
 
   assert.match(page, /Assistente Alyvora/);
   assert.match(page, /<Paywall\/>/);
@@ -197,13 +208,15 @@ test("frontend presents the complete accessible Premium assistant flow without i
   assert.match(page, /Alyvora está preparando uma resposta/);
   assert.match(page, /CHAT_TEMPORARILY_UNAVAILABLE/);
   assert.match(page, /CHAT_RATE_LIMIT_EXCEEDED/);
-  assert.match(page, /scrollIntoView/);
+  assert.match(page, /scrollIntoView\(\{ behavior: 'smooth', block: 'end' \}\)/);
   assert.doesNotMatch(page, /microphone|microfone|capture=|type="file"|attachment|anexo/i);
   assert.doesNotMatch(page, /deleteChat|renameChat|excluir conversa|renomear conversa/i);
 
   assert.match(styles, /min-height:\s*var\(--touch-target\)/);
   assert.match(styles, /overflow-wrap:\s*anywhere/);
   assert.match(styles, /100dvh/);
+  assert.match(styles, /font-size:\s*1rem/);
+  assert.match(styles, /env\(safe-area-inset-bottom\)/);
   assert.match(styles, /max-width:\s*47\.99rem/);
   assert.match(styles, /max-width:\s*34rem/);
   assert.match(styles, /max-width:\s*22rem/);
@@ -228,5 +241,9 @@ test("assistant messages render basic Markdown as safe React elements", async ()
   assert.match(markdown, /<ul/);
   assert.match(markdown, /<ol/);
   assert.match(markdown, /<br \/>/);
+  // Model replies use "###" titles and "---" dividers; they must not leak as raw text.
+  assert.match(markdown, /<h3 key=/);
+  assert.match(markdown, /<h4 key=/);
+  assert.match(markdown, /<hr key=/);
   assert.doesNotMatch(markdown, /dangerouslySetInnerHTML/);
 });

@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { AppTopbar } from '../components/layout/AppTopbar'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { BrandLogo } from '../components/BrandLogo'
 import { MarkdownMessage } from '../components/MarkdownMessage'
 import { Paywall } from '../components/Paywall'
-import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
-import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { FormField } from '../components/ui/FormField'
 import { LoadingState } from '../components/ui/LoadingState'
 import { Surface } from '../components/ui/Surface'
 import { ApiError } from '../services/api'
@@ -17,10 +14,15 @@ import './ChatPage.css'
 
 interface ChatPageProps { onMealPlan(): void; onDiary(): void; onProgress(): void }
 
+const WELCOME_MESSAGE = 'Oi! Eu sou a Alyvora 👋 Como posso ajudar hoje? Me conta o que você precisa: uma troca no seu plano, uma ideia de refeição com o que você tem em casa ou ajuda para organizar a semana. É só escrever aqui embaixo.'
+
+// The API saves the user's message before calling the AI, so these failures keep it in the conversation.
+const SAVED_BEFORE_FAILURE = ['CHAT_TEMPORARILY_UNAVAILABLE', 'CHAT_INVALID_RESPONSE', 'CHAT_GENERATION_FAILED']
+
 function chatError(error: unknown): string {
-  if (error instanceof ApiError && error.code === 'CHAT_TEMPORARILY_UNAVAILABLE') return 'O assistente está temporariamente indisponível. Tente novamente em alguns instantes.'
-  if (error instanceof ApiError && error.code === 'CHAT_RATE_LIMIT_EXCEEDED') return 'Você enviou muitas mensagens em pouco tempo. Aguarde um instante.'
-  return 'Não foi possível concluir esta conversa agora. Tente novamente.'
+  if (error instanceof ApiError && error.code === 'CHAT_TEMPORARILY_UNAVAILABLE') return 'Opa, estou fora do ar por um instante. Pode me mandar de novo daqui a pouco?'
+  if (error instanceof ApiError && error.code === 'CHAT_RATE_LIMIT_EXCEEDED') return 'Foram muitas mensagens seguidas! Me dá um minutinho e manda de novo.'
+  return 'Não consegui responder agora. Pode tentar de novo?'
 }
 
 function conversationTitle(content?: string): string {
@@ -30,32 +32,42 @@ function conversationTitle(content?: string): string {
 }
 
 function AssistantMark() {
-  return <span className="assistant-mark" aria-hidden="true">
-    <svg viewBox="0 0 24 24"><path d="M12 3c.7 4.1 2.9 6.3 7 7-4.1.7-6.3 2.9-7 7-.7-4.1-2.9-6.3-7-7 4.1-.7 6.3-2.9 7-7Z"/><path d="M19 16c.2 1.4 1 2.2 2.4 2.4-1.4.2-2.2 1-2.4 2.4-.2-1.4-1-2.2-2.4-2.4 1.4-.2 2.2-1 2.4-2.4Z"/></svg>
-  </span>
+  return <img className="assistant-mark" src="/favicon.png" alt="" aria-hidden="true" width={64} height={64} draggable="false"/>
+}
+
+function MenuIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+}
+
+function BackIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+}
+
+function SendIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
 }
 
 interface ConversationHistoryProps {
   conversations: ChatConversationSummary[]
   activeId: string | null
   sending: boolean
-  mobileOpen: boolean
+  open: boolean
   onClose(): void
   onNew(): void
   onOpen(id: string): void
 }
 
-function ConversationHistory({ conversations, activeId, sending, mobileOpen, onClose, onNew, onOpen }: ConversationHistoryProps) {
+function ConversationHistory({ conversations, activeId, sending, open, onClose, onNew, onOpen }: ConversationHistoryProps) {
   return <Surface
     as="aside"
-    level="soft"
-    className={`assistant-history${mobileOpen ? ' assistant-history--open' : ''}`}
+    level="raised"
+    className={`assistant-history${open ? ' assistant-history--open' : ''}`}
     id="assistant-history"
     aria-label="Histórico de conversas"
   >
     <div className="assistant-history__heading">
-      <div><h2>Conversas</h2><p>Seu histórico privado</p></div>
-      <button className="assistant-history__close" type="button" onClick={onClose} aria-label="Fechar histórico">×</button>
+      <h2>Conversas</h2>
+      <button className="assistant-icon-button" type="button" onClick={onClose} aria-label="Fechar histórico">×</button>
     </div>
     <Button variant="secondary" fullWidth onClick={onNew} disabled={sending}>
       <span aria-hidden="true">＋</span> Nova conversa
@@ -71,17 +83,17 @@ function ConversationHistory({ conversations, activeId, sending, mobileOpen, onC
         <strong>{conversationTitle(item.messages[0]?.content)}</strong>
         <time dateTime={item.updatedAt}>{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</time>
       </button>)}
-      {conversations.length === 0 && <div className="assistant-history__empty"><AssistantMark/><p>Sua primeira conversa começa quando você envia uma mensagem.</p></div>}
+      {conversations.length === 0 && <p className="assistant-history__empty">Sua primeira conversa começa quando você envia uma mensagem.</p>}
     </div>
   </Surface>
 }
 
-export function ChatPage({ onMealPlan, onDiary, onProgress }: ChatPageProps) {
+export function ChatPage({ onMealPlan }: ChatPageProps) {
   const [premium, setPremium] = useState<boolean | null>(null), [loading, setLoading] = useState(true)
   const [conversations, setConversations] = useState<ChatConversationSummary[]>([]), [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([]), [draft, setDraft] = useState(''), [sending, setSending] = useState(false), [error, setError] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const endRef = useRef<HTMLDivElement | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null), inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     let active = true
@@ -102,7 +114,22 @@ export function ChatPage({ onMealPlan, onDiary, onProgress }: ChatPageProps) {
     return () => { active = false }
   }, [])
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, sending])
+  // block: 'end' keeps the scroll inside the message list; the default ('start') also scrolled the whole chat shell and hid the header.
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages, sending])
+
+  useEffect(() => {
+    if (!historyOpen) return
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') setHistoryOpen(false) }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [historyOpen])
+
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${input.scrollHeight}px`
+  }, [draft, loading])
 
   async function openConversation(id: string) {
     if (sending) return
@@ -134,8 +161,11 @@ export function ChatPage({ onMealPlan, onDiary, onProgress }: ChatPageProps) {
       setMessages((current) => [...current.filter((item) => item.id !== optimistic.id), result.userMessage, result.assistantMessage])
       setConversations((await listChatConversations()).conversations)
     } catch (requestError) {
-      setMessages((current) => current.filter((item) => !item.id.startsWith('pending-')))
-      setDraft(message); setError(chatError(requestError))
+      if (!(requestError instanceof ApiError && SAVED_BEFORE_FAILURE.includes(requestError.code ?? ''))) {
+        setMessages((current) => current.filter((item) => !item.id.startsWith('pending-')))
+        setDraft(message)
+      }
+      setError(chatError(requestError))
     } finally { setSending(false) }
   }
 
@@ -143,35 +173,44 @@ export function ChatPage({ onMealPlan, onDiary, onProgress }: ChatPageProps) {
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void submit() }
   }
 
-  return <div className="app-shell"><AppTopbar active="chat" onMealPlan={onMealPlan} onDiary={onDiary} onProgress={onProgress}/>
-    <main className="page assistant-page">
-      <PageHeader eyebrow="Orientação para sua rotina" title="Assistente Alyvora" description="Converse sobre seu plano e encontre caminhos práticos para organizar sua alimentação." actions={<Badge variant="success">Premium</Badge>}/>
-      {error && <Alert variant="error" title="Não foi possível obter uma resposta agora.">{error}</Alert>}
-      {loading ? <Surface className="assistant-loading"><LoadingState label="Carregando seu assistente" description="Preparando suas conversas com segurança."/></Surface> : premium === false ? <div className="assistant-locked"><Alert variant="info" title="Recurso exclusivo Premium">O assistente de organização alimentar está disponível para assinantes Premium.</Alert><Paywall/></div> :
+  return <div className="app-shell assistant-shell">
+    <header className="assistant-header">
+      <button className="assistant-icon-button" type="button" aria-label="Voltar para o plano alimentar" onClick={onMealPlan}><BackIcon/></button>
+      <BrandLogo className="assistant-header__logo"/>
+      {premium ? <button className="assistant-icon-button" type="button" aria-label="Conversas" aria-controls="assistant-history" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}><MenuIcon/></button> : <span className="assistant-header__spacer" aria-hidden="true"/>}
+    </header>
+    <main className="assistant-page">
+      <h1 className="ui-visually-hidden">Assistente Alyvora</h1>
+      {loading ? <div className="assistant-loading"><LoadingState label="Carregando seu assistente" description="Preparando suas conversas com segurança."/></div> : premium === false ? <div className="assistant-locked"><Alert variant="info" title="Recurso exclusivo Premium">O assistente de organização alimentar está disponível para assinantes Premium.</Alert><Paywall/></div> :
       <div className="assistant-layout">
-        <ConversationHistory conversations={conversations} activeId={activeId} sending={sending} mobileOpen={historyOpen} onClose={() => setHistoryOpen(false)} onNew={newConversation} onOpen={(id) => void openConversation(id)}/>
-        <Surface as="section" className="assistant-chat" padded={false} aria-labelledby="assistant-chat-title">
-          <header className="assistant-chat__header">
-            <div className="assistant-chat__identity"><AssistantMark/><div><h2 id="assistant-chat-title">Sua conversa</h2><p>Orientação prática para sua rotina alimentar</p></div></div>
-            <Button className="assistant-chat__history-button" variant="ghost" aria-controls="assistant-history" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}>Conversas</Button>
-          </header>
+        <ConversationHistory conversations={conversations} activeId={activeId} sending={sending} open={historyOpen} onClose={() => setHistoryOpen(false)} onNew={newConversation} onOpen={(id) => void openConversation(id)}/>
+        {historyOpen && <div className="assistant-backdrop" aria-hidden="true" onClick={() => setHistoryOpen(false)}/>}
+        <section className="assistant-chat" aria-label="Conversa com a Alyvora">
           <div className="assistant-messages" aria-live="polite" aria-relevant="additions text">
-            {messages.length === 0 && <div className="assistant-empty"><AssistantMark/><h2>Como posso ajudar hoje?</h2><p>Pergunte sobre seu plano, alternativas para uma refeição ou formas de organizar sua semana.</p></div>}
-            {messages.map((item) => <article key={item.id} className={`assistant-message assistant-message--${item.role.toLowerCase()}`}>
-              <span className="assistant-message__author">{item.role === 'USER' ? 'Você' : 'Alyvora'}</span>
-              {item.role === 'ASSISTANT' ? <MarkdownMessage content={item.content}/> : <p>{item.content}</p>}
-            </article>)}
-            {sending && <div className="assistant-typing" role="status"><span aria-hidden="true"><i/><i/><i/></span><p><strong>Alyvora está preparando uma resposta…</strong><small>Isso pode levar alguns instantes.</small></p></div>}
-            <div ref={endRef}/>
+            <div className="assistant-thread">
+              <article className="assistant-message assistant-message--assistant assistant-message--greeting"><AssistantMark/><p>{WELCOME_MESSAGE}</p></article>
+              {messages.map((item) => <article key={item.id} className={`assistant-message assistant-message--${item.role.toLowerCase()}`}>
+                {item.role === 'ASSISTANT' && <AssistantMark/>}
+                <span className="ui-visually-hidden">{item.role === 'USER' ? 'Você:' : 'Alyvora:'}</span>
+                {item.role === 'ASSISTANT' ? <MarkdownMessage content={item.content}/> : <p>{item.content}</p>}
+              </article>)}
+              {error && !sending && <article className="assistant-message assistant-message--assistant" role="alert"><AssistantMark/><p>{error}</p></article>}
+              {sending && <div className="assistant-typing" role="status"><AssistantMark/><span aria-hidden="true"><i/><i/><i/></span><span className="ui-visually-hidden">Alyvora está preparando uma resposta…</span></div>}
+              <div ref={endRef}/>
+            </div>
           </div>
           <div className="assistant-composer">
-            <FormField id="chat-message" label="Sua mensagem" hint={`${draft.length}/2000 · Enter envia · Shift+Enter quebra a linha`}>
-              {(controlProps) => <textarea {...controlProps} value={draft} maxLength={2000} rows={2} placeholder="Pergunte sobre sua alimentação ou seu plano…" disabled={sending} onChange={(event) => setDraft(event.target.value)} onKeyDown={keyDown}/>}
-            </FormField>
-            <Button className="assistant-composer__send" loading={sending} loadingLabel="Enviando mensagem" disabled={draft.trim().length === 0} onClick={() => void submit()}><span>Enviar</span><span aria-hidden="true">→</span></Button>
+            <div className="assistant-composer__box">
+              <label className="ui-visually-hidden" htmlFor="chat-message">Sua mensagem</label>
+              <textarea ref={inputRef} id="chat-message" aria-describedby="chat-message-hint" value={draft} maxLength={2000} rows={1} placeholder="Pergunte sobre sua alimentação…" disabled={sending} onChange={(event) => setDraft(event.target.value)} onKeyDown={keyDown}/>
+              <Button className="assistant-composer__send" loading={sending} loadingLabel="Enviando mensagem" disabled={draft.trim().length === 0} onClick={() => void submit()}><SendIcon/><span className="ui-visually-hidden">Enviar</span></Button>
+            </div>
+            <span className="ui-visually-hidden" id="chat-message-hint">Enter envia, Shift+Enter quebra a linha. Até 2000 caracteres.</span>
+            {draft.length > 1800 && <span className="assistant-composer__count">{draft.length}/2000</span>}
           </div>
-        </Surface>
+        </section>
       </div>}
+      {error && (loading || premium === false) && <Alert variant="error" title="Não foi possível obter uma resposta agora.">{error}</Alert>}
     </main>
   </div>
 }

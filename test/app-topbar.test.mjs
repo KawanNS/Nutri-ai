@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const pages = ["ChatPage", "DiaryPage", "MealPhotoPage", "MealPlanPage", "ProfilePage", "ProgressPage", "SubscriptionPage"];
+// ChatPage is full-screen with its own back/logo header (see chat.test.mjs).
+const pages = ["DiaryPage", "MealPhotoPage", "MealPlanPage", "ProfilePage", "ProgressPage", "SubscriptionPage"];
 
 const read = (path) => readFile(path, "utf8");
 

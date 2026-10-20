@@ -3,6 +3,8 @@ import { Fragment, type ReactNode } from 'react'
 const inlineMarkdown = /(\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_)/g
 const unorderedItem = /^\s*[-+*]\s+(.+)$/
 const orderedItem = /^\s*\d+[.)]\s+(.+)$/
+const heading = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/
+const divider = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return text.split(inlineMarkdown).filter(Boolean).map((part, index) => {
@@ -47,6 +49,23 @@ export function MarkdownMessage({ content }: { content: string }) {
   }
 
   for (const line of content.replace(/\r\n?/g, '\n').split('\n')) {
+    if (divider.test(line)) {
+      flushParagraph()
+      flushList()
+      blocks.push(<hr key={`divider-${blocks.length}`} />)
+      continue
+    }
+    const title = line.match(heading)
+    if (title) {
+      flushParagraph()
+      flushList()
+      const blockIndex = blocks.length
+      const children = renderInline(title[2], `heading-${blockIndex}`)
+      blocks.push(title[1].length <= 3
+        ? <h3 key={`heading-${blockIndex}`}>{children}</h3>
+        : <h4 key={`heading-${blockIndex}`}>{children}</h4>)
+      continue
+    }
     const unordered = line.match(unorderedItem)
     const ordered = line.match(orderedItem)
     if (unordered || ordered) {
