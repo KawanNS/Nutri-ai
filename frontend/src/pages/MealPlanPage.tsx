@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { LoadingState } from '../components/ui/LoadingState'
 import { Surface } from '../components/ui/Surface'
 import { ApiError } from '../services/api'
-import { generateMealPlan, getMealPlan, listLatestMealPlan } from '../services/mealPlanService'
+import { generateMealPlan, getMealPlan, listLatestMealPlan, swapMeal } from '../services/mealPlanService'
 import { getUsage } from '../services/usageService'
 import { getSubscription } from '../services/billingService'
 import { Paywall } from '../components/Paywall'
@@ -51,6 +51,22 @@ function errorMessage(error: unknown): string {
     default:
       if (error.status === 403) return 'Seu acesso está indisponível no momento.'
       return 'Algo deu errado. Tente de novo.'
+  }
+}
+
+function swapErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return 'Não foi possível trocar esta refeição. Verifique sua conexão e tente novamente.'
+  switch (error.code) {
+    case 'PREMIUM_REQUIRED': return 'Trocar refeições é um recurso Premium.'
+    case 'MEAL_SWAP_RATE_LIMIT_EXCEEDED': return 'Você fez muitas trocas seguidas. Aguarde alguns minutos e tente novamente.'
+    case 'MEAL_SWAP_TEMPORARILY_UNAVAILABLE': return 'A troca está temporariamente indisponível. Tente novamente em alguns instantes.'
+    case 'MEAL_SWAP_INVALID_RESPONSE': return 'Não conseguimos montar uma alternativa válida. Tente novamente.'
+    case 'MEAL_CHANGED_DURING_SWAP':
+    case 'MEAL_PLAN_UPDATE_CONFLICT': return 'Esta refeição mudou enquanto a troca acontecia. Recarregue a página e tente de novo.'
+    case 'MEAL_PLAN_NOT_SWAPPABLE': return 'Este plano é de uma versão antiga e não pode ser editado. Gere um novo plano para trocar refeições.'
+    case 'PROFILE_NOT_FOUND':
+    case 'PROFILE_NOT_READY_FOR_GENERATION': return 'Revise seu perfil antes de trocar refeições.'
+    default: return 'Não foi possível trocar esta refeição agora. Tente novamente.'
   }
 }
 
@@ -134,7 +150,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
       {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu último plano."/></Surface> : <>
         {!mealPlan && !generating && <EmptyPlanState/>}
         {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta."/></Surface>}
-        {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto}/>}
+        {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto} canSwap={usage?.isPremium === true} onPlanUpdated={setMealPlan}/>}
 
         <section className={mealPlan ? 'mp-generate' : 'mp-generate mp-generate--first'} aria-label="Gerar plano alimentar">
           {usage && <UsageSummary usage={usage}/>}
@@ -163,7 +179,11 @@ function dayCalories(day: MealPlanDay): number {
   return day.meals.reduce((total, meal) => total + meal.estimatedNutrition.caloriesKcal, 0)
 }
 
-function PlanContent({ mealPlan, onMealPhoto }: { mealPlan: MealPlan; onMealPhoto(): void }) {
+type SwapFeedback = { kind: 'error' | 'info' | 'success'; message: string }
+
+interface PlanContentProps { mealPlan: MealPlan; onMealPhoto(): void; canSwap: boolean; onPlanUpdated(mealPlan: MealPlan): void }
+
+function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanContentProps) {
   const plan = mealPlan.content
   // Read the clock once per plan view so the highlighted meal stays put while the page is open.
   const [now] = useState(() => new Date())
@@ -175,6 +195,30 @@ function PlanContent({ mealPlan, onMealPhoto }: { mealPlan: MealPlan; onMealPhot
   const next = isToday ? nextMealIndex(selectedDay.meals, now) : null
   const tomorrow = isToday ? ordered[(ordered.indexOf(selectedDay) + 1) % ordered.length] : undefined
   const shoppingItems = plan.shoppingList.reduce((total, group) => total + group.items.length, 0)
+  const [swappingKey, setSwappingKey] = useState<string | null>(null)
+  const [swapFeedback, setSwapFeedback] = useState<Record<string, SwapFeedback>>({})
+  const swappingRef = useRef(false)
+
+  async function requestSwap(day: number, mealIndex: number) {
+    const key = `${day}-${mealIndex}`
+    if (!canSwap) {
+      setSwapFeedback((current) => ({ ...current, [key]: { kind: 'info', message: 'Trocar uma refeição sem gerar o plano de novo é um recurso Premium.' } }))
+      return
+    }
+    // One swap at a time keeps the shared rate limit for real retries.
+    if (swappingRef.current) return
+    swappingRef.current = true; setSwappingKey(key)
+    setSwapFeedback((current) => { const next = { ...current }; delete next[key]; return next })
+    try {
+      const response = await swapMeal(mealPlan.id, day, mealIndex)
+      onPlanUpdated(response.mealPlan)
+      setSwapFeedback((current) => ({ ...current, [key]: { kind: 'success', message: 'Refeição trocada. O custo do dia e a lista de compras foram atualizados.' } }))
+    } catch (requestError) {
+      if (!(requestError instanceof ApiError && requestError.status === 401)) {
+        setSwapFeedback((current) => ({ ...current, [key]: { kind: 'error', message: swapErrorMessage(requestError) } }))
+      }
+    } finally { swappingRef.current = false; setSwappingKey(null) }
+  }
 
   return <div className="mp-content">
     <DayTabs days={ordered} selectedDay={selectedDay?.day ?? selectedDayNumber} todayDay={todayNumber} onSelect={setSelectedDayNumber}/>
@@ -192,7 +236,11 @@ function PlanContent({ mealPlan, onMealPhoto }: { mealPlan: MealPlan; onMealPhot
       </button>}
 
       <ol className="mp-meals" aria-label={`Refeições de ${selectedDay.label}`}>
-        {selectedDay.meals.map((meal, index) => <MealPresentation meal={meal} next={index === next} key={`${selectedDay.day}-${meal.name}-${index}`}/>)}
+        {selectedDay.meals.map((meal, index) => {
+          const key = `${selectedDay.day}-${index}`
+          // Keyed by position so an open meal stays open when a swap replaces it.
+          return <MealPresentation meal={meal} next={index === next} key={key} swapping={swappingKey === key} swapDisabled={swappingKey !== null && swappingKey !== key} feedback={swapFeedback[key]} onSwap={() => void requestSwap(selectedDay.day, index)}/>
+        })}
       </ol>
     </div>}
 
@@ -271,8 +319,11 @@ function NextMeal({ meal, onMealPhoto }: { meal: Meal; onMealPhoto(): void }) {
   </Surface>
 }
 
-function MealPresentation({ meal, next }: { meal: Meal; next: boolean }) {
-  return <li className={next ? 'mp-meal mp-meal--next' : 'mp-meal'}>
+interface MealPresentationProps { meal: Meal; next: boolean; swapping: boolean; swapDisabled: boolean; feedback?: SwapFeedback; onSwap(): void }
+
+function MealPresentation({ meal, next, swapping, swapDisabled, feedback, onSwap }: MealPresentationProps) {
+  const classes = ['mp-meal', next ? 'mp-meal--next' : '', swapping ? 'mp-meal--swapping' : ''].filter(Boolean).join(' ')
+  return <li className={classes} aria-busy={swapping || undefined}>
     <details>
       <summary>
         <span className="mp-meal__time">{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</span>
@@ -283,7 +334,12 @@ function MealPresentation({ meal, next }: { meal: Meal; next: boolean }) {
         <FoodList meal={meal}/>
         <p className="mp-meal__preparation">{meal.preparation}</p>
         <NutritionValues nutrition={meal.estimatedNutrition} compact/>
+        <Button className="mp-meal__swap" variant="ghost" loading={swapping} loadingLabel="Trocando esta refeição" disabled={swapDisabled} aria-label={`Trocar esta refeição: ${meal.name}`} onClick={onSwap}>Trocar refeição</Button>
       </div>
     </details>
+    {swapping && <p className="mp-meal__swap-status" role="status">Buscando uma alternativa equivalente…</p>}
+    {feedback && (feedback.kind === 'error'
+      ? <p className="mp-meal__swap-feedback mp-meal__swap-feedback--error" role="alert">{feedback.message}</p>
+      : <p className={`mp-meal__swap-feedback mp-meal__swap-feedback--${feedback.kind}`} role="status">{feedback.message}</p>)}
   </li>
 }
