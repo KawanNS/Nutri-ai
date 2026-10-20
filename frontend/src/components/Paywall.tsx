@@ -3,6 +3,8 @@ import { ApiError } from '../services/api'
 import { startCheckout } from '../services/billingService'
 import type { SubscriptionPlan } from '../types/subscription'
 import { subscriptionPlans } from '../data/subscriptionPlans'
+import { Alert } from './ui/Alert'
+import { Button } from './ui/Button'
 
 interface PaywallProps {
   title?: string
@@ -28,10 +30,13 @@ export function Paywall({
     } finally { setSelected(null) }
   }
 
-  return <section className="panel paywall" aria-labelledby="paywall-title">
-    <div className="paywall__heading"><p className="eyebrow">Alyvora Premium</p><h2 id="paywall-title">{title}</h2><p>{description}</p></div>
-    {error && <div className="notice notice--error" role="alert">{error}</div>}
-    <div className="paywall__plans">{subscriptionPlans.map((plan) => <article className="paywall__plan" key={plan.code}><h3>{plan.name}</h3><p className="paywall__price"><strong>{plan.price}</strong> <span>{plan.period}</span></p><p className="paywall__equivalent">{plan.equivalent}</p><button className="button button--primary" type="button" disabled={selected !== null} onClick={() => void choose(plan.code)}>{selected === plan.code ? 'Abrindo checkout…' : `Escolher ${plan.shortName}`}</button></article>)}</div>
+  return <section className="paywall" aria-labelledby="paywall-title">
+    <div className="paywall__heading"><h2 id="paywall-title">{title}</h2><p>{description}</p></div>
+    {error && <Alert variant="error">{error}</Alert>}
+    <ul className="paywall__plans">{subscriptionPlans.map((plan) => <li className="paywall__plan" key={plan.code}>
+      <div><h3>{plan.shortName}</h3><p className="paywall__price"><strong>{plan.price}</strong> <span>{plan.period}</span></p><p className="paywall__equivalent">{plan.equivalent}</p></div>
+      <Button variant={plan.code === 'ANNUAL' ? 'primary' : 'secondary'} aria-label={`Escolher ${plan.name}`} loading={selected === plan.code} loadingLabel="Abrindo checkout" disabled={selected !== null} onClick={() => void choose(plan.code)}>Escolher</Button>
+    </li>)}</ul>
     <p className="paywall__same-access">Todos os planos oferecem o mesmo acesso Premium. Escolha apenas o período que combina com você.</p>
   </section>
 }

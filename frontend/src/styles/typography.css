@@ -7,6 +7,9 @@
   --type-h2-size: clamp(2rem, 4vw, 3rem);
   --type-h3-size: clamp(1.5rem, 3vw, 2rem);
   --type-h4-size: clamp(1.125rem, 2vw, 1.375rem);
+  /* Screen titles and section titles inside the app (the display sizes stay with the landing). */
+  --type-app-title-size: clamp(1.5rem, 1.2rem + 1vw, 1.75rem);
+  --type-section-title-size: 1.0625rem;
   --type-body-large-size: 1.125rem;
   --type-body-size: 1rem;
   --type-small-size: 0.875rem;

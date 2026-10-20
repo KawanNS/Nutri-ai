@@ -192,8 +192,8 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProgress }: MealP
 
   return <div className="app-shell">
     <AppTopbar active="meal-photo" onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
-    <main className="page meal-photo-page">
-      <PageHeader eyebrow="Registro alimentar" title="Foto do prato" description="Envie uma foto da sua refeição para identificar os alimentos e estimar as informações nutricionais. Você revisa tudo antes de registrar."/>
+    <main className="page page--narrow meal-photo-page">
+      <PageHeader title="Foto do prato" description="Fotografe a refeição e revise a estimativa antes de registrar."/>
 
       {premium === null && !premiumCheckError ? <Surface className="meal-photo-access-state"><LoadingState label="Verificando seu acesso Premium" description="Preparando a Foto do Prato com segurança."/></Surface> : premiumCheckError ? <Alert variant="error" title="Não foi possível verificar sua assinatura"><span>Tente novamente antes de enviar uma foto.</span><Button variant="ghost" onClick={() => { setPremium(null); setPremiumCheckError(false); setPremiumCheckKey((value) => value + 1) }}>Tentar novamente</Button></Alert> : premium === false ? <div className="meal-photo-locked"><Alert variant="info" title="Recurso exclusivo Premium">A Foto do Prato está disponível para assinantes Premium.</Alert><Paywall/></div> : <>
       <div className="mp-photo-feedback">
@@ -201,23 +201,23 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProgress }: MealP
         {confirmed && <Alert variant="success" title="Refeição registrada"><span>A confirmação foi salva com os dados revisados. A foto não foi armazenada.</span><Button className="mp-photo-diary-link" variant="ghost" onClick={onDiary}>Ver no Diário</Button></Alert>}
       </div>
 
-      <Surface as="section" className="mp-photo-capture" level="base" aria-labelledby="mp-photo-capture-title">
-        <header className="mp-photo-capture__header"><div><p className="mp-photo-kicker">1. Adicione a imagem</p><h2 id="mp-photo-capture-title">Mostre sua refeição</h2></div><Badge>JPEG, PNG ou WebP · até 5 MB</Badge></header>
+      <section className="mp-photo-capture" aria-label="Foto da refeição">
         <label className="ui-visually-hidden" htmlFor="meal-photo-gallery">Escolher uma foto da galeria</label>
         <input id="meal-photo-gallery" ref={galleryInput} className="ui-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Selecionar imagem do prato" onChange={choose}/>
         <label className="ui-visually-hidden" htmlFor="meal-photo-camera">Fotografar o prato com a câmera</label>
         <input id="meal-photo-camera" ref={cameraInput} className="ui-visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="Fotografar o prato" onChange={choose}/>
 
         {!preview ? <PhotoPicker onGallery={() => galleryInput.current?.click()} onCamera={() => cameraInput.current?.click()}/> : <div className="mp-photo-preview-layout">
-          <figure className="mp-photo-preview"><img src={preview} alt="Prévia da refeição selecionada"/><figcaption>Sua foto será usada somente nesta análise.</figcaption></figure>
+          <figure className="mp-photo-preview"><img src={preview} alt="Prévia da refeição selecionada"/></figure>
           <div className="mp-photo-preview__aside">
-            <div><p className="mp-photo-kicker">Foto pronta</p><h3>Confira o enquadramento</h3><p>Se o prato estiver visível, você já pode iniciar a análise. Nada é enviado automaticamente.</p></div>
-            <div className="mp-photo-actions"><Button variant="secondary" disabled={analyzing} onClick={() => galleryInput.current?.click()}>Trocar foto</Button><Button variant="ghost" disabled={analyzing} onClick={clearPhoto}>Remover foto</Button><Button loading={analyzing} loadingLabel="Analisando sua refeição" onClick={() => void analyze()}>Analisar refeição</Button></div>
+            <p>Se o prato estiver visível, já pode analisar. Nada é enviado automaticamente.</p>
+            <Button fullWidth loading={analyzing} loadingLabel="Analisando sua refeição" onClick={() => void analyze()}>Analisar refeição</Button>
+            <div className="mp-photo-actions"><Button variant="secondary" disabled={analyzing} onClick={() => galleryInput.current?.click()}>Trocar foto</Button><Button variant="ghost" disabled={analyzing} onClick={clearPhoto}>Remover foto</Button></div>
             {analyzing && <LoadingState className="mp-photo-analysis-loading" label="Analisando sua refeição…" description="Identificando alimentos e estimando as informações nutricionais, sem assumir precisão que a imagem não oferece."/>}
           </div>
         </div>}
-        <p className="mp-photo-privacy">A imagem é enviada somente para análise e descartada depois. Ela não integra o registro alimentar.</p>
-      </Surface>
+        <p className="mp-photo-privacy">JPEG, PNG ou WebP até 5 MB. A imagem é usada só nesta análise e descartada depois; ela não integra o registro alimentar.</p>
+      </section>
 
       {analysis && <AnalysisReview analysis={analysis} confirming={confirming} confirmed={Boolean(confirmed)} onChange={updateFood} onRemove={removeFood} onAdd={addFood} onConfirm={() => void confirm()}/>}
       </>}
@@ -227,26 +227,27 @@ export function MealPhotoPage({ onMealPlan, onChat, onDiary, onProgress }: MealP
 
 function PhotoPicker({ onGallery, onCamera }: { onGallery(): void; onCamera(): void }) {
   return <div className="mp-photo-picker">
-    <span className="mp-photo-picker__camera" aria-hidden="true"><i/></span>
-    <div><h3>Fotografe ou escolha seu prato</h3><p>A análise só começa quando você confirmar.</p></div>
+    <svg className="mp-photo-picker__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.4-2h5l1.4 2h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z"/><circle cx="12" cy="12.5" r="3.5"/></svg>
+    <h2>Fotografe ou escolha seu prato</h2>
+    <p>A análise só começa quando você confirmar.</p>
     <div className="mp-photo-actions"><Button onClick={onCamera}>Usar câmera</Button><Button variant="secondary" onClick={onGallery}>Escolher foto</Button></div>
-    <ul className="mp-photo-tips" aria-label="Dicas para a foto"><li><span aria-hidden="true">01</span>Use boa iluminação</li><li><span aria-hidden="true">02</span>Mostre o prato inteiro</li><li><span aria-hidden="true">03</span>Evite fotografar de muito longe</li></ul>
+    <ul className="mp-photo-tips" aria-label="Dicas para a foto"><li>Boa iluminação</li><li>Prato inteiro no quadro</li><li>Não fotografe de muito longe</li></ul>
   </div>
 }
 
 function AnalysisReview({ analysis, confirming, confirmed, onChange, onRemove, onAdd, onConfirm }: { analysis: MealPhotoAnalysis; confirming: boolean; confirmed: boolean; onChange(index: number, patch: Partial<MealPhotoFood>): void; onRemove(index: number): void; onAdd(): void; onConfirm(): void }) {
   return <section className="mp-photo-review" aria-labelledby="mp-photo-review-title">
-    <div className="mp-photo-section-heading"><div><p className="mp-photo-kicker">2. Confira a estimativa</p><h2 id="mp-photo-review-title">Encontramos estes alimentos</h2></div><p>Revise nomes, porções e valores antes de registrar a refeição.</p></div>
+    <div className="mp-photo-section-heading"><h2 id="mp-photo-review-title">Encontramos estes alimentos</h2><p>Revise nomes, porções e valores antes de registrar a refeição.</p></div>
     <Alert variant="warning" title="Esta análise é uma estimativa">A foto não garante peso, quantidade, ingredientes escondidos, óleos, molhos ou calorias exatas. Corrija os dados antes de registrar.</Alert>
     {analysis.observations.length > 0 && <Alert variant="info" title="Limitações observadas">{analysis.observations.join(' ')}</Alert>}
     {analysis.undeterminedItems.length > 0 && <Alert variant="info" title="Não foi possível determinar">{analysis.undeterminedItems.join(', ')}</Alert>}
 
-    <Surface className="mp-photo-foods" level="base" padded={false}>
+    <div className="mp-photo-foods">
       {analysis.foods.length > 0 ? analysis.foods.map((food, index) => <FoodEditor key={index} food={food} index={index} onChange={onChange} onRemove={onRemove}/>) : <div className="mp-photo-foods__empty"><h3>Nenhum alimento confirmado</h3><p>Adicione manualmente ao menos um alimento para registrar esta refeição.</p></div>}
-    </Surface>
+    </div>
     <Button className="mp-photo-add" variant="secondary" onClick={onAdd}>Adicionar alimento</Button>
 
-    <Surface className="mp-photo-confirm" level="soft"><div><p className="mp-photo-kicker">3. Confirme o registro</p><h2>Revise antes de salvar</h2><p>Somente os dados acima serão registrados. Os valores continuam sendo estimativas.</p></div><Button loading={confirming} loadingLabel="Registrando refeição" disabled={confirmed} onClick={onConfirm}>{confirmed ? 'Refeição registrada' : 'Registrar refeição'}</Button></Surface>
+    <div className="mp-photo-confirm"><p>Somente os dados acima serão registrados. Os valores continuam sendo estimativas.</p><Button loading={confirming} loadingLabel="Registrando refeição" disabled={confirmed} onClick={onConfirm}>{confirmed ? 'Refeição registrada' : 'Registrar refeição'}</Button></div>
   </section>
 }
 
@@ -258,12 +259,12 @@ function FoodEditor({ food, index, onChange, onRemove }: { food: MealPhotoFood; 
     ['estimatedFatGrams', 'Gorduras (g)'],
   ]
   return <article className="mp-photo-food">
-    <header className="mp-photo-food__header"><div><span>Alimento {String(index + 1).padStart(2, '0')}</span><Badge variant={confidenceVariants[food.confidence]}>Confiança: {confidenceLabels[food.confidence]}</Badge></div><Button variant="ghost" onClick={() => onRemove(index)}>Remover</Button></header>
+    <header className="mp-photo-food__header"><div><h3>{food.name.trim() || `Alimento ${index + 1}`}</h3><Badge variant={confidenceVariants[food.confidence]}>Confiança: {confidenceLabels[food.confidence]}</Badge></div><Button variant="ghost" onClick={() => onRemove(index)}>Remover</Button></header>
     <div className="mp-photo-food__fields">
       <FormField id={`photo-food-${index}-name`} label="Nome do alimento" required className="mp-photo-food__wide">{(control) => <input {...control} value={food.name} maxLength={120} onChange={(event) => onChange(index, { name: event.target.value })}/>}</FormField>
       <FormField id={`photo-food-${index}-portion`} label="Porção estimada" required className="mp-photo-food__wide">{(control) => <input {...control} value={food.portionDescription} maxLength={240} onChange={(event) => onChange(index, { portionDescription: event.target.value })}/>}</FormField>
       {numeric.map(([field, label]) => <FormField id={`photo-food-${index}-${field}`} label={label} key={field}>{(control) => <input {...control} type="number" inputMode="decimal" min="0" step="0.1" value={food[field] ?? ''} placeholder="Não determinado" onChange={(event) => onChange(index, { [field]: nullableNumber(event.target.value) })}/>}</FormField>)}
-      <FormField id={`photo-food-${index}-confidence`} label="Confiança da estimativa">{(control) => <select {...control} value={food.confidence} onChange={(event) => onChange(index, { confidence: event.target.value as FoodEstimateConfidence })}>{Object.entries(confidenceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</FormField>
+      <FormField id={`photo-food-${index}-confidence`} label="Confiança da estimativa" className="mp-photo-food__wide">{(control) => <select {...control} value={food.confidence} onChange={(event) => onChange(index, { confidence: event.target.value as FoodEstimateConfidence })}>{Object.entries(confidenceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</FormField>
     </div>
     {food.limitations.length > 0 && <p className="mp-photo-food__limitations"><strong>Limitações:</strong> {food.limitations.join(' ')}</p>}
   </article>

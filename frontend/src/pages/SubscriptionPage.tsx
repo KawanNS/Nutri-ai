@@ -21,8 +21,8 @@ export function SubscriptionPage({ onMealPlan, onChat, onDiary, onProgress, onRe
   const badge = premium === 'premium' ? <Badge variant="success">Premium</Badge> : premium === 'admin' ? <Badge variant="success">Premium (admin)</Badge> : premium === 'free' ? <Badge>Gratuito</Badge> : undefined
 
   return <div className="app-shell"><AppTopbar onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
-    <main className="page subscription-page">
-      <PageHeader eyebrow="Sua conta" title="Minha assinatura" description="Confira o status do seu acesso ao Alyvora Premium." actions={badge}/>
+    <main className="page page--narrow subscription-page">
+      <PageHeader title="Minha assinatura" actions={badge}/>
       {premium === 'loading'
         ? <Surface><LoadingState label="Verificando sua assinatura" description="Consultando seu acesso Premium com segurança."/></Surface>
         : premium === 'unavailable'

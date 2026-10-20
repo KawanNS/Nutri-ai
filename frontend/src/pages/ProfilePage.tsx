@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { FoodListField } from '../components/FoodListField'
 import { AppTopbar } from '../components/layout/AppTopbar'
+import { PageHeader } from '../components/layout/PageHeader'
+import { Alert } from '../components/ui/Alert'
+import { Button } from '../components/ui/Button'
 import { ApiError } from '../services/api'
 import { updateProfile } from '../services/profileService'
 import type { ActivityLevel, Goal, Profile, ProfileOnboardingDraft, ProfilePayload, Sex } from '../types/profile'
@@ -78,10 +81,10 @@ export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onC
   }
   const otherConflictLists = [...form.dislikedFoods, ...form.foodRestrictions, ...form.foodAllergies]
   return <div className="app-shell"><AppTopbar onboarding={required} onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
-    <main className="page profile-page"><div className="page-heading"><div><p className="eyebrow">Perfil nutricional</p><h1>{required ? 'Vamos conhecer você.' : 'Suas preferências, do seu jeito.'}</h1><p>{required ? 'Precisamos destes dados para preparar seu plano alimentar e acompanhar sua evolução.' : 'Mantenha seus dados atualizados para recomendações mais alinhadas à sua rotina.'}</p></div></div>
-      {required && <div className="notice notice--info">Complete os dados essenciais para gerar seu primeiro plano alimentar.</div>}{error && <div className="notice notice--error" role="alert">{error}</div>}{success && <div className="notice notice--success" role="status">{success}</div>}
+    <main className="page page--narrow profile-page"><PageHeader title={required ? 'Complete seu perfil' : 'Meu perfil'} description={required ? 'Precisamos destes dados para preparar seu plano alimentar e acompanhar sua evolução.' : 'Usado para calcular seu plano alimentar.'}/>
+      {(error || success) && <div className="profile-feedback">{error && <Alert variant="error">{error}</Alert>}{success && <Alert variant="success">{success}</Alert>}</div>}
       <form className="profile-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
-        <section className="panel"><div className="panel__header"><div><h2>Dados pessoais</h2><p className="panel__subtitle">Informações essenciais para seus cálculos nutricionais.</p></div></div><div className="profile-fields">
+        <section className="profile-section" aria-labelledby="profile-personal-title"><div className="profile-section__heading"><h2 id="profile-personal-title">Dados pessoais</h2><p>Base dos cálculos nutricionais.</p></div><div className="profile-fields">
           <div className="field"><label htmlFor="birthDate">Data de nascimento</label><input id="birthDate" type="date" max={today()} value={form.birthDate} onChange={(event) => change('birthDate', event.target.value)}/>{fieldErrors.birthDate && <span className="field-error">{fieldErrors.birthDate}</span>}</div>
           <div className="field"><label htmlFor="sex">Sexo</label><select id="sex" value={form.sex} onChange={(event) => change('sex', event.target.value as Sex | '')}><option value="">Selecione</option>{sexOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldErrors.sex && <span className="field-error">{fieldErrors.sex}</span>}</div>
           <div className="field"><label htmlFor="heightCm">Altura (cm)</label><input id="heightCm" type="number" inputMode="decimal" min="0.01" max="999.99" step="0.01" value={form.heightCm} onChange={(event) => change('heightCm', event.target.value)} placeholder="Ex.: 175"/>{fieldErrors.heightCm && <span className="field-error">{fieldErrors.heightCm}</span>}</div>
@@ -91,14 +94,14 @@ export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onC
           <div className="field"><label htmlFor="mealsPerDay">Refeições por dia</label><input id="mealsPerDay" type="number" inputMode="numeric" min="1" max="10" step="1" value={form.mealsPerDay} onChange={(event) => change('mealsPerDay', event.target.value)}/>{fieldErrors.mealsPerDay && <span className="field-error">{fieldErrors.mealsPerDay}</span>}</div>
           <div className="field"><label htmlFor="weeklyFoodBudget">Orçamento semanal para alimentação</label><input id="weeklyFoodBudget" type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" value={form.weeklyFoodBudget} onChange={(event) => change('weeklyFoodBudget', event.target.value)} placeholder="Ex.: 350"/>{fieldErrors.weeklyFoodBudget && <span className="field-error">{fieldErrors.weeklyFoodBudget}</span>}</div>
         </div></section>
-        <section className="panel"><div className="panel__header"><div><h2>Alimentação e preferências</h2><p className="panel__subtitle">Adicione cada alimento separadamente. Você poderá removê-los quando quiser.</p></div></div><div className="food-grid">
+        <section className="profile-section" aria-labelledby="profile-food-title"><div className="profile-section__heading"><h2 id="profile-food-title">Alimentação e preferências</h2><p>Adicione um alimento por vez; dá para remover depois.</p></div><div className="food-grid">
           <FoodListField id="foodPreferences" label="Preferências alimentares" items={form.foodPreferences} onChange={(items) => change('foodPreferences', items)}/>
           <FoodListField id="likedFoods" label="Alimentos que gosta" items={form.likedFoods} conflictsWith={otherConflictLists} onChange={(items) => change('likedFoods', items)}/>
           <FoodListField id="dislikedFoods" label="Alimentos que não gosta" items={form.dislikedFoods} conflictsWith={form.likedFoods} onChange={(items) => change('dislikedFoods', items)}/>
           <FoodListField id="foodRestrictions" label="Restrições alimentares" items={form.foodRestrictions} conflictsWith={form.likedFoods} onChange={(items) => change('foodRestrictions', items)}/>
           <FoodListField id="foodAllergies" label="Alergias alimentares" items={form.foodAllergies} conflictsWith={form.likedFoods} onChange={(items) => change('foodAllergies', items)}/>
         </div>{listKeys.some((key) => fieldErrors[key]) && <p className="field-error">Revise as listas de alimentos indicadas.</p>}</section>
-        <div className="profile-actions"><button className="button button--primary" type="submit" disabled={saving}>{saving ? 'Salvando…' : required ? 'Salvar e continuar' : 'Salvar alterações'}</button></div>
+        <div className="profile-actions"><Button type="submit" loading={saving} loadingLabel="Salvando perfil">{required ? 'Salvar e continuar' : 'Salvar alterações'}</Button></div>
       </form>
     </main></div>
 }
