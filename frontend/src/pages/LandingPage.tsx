@@ -39,6 +39,20 @@ const faqItems = [
   { question: 'Posso usar no celular?', answer: 'Pode. Funciona no navegador do celular, do tablet ou do computador, sem instalar nada.' },
 ] as const
 
+// An illustrative day, shown as such on the page: the numbers add up (380 + 650 + 280 + 640 = 1.950 kcal).
+const sampleMeals = [
+  { time: '07:30', name: 'Café da manhã', foods: 'Tapioca com ovo mexido e queijo minas, café', kcal: 380 },
+  { time: '12:30', name: 'Almoço', foods: 'Arroz, feijão, frango grelhado e salada de tomate', kcal: 650 },
+  { time: '16:00', name: 'Lanche', foods: 'Iogurte natural com banana e aveia', kcal: 280 },
+  { time: '20:00', name: 'Jantar', foods: 'Patinho moído com mandioca e abobrinha', kcal: 640 },
+] as const
+
+const sampleShopping = [
+  { category: 'Hortifruti', items: [['Tomate', '1 kg', true], ['Banana', '1 dúzia', true], ['Abobrinha', '2 un.', false]] },
+  { category: 'Açougue', items: [['Peito de frango', '1,2 kg', true], ['Patinho moído', '800 g', false]] },
+  { category: 'Mercearia', items: [['Feijão carioca', '1 kg', false], ['Goma de tapioca', '500 g', false]] },
+] as const
+
 type IconName = 'leaf' | 'plan' | 'camera' | 'assistant' | 'progress' | 'check' | 'basket' | 'routine'
 
 function LandingIcon({ name }: { name: IconName }) {
@@ -136,7 +150,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
         <HeroFoodDecor/>
         <div className="public-hero__copy">
           <div className="public-hero__tag"><LandingIcon name="leaf"/> Cardápio da semana com lista de compras</div>
-          <h1 id="public-hero-title">Sua alimentação<br/><em>cabe na sua vida.</em></h1>
+          <h1 id="public-hero-title">Sua alimentação<br/><em>cabe na sua <span className="public-hero__mark">vida.<svg className="public-hero__underline" viewBox="0 0 200 16" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M3 11c38-7 92-9 194-4"/></svg></span></em></h1>
           <p>Você conta o que gosta, o que não come e quanto pode gastar. A Alyvora monta a semana inteira: café, almoço, jantar e a lista do mercado.</p>
           <div className="public-hero__actions">
             <Button className="public-hero__primary" onClick={onStart}>Começar agora <span aria-hidden="true">→</span></Button>
@@ -186,6 +200,36 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
           </div>
         </div>
         <DecorWave className="public-how__wave" flip/>
+      </section>
+
+      <section className="public-section public-sample" aria-labelledby="public-sample-title">
+        <div className="public-section-heading public-section-heading--split">
+          <div data-reveal><p className="public-eyebrow">Um dia de exemplo</p><h2 id="public-sample-title">Segunda-feira,<br/>do café ao jantar.</h2></div>
+          <p>É assim que o plano chega: horário, o que comer, calorias e quanto custa. Este é só um exemplo; o seu é montado com o que você gosta e com o seu orçamento.</p>
+        </div>
+        <div className="public-sample__grid">
+          <article className="public-sample__day" aria-label="Exemplo de um dia do plano" data-reveal style={revealStyle(0)}>
+            <header><span>Segunda-feira</span><small>Exemplo</small></header>
+            <ol>{sampleMeals.map((meal, index) => <li key={meal.name} style={{ '--i': index } as CSSProperties}>
+              <time>{meal.time}</time>
+              <div><strong>{meal.name}</strong><span>{meal.foods}</span></div>
+              <b>{meal.kcal} kcal</b>
+            </li>)}</ol>
+            <footer><span><strong>1.950</strong> kcal no dia</span><span><strong>R$ 31</strong> no dia</span></footer>
+          </article>
+          <article className="public-sample__list" aria-label="Exemplo da lista de compras da semana" data-reveal style={revealStyle(1)}>
+            <header><LandingIcon name="basket"/><div><strong>Lista de compras</strong><small>Semana inteira, por categoria</small></div></header>
+            {sampleShopping.map((group, groupIndex) => <section key={group.category}>
+              <h3>{group.category}</h3>
+              <ul>{group.items.map(([name, amount, done], index) => <li key={name} className={done ? 'is-done' : undefined} style={{ '--i': groupIndex * 3 + index } as CSSProperties}>
+                <span className="public-sample__check" aria-hidden="true"/>
+                <span className="public-sample__item">{name}</span><small>{amount}</small>
+                {done && <span className="ui-visually-hidden"> (já comprado)</span>}
+              </li>)}</ul>
+            </section>)}
+            <footer>Estimativa da semana: <strong>R$ 217</strong></footer>
+          </article>
+        </div>
       </section>
 
       <section className="public-section public-demo" aria-labelledby="public-demo-title">

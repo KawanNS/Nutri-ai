@@ -12,6 +12,7 @@ function PhoneBrand() {
 export function PhoneShowcase() {
   return <div className="public-showcase" aria-label="Demonstração visual: plano diário, foto de uma refeição, análise e registro">
     <div className="public-showcase__shape" aria-hidden="true"/>
+    <p className="public-showcase__tag"><strong>R$ 31</strong> no dia<small>cardápio de exemplo</small></p>
 
     <div className="public-phone public-phone--secondary public-phone--plan" aria-hidden="true">
       <div className="public-phone__shell">

@@ -26,7 +26,7 @@ test("public landing presents the real product without fabricated social proof",
     assert.equal(page.includes(link), true, link);
   }
   assert.match(page, /Sua alimentação/);
-  assert.match(page, /cabe na sua vida/);
+  assert.match(page, /cabe na sua <span className="public-hero__mark">vida\./);
   assert.match(page, /Plano alimentar personalizado/);
   assert.match(page, /Foto do prato/);
   assert.match(page, /Assistente/);
@@ -171,15 +171,15 @@ test("landing scroll entrance follows the agreed timing and only touches the agr
   assert.match(hook, /REVEAL_MAX_STAGGERED = 3/);
   assert.match(hook, /index <= REVEAL_MAX_STAGGERED \? index \* REVEAL_STEP_MS : 0/);
 
-  // Motion: 16px rise with a fade, 500ms on the agreed curve; hidden only once the hook is active.
-  assert.match(styles, /\.reveal-ready \[data-reveal\] \{ opacity: 0; transform: translate3d\(0, 16px, 0\); transition: opacity 500ms cubic-bezier\(0\.2, 0\.8, 0\.2, 1\) var\(--reveal-delay, 0ms\), transform 500ms cubic-bezier\(0\.2, 0\.8, 0\.2, 1\) var\(--reveal-delay, 0ms\); \}/);
+  // Motion: 28px rise with a fade, 650ms on the agreed curve; hidden only once the hook is active.
+  assert.match(styles, /\.reveal-ready \[data-reveal\] \{ opacity: 0; transform: translate3d\(0, 28px, 0\); transition: opacity 650ms cubic-bezier\(0\.2, 0\.8, 0\.2, 1\) var\(--reveal-delay, 0ms\), transform 650ms cubic-bezier\(0\.2, 0\.8, 0\.2, 1\) var\(--reveal-delay, 0ms\); \}/);
   assert.match(styles, /\.reveal-ready \[data-reveal\]\.is-revealed \{ opacity: 1; transform: none; \}/);
   assert.doesNotMatch(styles, /^\[data-reveal\]/m);
 
-  // What animates: 5 heading blocks, 4 feature cards (one mapped element), 3 steps, 4 demo cards,
-  // 4 benefit items and the final CTA.
-  assert.equal((page.match(/data-reveal/g) ?? []).length, 18);
-  for (const heading of ["Funcionalidades", "Como funciona", "Veja na prática", "Feito para a vida real", "Planos"]) {
+  // What animates: 6 heading blocks, 4 feature cards (one mapped element), 3 steps, the sample day and
+  // its shopping list, 4 demo cards, 4 benefit items and the final CTA.
+  assert.equal((page.match(/data-reveal/g) ?? []).length, 21);
+  for (const heading of ["Funcionalidades", "Como funciona", "Um dia de exemplo", "Veja na prática", "Feito para a vida real", "Planos"]) {
     assert.match(page, new RegExp(`data-reveal[^>]*><(DecorLemon[^>]*/><DecorSeeds[^>]*/><)?p className="public-eyebrow">${heading}</p><h2`), heading);
   }
   assert.match(page, /<section className="public-final-cta" aria-labelledby="public-final-title" data-reveal>/);
@@ -274,4 +274,39 @@ test("landing anchor navigation never lands on hidden content and honors a hash 
   // Install-to-home-screen metas: the standard one plus Apple's, still needed on iOS.
   assert.match(html, /<meta name="mobile-web-app-capable" content="yes" \/>/);
   assert.match(html, /<meta name="apple-mobile-web-app-capable" content="yes" \/>/);
+});
+
+test("landing shows a sample day that is labelled as an example and adds up", async () => {
+  const [page, styles, showcase] = await Promise.all([
+    readFile("frontend/src/pages/LandingPage.tsx", "utf8"),
+    readFile("frontend/src/pages/LandingPage.css", "utf8"),
+    readFile("frontend/src/components/landing/PhoneShowcase.tsx", "utf8"),
+  ]);
+
+  // Clearly an example, never presented as a user's result.
+  assert.match(page, /<small>Exemplo<\/small>/);
+  assert.match(page, /Este é só um exemplo/);
+  assert.match(showcase, /cardápio de exemplo/);
+  // The day's numbers add up: meals to the daily total, the daily cost to the weekly estimate.
+  const kcal = [...page.matchAll(/kcal: (\d+) \}/g)].map((match) => Number(match[1]));
+  assert.deepEqual(kcal, [380, 650, 280, 640]);
+  assert.equal(kcal.reduce((total, value) => total + value, 0), 1950);
+  assert.match(page, /<strong>1\.950<\/strong> kcal no dia/);
+  assert.match(page, /<strong>R\$ 31<\/strong> no dia/);
+  assert.match(page, /Estimativa da semana: <strong>R\$ 217<\/strong>/);
+  // Checked items are announced, not only drawn.
+  assert.match(page, /\{done && <span className="ui-visually-hidden"> \(já comprado\)<\/span>\}/);
+
+  // Inside a revealed card things build up in sequence, only under the reveal hook and only with
+  // transform/opacity, and all of it is switched off for reduced motion.
+  for (const hidden of [
+    /\.reveal-ready \.public-sample__day:not\(\.is-revealed\) li \{ opacity: 0; transform: translate3d\(-16px, 0, 0\); \}/,
+    /\.reveal-ready \.public-sample__list:not\(\.is-revealed\) \.is-done \.public-sample__item::after \{ transform: scaleX\(0\); \}/,
+    /\.reveal-ready \.public-feature:not\(\.is-revealed\) \.public-feature__chart i,\.reveal-ready \.public-demo__grid > article:not\(\.is-revealed\) \.public-demo__screen--evolution i \{ transform: scaleY\(0\); \}/,
+  ]) assert.match(styles, hidden);
+  const reduced = styles.slice(styles.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reduced, /\.public-hero__underline,\.public-showcase__tag \{ animation: none !important; \}/);
+  assert.match(reduced, /\.public-sample__day li,[^{]*\.public-feature__chart i,[^{]*\.public-demo__screen--evolution i \{ transition: none !important; \}/);
+  // The underline is decoration.
+  assert.match(page, /className="public-hero__underline"[^>]*aria-hidden="true" focusable="false"/);
 });
