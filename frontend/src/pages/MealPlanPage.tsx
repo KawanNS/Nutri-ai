@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
@@ -13,6 +13,7 @@ import { Paywall } from '../components/Paywall'
 import { AppTopbar } from '../components/layout/AppTopbar'
 import type { Meal, MealPlan, MealPlanDay, Nutrition } from '../types/mealPlan'
 import type { Usage } from '../types/usage'
+import { nextMealIndex, shortDayLabel, todayPlanDay } from '../utils/mealPlanSchedule'
 import './MealPlanPage.css'
 
 interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void }
@@ -29,10 +30,10 @@ const nutritionLabels = [
 ] as const
 
 function NutritionValues({ nutrition, compact = false }: { nutrition: Nutrition; compact?: boolean }) {
-  return <dl className={compact ? 'mp-nutrition mp-nutrition--compact' : 'mp-nutrition'}>
+  return <dl className={compact ? 'ui-stat-row mp-nutrition mp-nutrition--compact' : 'ui-stat-row mp-nutrition'}>
     {nutritionLabels.map(([key, label, unit]) => <div key={key}>
       <dt>{label}</dt>
-      <dd><strong>{number.format(nutrition[key])}</strong> <span>{unit}</span></dd>
+      <dd>{number.format(nutrition[key])}<span>{unit}</span></dd>
     </div>)}
   </dl>
 }
@@ -117,33 +118,29 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
   const generationLabel = mealPlan ? 'Gerar novo plano' : 'Gerar meu plano'
 
   return <div className="app-shell"><AppTopbar active="meal-plan" onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
-    <main className="page meal-plan-page">
+    <main className="page page--narrow meal-plan-page">
       <PageHeader
         className="mp-page-header"
-        eyebrow="Plano alimentar"
-        title="Seu plano alimentar"
-        description="Sete dias de refeições, com lista de compras e custo estimado."
-        actions={usage ? <UsageSummary usage={usage}/> : undefined}
+        title="Plano alimentar"
+        actions={<Button variant="secondary" onClick={onMealPhoto}>Foto do prato</Button>}
       />
-
-      <div className="mp-actions" aria-label="Ações do plano alimentar">
-        <Button loading={generating} loadingLabel="Gerando seu plano" disabled={limitReached || pending} onClick={() => void requestGeneration(false)}>{generationLabel}</Button>
-        {pending && hasAttemptKey && <Button variant="secondary" loading={generating} loadingLabel="Verificando geração" onClick={() => void requestGeneration(true)}>Verificar novamente</Button>}
-        <Button variant="ghost" onClick={onMealPhoto}>Analisar foto do prato</Button>
-        <span>Comeu algo fora do plano? Fotografe e salve no diário.</span>
-      </div>
 
       <div className="mp-feedback">
         {error && <Alert variant="error" title="Não foi possível concluir">{error}{needsProfile && <Button className="mp-alert-action" variant="ghost" onClick={onProfile}>Revisar perfil</Button>}</Alert>}
-        {pending && <Alert variant="info" title="Ainda montando seu plano">Ele ainda não ficou pronto. Toque em “Verificar novamente” daqui a pouco.</Alert>}
+        {pending && <Alert variant="info" title="Ainda montando seu plano">Ele ainda não ficou pronto. Toque em “Verificar novamente” daqui a pouco.{hasAttemptKey && <Button className="mp-alert-action" variant="secondary" loading={generating} loadingLabel="Verificando geração" onClick={() => void requestGeneration(true)}>Verificar novamente</Button>}</Alert>}
         {limitReached && <Alert variant="info" title="Os cardápios grátis acabaram">Os planos que você já gerou continuam aqui. Para gerar novos, assine o Premium.</Alert>}
       </div>
 
-      {limitReached && <Paywall/>}
       {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu último plano."/></Surface> : <>
         {!mealPlan && !generating && <EmptyPlanState/>}
         {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta."/></Surface>}
-        {mealPlan && <PlanContent key={mealPlan.id} mealPlan={mealPlan}/>}
+        {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto}/>}
+
+        <section className={mealPlan ? 'mp-generate' : 'mp-generate mp-generate--first'} aria-label="Gerar plano alimentar">
+          {usage && <UsageSummary usage={usage}/>}
+          <Button variant={mealPlan ? 'secondary' : 'primary'} loading={generating} loadingLabel="Gerando seu plano" disabled={limitReached || pending} onClick={() => void requestGeneration(false)}>{generationLabel}</Button>
+        </section>
+        {limitReached && <Paywall/>}
       </>}
     </main>
   </div>
@@ -152,65 +149,141 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
 function UsageSummary({ usage }: { usage: Usage }) {
   if (usage.adminAccess) return <div className="mp-usage"><Badge variant="success">Premium (admin)</Badge><span>Planos novos liberados para administradores</span></div>
   if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Planos novos liberados pela assinatura</span></div>
-  return <div className="mp-usage"><strong>{usage.freeUsesAvailable}</strong><span>{usage.freeUsesAvailable === 1 ? 'cardápio grátis restante' : 'cardápios grátis restantes'}</span>{usage.freeUsesReserved > 0 && <small>Um plano está sendo montado.</small>}</div>
+  return <div className="mp-usage"><span><strong>{usage.freeUsesAvailable}</strong> {usage.freeUsesAvailable === 1 ? 'cardápio grátis restante' : 'cardápios grátis restantes'}</span>{usage.freeUsesReserved > 0 && <small>Um plano está sendo montado.</small>}</div>
 }
 
 function EmptyPlanState() {
-  return <Surface as="section" className="mp-empty" level="soft" aria-labelledby="mp-empty-title">
-    <span className="mp-empty__mark" aria-hidden="true">7</span>
-    <div><p className="mp-kicker">Ainda sem cardápio</p><h2 id="mp-empty-title">Seu plano começa aqui.</h2><p>Toque em “Gerar meu plano” e a Alyvora monta sete dias de refeições com o que está no seu perfil, do café ao jantar, com a lista de compras.</p></div>
-  </Surface>
+  return <section className="mp-empty" aria-labelledby="mp-empty-title">
+    <h2 id="mp-empty-title">Seu plano começa aqui.</h2>
+    <p>Toque em “Gerar meu plano” e a Alyvora monta sete dias de refeições com o que está no seu perfil, do café ao jantar, com a lista de compras.</p>
+  </section>
 }
 
-function PlanContent({ mealPlan }: { mealPlan: MealPlan }) {
+function dayCalories(day: MealPlanDay): number {
+  return day.meals.reduce((total, meal) => total + meal.estimatedNutrition.caloriesKcal, 0)
+}
+
+function PlanContent({ mealPlan, onMealPhoto }: { mealPlan: MealPlan; onMealPhoto(): void }) {
   const plan = mealPlan.content
-  const [selectedDayNumber, setSelectedDayNumber] = useState(plan.days[0]?.day ?? 1)
-  const selectedDay = plan.days.find((day) => day.day === selectedDayNumber) ?? plan.days[0]
+  // Read the clock once per plan view so the highlighted meal stays put while the page is open.
+  const [now] = useState(() => new Date())
+  const ordered = useMemo(() => [...plan.days].sort((a, b) => a.day - b.day), [plan.days])
+  const todayNumber = useMemo(() => todayPlanDay(ordered, mealPlan.createdAt, now), [ordered, mealPlan.createdAt, now])
+  const [selectedDayNumber, setSelectedDayNumber] = useState(todayNumber ?? ordered[0]?.day ?? 1)
+  const selectedDay = plan.days.find((day) => day.day === selectedDayNumber) ?? ordered[0]
+  const isToday = selectedDay !== undefined && selectedDay.day === todayNumber
+  const next = isToday ? nextMealIndex(selectedDay.meals, now) : null
+  const tomorrow = isToday ? ordered[(ordered.indexOf(selectedDay) + 1) % ordered.length] : undefined
+  const shoppingItems = plan.shoppingList.reduce((total, group) => total + group.items.length, 0)
 
   return <div className="mp-content">
-    <Surface as="section" className="mp-overview" level="base" aria-labelledby="mp-plan-title">
-      <div className="mp-overview__intro"><div className="mp-overview__badges"><Badge>{plan.durationDays} dias</Badge><Badge>{plan.days.reduce((total, day) => total + day.meals.length, 0)} refeições</Badge></div><h2 id="mp-plan-title">{plan.title}</h2><p>{plan.summary}</p></div>
-      <div className="mp-overview__cost"><span>Custo semanal estimado</span><strong>{currency.format(plan.estimatedWeeklyCost)}</strong></div>
-      <div className="mp-targets"><div><p className="mp-kicker">Resumo diário</p><h3>Metas estimadas do plano</h3></div><NutritionValues nutrition={plan.dailyTargets}/></div>
-    </Surface>
+    <DayTabs days={ordered} selectedDay={selectedDay?.day ?? selectedDayNumber} todayDay={todayNumber} onSelect={setSelectedDayNumber}/>
 
-    <section className="mp-week" aria-labelledby="mp-week-title">
-      <div className="mp-section-heading"><div><p className="mp-kicker">Sua semana</p><h2 id="mp-week-title">Refeições do dia</h2></div><p>Toque em um dia para ver o que comer e como preparar.</p></div>
-      <DayNavigation days={plan.days} selectedDay={selectedDayNumber} onSelect={setSelectedDayNumber}/>
-      {selectedDay && <DayContent day={selectedDay}/>}
-    </section>
+    {selectedDay && <div className="mp-day" id="mp-day-panel" role="tabpanel" aria-labelledby={`mp-day-tab-${selectedDay.day}`}>
+      <header className="mp-day__header">
+        <h2>{isToday ? `Hoje, ${selectedDay.label.toLocaleLowerCase('pt-BR')}` : selectedDay.label}</h2>
+        <p>{number.format(dayCalories(selectedDay))} kcal · {currency.format(selectedDay.estimatedDailyCost)}</p>
+      </header>
 
-    <Surface as="section" className="mp-shopping" level="base" aria-labelledby="mp-shopping-title">
-      <div className="mp-section-heading"><div><p className="mp-kicker">Para a semana</p><h2 id="mp-shopping-title">Lista de compras</h2></div><p>Tudo o que você precisa comprar para a semana, separado por categoria.</p></div>
-      <div className="mp-shopping__grid">{plan.shoppingList.map((group, groupIndex) => <article className="mp-shopping__category" key={`${group.category}-${groupIndex}`}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></article>)}</div>
-    </Surface>
+      {typeof next === 'number' && <NextMeal meal={selectedDay.meals[next]} onMealPhoto={onMealPhoto}/>}
+      {next === 'done' && tomorrow?.meals[0] && <button className="mp-tomorrow" type="button" onClick={() => setSelectedDayNumber(tomorrow.day)}>
+        <span>Refeições de hoje concluídas. Amanhã começa com</span>
+        <strong>{tomorrow.meals[0].name}{tomorrow.meals[0].suggestedTime && ` · ${tomorrow.meals[0].suggestedTime}`}</strong>
+      </button>}
 
-    <Surface as="section" className="mp-notes" level="soft" aria-label="Observações e avisos do plano">
-      <div><h2>Observações</h2><ul>{plan.notes.map((note, index) => <li key={index}>{note}</li>)}</ul></div>
-      <div className="mp-notes__safety"><h2>Avisos importantes</h2><ul>{plan.safetyNotices.map((notice, index) => <li key={index}>{notice}</li>)}</ul></div>
-    </Surface>
+      <ol className="mp-meals" aria-label={`Refeições de ${selectedDay.label}`}>
+        {selectedDay.meals.map((meal, index) => <MealPresentation meal={meal} next={index === next} key={`${selectedDay.day}-${meal.name}-${index}`}/>)}
+      </ol>
+    </div>}
+
+    <div className="mp-more">
+      <details className="mp-disclosure">
+        <summary><span>Lista de compras</span><small>{shoppingItems} {shoppingItems === 1 ? 'item' : 'itens'} · {currency.format(plan.estimatedWeeklyCost)}</small></summary>
+        <div className="mp-shopping">{plan.shoppingList.map((group, groupIndex) => <section key={`${group.category}-${groupIndex}`}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></section>)}</div>
+      </details>
+      <details className="mp-disclosure">
+        <summary><span>Sobre este plano</span><small>Metas diárias e custo</small></summary>
+        <div className="mp-about">
+          <h3>{plan.title}</h3>
+          <p>{plan.summary}</p>
+          <p className="mp-about__label">Metas diárias estimadas</p>
+          <NutritionValues nutrition={plan.dailyTargets}/>
+          <p className="mp-about__cost">Custo semanal estimado: <strong>{currency.format(plan.estimatedWeeklyCost)}</strong></p>
+        </div>
+      </details>
+      {plan.notes.length > 0 && <details className="mp-disclosure">
+        <summary><span>Observações</span><small>{plan.notes.length}</small></summary>
+        <ul className="mp-notes">{plan.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>
+      </details>}
+    </div>
+
+    <aside className="mp-safety" aria-label="Avisos importantes">
+      <ul>{plan.safetyNotices.map((notice, index) => <li key={index}>{notice}</li>)}</ul>
+    </aside>
   </div>
 }
 
-function DayNavigation({ days, selectedDay, onSelect }: { days: MealPlanDay[]; selectedDay: number; onSelect(day: number): void }) {
-  return <nav className="mp-day-nav" aria-label="Dias do plano alimentar">
-    {days.map((day) => {
-      const selected = day.day === selectedDay
-      return <button key={day.day} type="button" aria-pressed={selected} aria-label={`Ver ${day.label}`} onClick={() => onSelect(day.day)}><span>{day.label.slice(0, 3).toLocaleUpperCase('pt-BR')}</span><strong>{day.day}</strong></button>
+function DayTabs({ days, selectedDay, todayDay, onSelect }: { days: MealPlanDay[]; selectedDay: number; todayDay?: number; onSelect(day: number): void }) {
+  const tabs = useRef<Array<HTMLButtonElement | null>>([])
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const current = days.findIndex((day) => day.day === selectedDay)
+    const target = event.key === 'ArrowRight' ? current + 1 : event.key === 'ArrowLeft' ? current - 1 : event.key === 'Home' ? 0 : event.key === 'End' ? days.length - 1 : null
+    if (target === null) return
+    event.preventDefault()
+    const index = (target + days.length) % days.length
+    onSelect(days[index].day)
+    tabs.current[index]?.focus()
+  }
+
+  return <div className="mp-day-tabs" role="tablist" aria-label="Dias do plano alimentar" onKeyDown={handleKeyDown}>
+    {days.map((day, index) => {
+      const selected = day.day === selectedDay, today = day.day === todayDay
+      return <button
+        key={day.day}
+        ref={(element) => { tabs.current[index] = element }}
+        id={`mp-day-tab-${day.day}`}
+        className={today ? 'mp-day-tab mp-day-tab--today' : 'mp-day-tab'}
+        type="button"
+        role="tab"
+        aria-selected={selected}
+        aria-controls="mp-day-panel"
+        aria-label={today ? `${day.label} (hoje)` : day.label}
+        tabIndex={selected ? 0 : -1}
+        onClick={() => onSelect(day.day)}
+      >{shortDayLabel(day)}</button>
     })}
-  </nav>
+  </div>
 }
 
-function DayContent({ day }: { day: MealPlanDay }) {
-  return <Surface as="article" className="mp-day" level="base" aria-labelledby={`mp-day-title-${day.day}`}>
-    <header className="mp-day__header"><div><span>Dia {day.day}</span><h3 id={`mp-day-title-${day.day}`}>{day.label}</h3></div><div><small>Custo diário estimado</small><strong>{currency.format(day.estimatedDailyCost)}</strong></div></header>
-    <div className="mp-meals">{day.meals.map((meal, index) => <MealPresentation meal={meal} index={index} key={`${meal.name}-${index}`}/>)}</div>
+function FoodList({ meal }: { meal: Meal }) {
+  return <ul className="mp-foods">{meal.foods.map((food, foodIndex) => <li key={`${food.name}-${foodIndex}`}><span>{food.name}</span><strong>{number.format(food.quantity)}&nbsp;{food.unit}</strong></li>)}</ul>
+}
+
+function NextMeal({ meal, onMealPhoto }: { meal: Meal; onMealPhoto(): void }) {
+  return <Surface as="section" className="mp-next" level="soft" aria-labelledby="mp-next-title">
+    <p className="mp-next__when">Próxima refeição{meal.suggestedTime && <> · <time>{meal.suggestedTime}</time></>}</p>
+    <h3 id="mp-next-title">{meal.name}</h3>
+    <FoodList meal={meal}/>
+    <div className="mp-next__footer">
+      <span>{number.format(meal.estimatedNutrition.caloriesKcal)} kcal · {number.format(meal.estimatedNutrition.proteinGrams)} g de proteína</span>
+      <Button variant="secondary" onClick={onMealPhoto}>Registrar com foto</Button>
+    </div>
   </Surface>
 }
 
-function MealPresentation({ meal, index }: { meal: Meal; index: number }) {
-  return <article className="mp-meal">
-    <header className="mp-meal__header"><span>{String(index + 1).padStart(2, '0')}</span><div><h4>{meal.name}</h4>{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</div></header>
-    <div className="mp-meal__body"><div className="mp-foods"><h5>Alimentos</h5><ul>{meal.foods.map((food, foodIndex) => <li key={`${food.name}-${foodIndex}`}><span>{food.name}</span><strong>{number.format(food.quantity)}&nbsp;{food.unit}</strong></li>)}</ul></div><div className="mp-preparation"><h5>Preparo</h5><p>{meal.preparation}</p></div><div className="mp-meal__nutrition"><h5>Estimativa nutricional</h5><NutritionValues nutrition={meal.estimatedNutrition} compact/></div></div>
-  </article>
+function MealPresentation({ meal, next }: { meal: Meal; next: boolean }) {
+  return <li className={next ? 'mp-meal mp-meal--next' : 'mp-meal'}>
+    <details>
+      <summary>
+        <span className="mp-meal__time">{meal.suggestedTime && <time>{meal.suggestedTime}</time>}</span>
+        <span className="mp-meal__title"><strong>{meal.name}</strong><small>{meal.foods.map((food) => food.name).join(', ')}</small></span>
+        <span className="mp-meal__kcal">{number.format(meal.estimatedNutrition.caloriesKcal)} kcal</span>
+      </summary>
+      <div className="mp-meal__body">
+        <FoodList meal={meal}/>
+        <p className="mp-meal__preparation">{meal.preparation}</p>
+        <NutritionValues nutrition={meal.estimatedNutrition} compact/>
+      </div>
+    </details>
+  </li>
 }
