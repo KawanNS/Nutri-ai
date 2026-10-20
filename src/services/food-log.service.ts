@@ -11,7 +11,7 @@ interface FoodLogItemRecord {
   portionDescription: string;
 }
 
-interface FoodLogRecord {
+export interface FoodLogRecord {
   id: string;
   consumedAt: Date;
   estimatedCaloriesKcal: DecimalValue | null;
@@ -50,13 +50,13 @@ function numberOrNull(value: DecimalValue | null): number | null {
   return value === null ? null : Number(value.toString());
 }
 
-function localDayRange(date: string, timezoneOffsetMinutes: number) {
+export function localDayRange(date: string, timezoneOffsetMinutes: number) {
   const [year, month, day] = date.split("-").map(Number) as [number, number, number];
   const start = new Date(Date.UTC(year, month - 1, day) + timezoneOffsetMinutes * 60_000);
   return { start, end: new Date(start.getTime() + 86_400_000) };
 }
 
-function serializeFoodLog(foodLog: FoodLogRecord) {
+export function serializeFoodLog(foodLog: FoodLogRecord) {
   return {
     id: foodLog.id,
     consumedAt: foodLog.consumedAt.toISOString(),

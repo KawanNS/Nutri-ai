@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppTopbar } from '../components/layout/AppTopbar'
 import { DiaryIcon } from '../components/DiaryNavButton'
+import { DiaryDayTarget, DiaryPlanMeals } from '../components/diary/DiaryPlanMeals'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { LoadingState } from '../components/ui/LoadingState'
 import { Surface } from '../components/ui/Surface'
-import { listDiaryFoodLogs } from '../services/diaryService'
-import type { DiaryFoodLog } from '../types/diary'
+import { ApiError } from '../services/api'
+import { getDiaryPlanMeals, listDiaryFoodLogs, logDiaryPlanMeal } from '../services/diaryService'
+import type { DiaryFoodLog, DiaryPlanDay } from '../types/diary'
 import { today } from '../utils/date'
 import './DiaryPage.css'
 
@@ -53,18 +55,24 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [plan, setPlan] = useState<DiaryPlanDay | null>(null)
+  const [loggingIndex, setLoggingIndex] = useState<number | null>(null)
+  const [planError, setPlanError] = useState<string | null>(null)
   const requestSequence = useRef(0)
 
   const load = useCallback(async () => {
     const requestId = ++requestSequence.current
     setLoading(true)
     setError(null)
+    setPlanError(null)
     try {
-      const result = await listDiaryFoodLogs(date)
-      if (requestId === requestSequence.current) setFoodLogs(result.foodLogs)
+      // The plan is a bonus: without one (or if it fails to load) the diary still works.
+      const [result, planResult] = await Promise.all([listDiaryFoodLogs(date), getDiaryPlanMeals(date).catch(() => ({ plan: null }))])
+      if (requestId === requestSequence.current) { setFoodLogs(result.foodLogs); setPlan(planResult.plan) }
     } catch {
       if (requestId === requestSequence.current) {
         setFoodLogs([])
+        setPlan(null)
         setError(errorMessage())
       }
     } finally {
@@ -78,6 +86,23 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
     // oxlint-disable-next-line react/set-state-in-effect
     void load()
   }, [load, reloadKey])
+
+  async function logPlanMeal(mealIndex: number) {
+    if (!plan || loggingIndex !== null) return
+    setLoggingIndex(mealIndex)
+    setPlanError(null)
+    try {
+      await logDiaryPlanMeal({ mealPlanId: plan.mealPlanId, day: plan.day, mealIndex, date })
+      setReloadKey((value) => value + 1)
+    } catch (requestError) {
+      if (requestError instanceof ApiError && requestError.code === 'PLAN_MEAL_ALREADY_LOGGED') setReloadKey((value) => value + 1)
+      else setPlanError('Não deu para registrar agora. Tente de novo.')
+    } finally {
+      setLoggingIndex(null)
+    }
+  }
+
+  const planSection = plan && <DiaryPlanMeals plan={plan} isToday={date === today()} loggingIndex={loggingIndex} error={planError} onLog={(mealIndex) => void logPlanMeal(mealIndex)}/>
 
   const totals = useMemo(() => ({
     calories: completeTotal(foodLogs, 'estimatedCaloriesKcal'),
@@ -98,17 +123,20 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
       </Surface>
 
       {error && <Alert variant="error" title="Não foi possível abrir o diário"><span>{error}</span><Button className="diary-retry" variant="ghost" onClick={() => setReloadKey((value) => value + 1)}>Tentar novamente</Button></Alert>}
-      {loading ? <Surface className="diary-loading"><LoadingState label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/></Surface> : !error && foodLogs.length === 0 ? <Surface as="section" className="diary-empty" level="soft" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><div><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>Tire uma foto do prato na próxima refeição e ela aparece aqui.</p></div><Button onClick={onMealPhoto}>Registrar refeição</Button></Surface> : !error && <>
+      {loading ? <Surface className="diary-loading"><LoadingState label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/></Surface> : !error && foodLogs.length === 0 ? <><Surface as="section" className={plan ? 'diary-empty diary-empty--with-plan' : 'diary-empty'} level="soft" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><div><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>{plan ? 'Marque abaixo o que você comeu do plano ou tire uma foto do prato.' : 'Tire uma foto do prato na próxima refeição e ela aparece aqui.'}</p></div><Button onClick={onMealPhoto}>Registrar refeição</Button></Surface>{planSection}</> : !error && <>
         <Surface as="section" className="diary-summary" aria-labelledby="diary-summary-title">
           <div className="diary-section-heading"><div><p>Resumo do dia</p><h2 id="diary-summary-title">Estimativas registradas</h2></div><Badge>{foodLogs.length} {foodLogs.length === 1 ? 'refeição' : 'refeições'}</Badge></div>
+          {plan && <DiaryDayTarget calories={totals.calories} targets={plan.dailyTargets}/>}
           <dl className="diary-summary__values">
-            <SummaryValue label="Calorias" value={totals.calories} unit="kcal"/>
-            <SummaryValue label="Proteínas" value={totals.protein} unit="g"/>
-            <SummaryValue label="Carboidratos" value={totals.carbohydrates} unit="g"/>
-            <SummaryValue label="Gorduras" value={totals.fat} unit="g"/>
+            <SummaryValue label="Calorias" value={totals.calories} unit="kcal" target={plan?.dailyTargets.caloriesKcal}/>
+            <SummaryValue label="Proteínas" value={totals.protein} unit="g" target={plan?.dailyTargets.proteinGrams}/>
+            <SummaryValue label="Carboidratos" value={totals.carbohydrates} unit="g" target={plan?.dailyTargets.carbohydrateGrams}/>
+            <SummaryValue label="Gorduras" value={totals.fat} unit="g" target={plan?.dailyTargets.fatGrams}/>
           </dl>
           {Object.values(totals).some((value) => value === null) && <p className="diary-summary__note">“—” indica que a estimativa não está completa em todos os registros do dia.</p>}
         </Surface>
+
+        {planSection}
 
         <section className="diary-entries" aria-labelledby="diary-entries-title">
           <div className="diary-section-heading"><div><p>Refeições registradas</p><h2 id="diary-entries-title">Seu dia, em ordem</h2></div><span>Mais antigas primeiro</span></div>
@@ -119,8 +147,8 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
   </div>
 }
 
-function SummaryValue({ label, value, unit }: { label: string; value: number | null; unit: string }) {
-  return <div><dt>{label}</dt><dd>{value === null ? <strong aria-label={`${label}: estimativa indisponível`}>—</strong> : <><strong>{number.format(value)}</strong><span>{unit}</span></>}</dd></div>
+function SummaryValue({ label, value, unit, target }: { label: string; value: number | null; unit: string; target?: number }) {
+  return <div><dt>{label}</dt><dd>{value === null ? <strong aria-label={`${label}: estimativa indisponível`}>—</strong> : <><strong>{number.format(value)}</strong><span>{unit}</span></>}</dd>{target !== undefined && <small>meta do plano: {number.format(target)} {unit}</small>}</div>
 }
 
 function DiaryEntry({ foodLog }: { foodLog: DiaryFoodLog }) {
