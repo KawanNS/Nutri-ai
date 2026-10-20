@@ -73,3 +73,4 @@ export interface MealPlanResponse { mealPlan: MealPlan }
 export interface MealPlanGenerationSuccess extends MealPlanResponse { usage: Usage }
 export interface MealPlanGenerationPending { status: 'PENDING'; operationId: string }
 export type MealPlanGenerationResponse = MealPlanGenerationSuccess | MealPlanGenerationPending
+export interface MealSwapResponse extends MealPlanResponse { swappedMeal: { day: number; mealIndex: number; meal: Meal } }

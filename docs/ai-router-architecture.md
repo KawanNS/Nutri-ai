@@ -20,7 +20,14 @@ HTTP controller
 
 Os contratos comuns ficam em `src/ai/ai-router.types.ts`. `AIRouterRequest` contém tarefa, instruções, entrada, formato e timeout; não contém chave, configuração de conta ou objetos do SDK. `AIRouterResponse` contém conteúdo, provider/model, latência, usage normalizado, motivo de término e request ID sanitizado. Nenhum objeto bruto do SDK cruza o adapter.
 
-A única tarefa habilitada é `MEAL_PLAN_GENERATION`. `NUTRITION_ASSISTANT`, `PROFILE_INSIGHT` e `MEAL_REPLACEMENT` são possibilidades futuras e falham fechadas enquanto não forem implementadas.
+As tarefas habilitadas ficam em `AI_TASKS`: `MEAL_PLAN_GENERATION`, `NUTRITION_ASSISTANT`, `MEAL_PHOTO_ANALYSIS` e `MEAL_REPLACEMENT`. `PROFILE_INSIGHT` continua como possibilidade futura e falha fechada enquanto não for implementada.
+
+`MEAL_REPLACEMENT` atende `POST /api/meal-plans/:id/days/:day/meals/:index/swap`: troca uma única refeição de um plano salvo, com prompt próprio (`src/prompts/meal-swap.prompt.ts`, `meal-swap-v1`) e schema estruturado próprio (`mealSwapAIResponseSchema`). A troca:
+
+- é exclusiva de Premium (assinatura ativa ou conta ADMIN, via `getPremiumAccess`) e não cria `UsageEvent` nem mexe nos contadores gratuitos; o abuso é contido por um rate limit em memória de 10 trocas a cada 10 minutos por usuário;
+- atualiza o `content` do `MealPlan` no lugar (sem nova versão), com concorrência otimista por `updatedAt`: se outra troca salvar antes, o plano é relido e a troca reaplicada, desde que a refeição alvo não tenha mudado;
+- recalcula `estimatedDailyCost` do dia e `estimatedWeeklyCost` pela diferença entre o custo estimado da nova refeição e o da antiga, e adiciona os alimentos novos à categoria "Itens de refeições trocadas" da lista de compras;
+- revalida o plano inteiro com o mesmo schema da geração antes de salvar.
 
 ## Routing e Gemini
 

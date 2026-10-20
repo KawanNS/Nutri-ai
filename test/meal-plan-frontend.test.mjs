@@ -54,9 +54,30 @@ test("meal-plan redesign presents every real state without inventing product beh
   }
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 
-  for (const fabricatedFeature of ["checkbox", "Substituir refeição", "score nutricional", "hidratação", "streak"]) {
+  for (const fabricatedFeature of ["checkbox", "score nutricional", "hidratação", "streak"]) {
     assert.equal(source.includes(fabricatedFeature), false);
   }
+});
+
+test("meal swap is a per-meal action with inline loading and errors", async () => {
+  const [source, service, styles] = await Promise.all([
+    readFile("frontend/src/pages/MealPlanPage.tsx", "utf8"),
+    readFile("frontend/src/services/mealPlanService.ts", "utf8"),
+    readFile("frontend/src/pages/MealPlanPage.css", "utf8"),
+  ]);
+
+  assert.match(service, /\/api\/meal-plans\/\$\{encodeURIComponent\(mealPlanId\)\}\/days\/\$\{day\}\/meals\/\$\{mealIndex\}\/swap/);
+  assert.match(source, /swapMeal\(mealPlan\.id, day, mealIndex\)/);
+  assert.match(source, /onPlanUpdated\(response\.mealPlan\)/);
+  assert.match(source, /canSwap=\{usage\?\.isPremium === true\}/);
+  assert.match(source, /if \(swappingRef\.current\) return/);
+  assert.match(source, /className="mp-meal__swap" variant="ghost" loading=\{swapping\}/);
+  assert.match(source, /aria-busy=\{swapping \|\| undefined\}/);
+  assert.match(source, /role="alert">\{feedback\.message\}/);
+  for (const code of ["PREMIUM_REQUIRED", "MEAL_SWAP_RATE_LIMIT_EXCEEDED", "MEAL_SWAP_TEMPORARILY_UNAVAILABLE", "MEAL_CHANGED_DURING_SWAP", "MEAL_PLAN_NOT_SWAPPABLE"]) {
+    assert.match(source, new RegExp(`case '${code}'`));
+  }
+  assert.match(styles, /\.mp-meal--swapping \.mp-meal__body \{ opacity: \.45; \}/);
 });
 
 test("real meal-plan smoke is explicitly gated and exercises the public flow", async () => {

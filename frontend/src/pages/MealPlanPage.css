@@ -155,7 +155,7 @@
 .mp-meals { padding-inline: var(--space-6); }
 .mp-meal { padding-block: var(--space-6); border-top: 1px solid var(--border); }
 .mp-meal:first-child { border-top: 0; }
-.mp-meal__header { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); }
+.mp-meal__header { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); }
 .mp-meal__header > span { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border-radius: var(--radius-pill); color: var(--green-strong); background: var(--green-soft); font-size: var(--type-caption-size); font-weight: 850; }
 .mp-meal__header > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
 .mp-meal h4 { margin: 0; font-family: var(--font-display); font-size: 1.35rem; }
@@ -168,6 +168,13 @@
 .mp-foods li strong { flex: 0 0 auto; color: var(--green-strong); }
 .mp-preparation p { margin: 0; color: var(--text-secondary); font-size: var(--type-small-size); line-height: 1.65; }
 .mp-meal__nutrition { grid-column: 1 / -1; }
+.mp-meal__body { transition: opacity var(--motion-default) var(--ease-standard); }
+.mp-meal--swapping .mp-meal__body { opacity: .45; }
+.mp-meal__swap.ui-button { min-height: 2.25rem; padding: var(--space-1) var(--space-3); font-size: var(--type-small-size); }
+.mp-meal__swap-status,
+.mp-meal__swap-feedback { margin: calc(var(--space-2) * -1) 0 var(--space-4); padding-left: 3.25rem; color: var(--text-secondary); font-size: var(--type-small-size); }
+.mp-meal__swap-feedback--success { color: var(--green-strong); }
+.mp-meal__swap-feedback--error { color: var(--error); }
 .mp-nutrition--compact > div { padding-left: var(--space-3); }
 .mp-nutrition--compact dd strong { font-size: 1.05rem; }
 
@@ -204,6 +211,8 @@
   .mp-day-nav button { flex: 0 0 4.5rem; }
   .mp-day__header { align-items: flex-start; }
   .mp-meal__body { grid-template-columns: 1fr; padding-left: 0; }
+  .mp-meal__swap-status,
+  .mp-meal__swap-feedback { padding-left: 0; }
   .mp-meal__nutrition { grid-column: auto; }
   .mp-nutrition--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mp-shopping__grid { grid-template-columns: 1fr; }
@@ -219,6 +228,8 @@
   .mp-day__header > div:last-child { text-align: left; }
   .mp-meals { padding-inline: var(--space-5); }
   .mp-meal__header > div { align-items: flex-start; flex-direction: column; gap: var(--space-1); }
+  .mp-meal__header { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .mp-meal__swap.ui-button { grid-column: 2; justify-self: start; }
 }
 
 @media (max-width: 22rem) {
@@ -230,4 +241,5 @@
 @media (prefers-reduced-motion: reduce) {
   .mp-day-nav button { transition: none; }
   .mp-day-nav button:hover { transform: none; }
+  .mp-meal__body { transition: none; }
 }
