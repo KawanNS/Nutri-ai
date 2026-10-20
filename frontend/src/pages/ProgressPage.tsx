@@ -81,7 +81,7 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPa
 
   return <div className="app-shell"><AppTopbar active="progress" onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary}/>
     <main className="page progress-page">
-      <PageHeader eyebrow="Seu histórico" title="Evolução" description="Acompanhe seus registros de peso ao longo do tempo, com uma visão simples e responsável da sua trajetória."/>
+      <PageHeader eyebrow="Seu histórico" title="Evolução" description="Seu peso ao longo das semanas, num gráfico simples."/>
 
       <div className="progress-feedback" aria-live="polite">
         {error && <Alert variant="error" title="Não foi possível atualizar sua evolução">{error}</Alert>}
@@ -89,13 +89,13 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPa
       </div>
 
       <Surface as="section" className="progress-summary" aria-label="Resumo da evolução">
-        <div className="progress-summary__intro"><p>Visão atual</p><h2>Seus registros, com clareza</h2></div>
+        <div className="progress-summary__intro"><p>Agora</p><h2>Como está seu peso</h2></div>
         <dl>
           <div><dt>Peso atual</dt><dd>{current ? <><strong>{formatWeight(current.weightKg)}</strong><span>kg</span></> : <strong>—</strong>}</dd></div>
           <div><dt>Variação no período carregado</dt><dd>{variation === null ? <strong>—</strong> : <><strong>{variation > 0 ? '+' : ''}{formatWeight(variation)}</strong><span>kg</span></>}</dd></div>
           <div><dt>Registros carregados</dt><dd><strong>{entries.length}</strong>{nextCursor && <Badge>há mais</Badge>}</dd></div>
         </dl>
-        <p className="progress-summary__note">A variação é informativa e não classifica ganho ou perda de peso.</p>
+        <p className="progress-summary__note">A variação é a diferença entre o primeiro e o último registro carregado.</p>
       </Surface>
 
       <div className="progress-layout">
@@ -107,7 +107,7 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPa
 
           <Surface as="section" className="progress-history" aria-labelledby="progress-history-title">
             <div className="progress-section-heading"><div><p>Registros</p><h2 id="progress-history-title">Histórico</h2></div><span>Mais recente primeiro</span></div>
-            {loading ? <LoadingState label="Carregando histórico"/> : entries.length === 0 ? <div className="progress-empty"><span aria-hidden="true">↗</span><h3>Ainda não há registros de evolução.</h3><p>Registre seu peso para acompanhar mudanças ao longo do tempo.</p><Button variant="secondary" onClick={focusWeightForm}>Registrar primeiro peso</Button></div> : <ol className="progress-history__list">{entries.map((entry) => <li key={entry.id}>
+            {loading ? <LoadingState label="Carregando histórico"/> : entries.length === 0 ? <div className="progress-empty"><span aria-hidden="true">↗</span><h3>Ainda não há registros de evolução.</h3><p>Anote seu peso de hoje e o gráfico começa a aparecer.</p><Button variant="secondary" onClick={focusWeightForm}>Registrar primeiro peso</Button></div> : <ol className="progress-history__list">{entries.map((entry) => <li key={entry.id}>
               <div><time dateTime={entry.recordedAt}>{formatDate(entry.recordedAt)}</time><strong>{formatWeight(entry.weightKg)} <small>kg</small></strong></div>
               <p className={entry.note ? '' : 'progress-history__empty-note'}>{entry.note || 'Sem observação'}</p>
             </li>)}</ol>}
@@ -117,7 +117,7 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPa
 
         <Surface as="section" level="soft" className="progress-form-card" aria-labelledby="progress-form-title">
           <div className="progress-form-card__heading"><span aria-hidden="true">＋</span><div><p>Novo registro</p><h2 id="progress-form-title">Registrar peso</h2></div></div>
-          <p className="progress-form-card__description">Adicione uma medição real para manter seu histórico atualizado.</p>
+          <p className="progress-form-card__description">Dica: pese-se sempre no mesmo horário, de preferência de manhã.</p>
           <form className="progress-form" onSubmit={(event) => void handleSubmit(event)}>
             <FormField id="progress-weight" label="Peso (kg)" hint="Use até duas casas decimais." required>
               {(controlProps) => <input {...controlProps} ref={weightInputRef} type="number" inputMode="decimal" min="0.01" max="9999.99" step="0.01" placeholder="Ex.: 72,5" value={weight} onChange={(event) => setWeight(event.target.value)}/>}

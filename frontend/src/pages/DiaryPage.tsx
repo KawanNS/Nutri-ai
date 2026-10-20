@@ -44,7 +44,7 @@ function completeTotal(foodLogs: DiaryFoodLog[], field: NutrientKey): number | n
 }
 
 function errorMessage(): string {
-  return 'Não foi possível carregar seu diário agora. Tente novamente.'
+  return 'Não deu para abrir o diário agora. Tente de novo.'
 }
 
 export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: DiaryPageProps) {
@@ -89,7 +89,7 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
   return <div className="app-shell">
     <AppTopbar active="diary" onMealPlan={onMealPlan} onChat={onChat} onProgress={onProgress}/>
     <main className="page diary-page">
-      <PageHeader eyebrow="Seus registros" title="Diário alimentar" description="Acompanhe suas refeições e veja como está sua alimentação ao longo do dia."/>
+      <PageHeader eyebrow="Seus registros" title="Diário alimentar" description="O que você comeu em cada dia, com calorias e macros estimadas."/>
 
       <Surface as="section" className="diary-day-picker" level="soft" aria-label="Selecionar dia do diário">
         <Button variant="ghost" aria-label="Ver dia anterior" onClick={() => setDate((current) => addDays(current, -1))}>←</Button>
@@ -98,7 +98,7 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
       </Surface>
 
       {error && <Alert variant="error" title="Não foi possível abrir o diário"><span>{error}</span><Button className="diary-retry" variant="ghost" onClick={() => setReloadKey((value) => value + 1)}>Tentar novamente</Button></Alert>}
-      {loading ? <Surface className="diary-loading"><LoadingState label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/></Surface> : !error && foodLogs.length === 0 ? <Surface as="section" className="diary-empty" level="soft" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><div><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>Use a Foto do Prato para registrar sua próxima refeição.</p></div><Button onClick={onMealPhoto}>Registrar refeição</Button></Surface> : !error && <>
+      {loading ? <Surface className="diary-loading"><LoadingState label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/></Surface> : !error && foodLogs.length === 0 ? <Surface as="section" className="diary-empty" level="soft" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><div><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>Tire uma foto do prato na próxima refeição e ela aparece aqui.</p></div><Button onClick={onMealPhoto}>Registrar refeição</Button></Surface> : !error && <>
         <Surface as="section" className="diary-summary" aria-labelledby="diary-summary-title">
           <div className="diary-section-heading"><div><p>Resumo do dia</p><h2 id="diary-summary-title">Estimativas registradas</h2></div><Badge>{foodLogs.length} {foodLogs.length === 1 ? 'refeição' : 'refeições'}</Badge></div>
           <dl className="diary-summary__values">

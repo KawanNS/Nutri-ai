@@ -38,18 +38,18 @@ function NutritionValues({ nutrition, compact = false }: { nutrition: Nutrition;
 }
 
 function errorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return 'Não foi possível concluir a solicitação. Verifique sua conexão e tente novamente.'
+  if (!(error instanceof ApiError)) return 'Não deu para falar com o servidor. Confira sua internet e tente de novo.'
   switch (error.code) {
-    case 'FREE_USAGE_LIMIT_REACHED': return 'Suas gerações gratuitas acabaram.'
-    case 'PROFILE_NOT_FOUND': return 'Preencha seu perfil antes de gerar um plano alimentar.'
-    case 'PROFILE_NOT_READY_FOR_GENERATION': return 'Alguns dados do seu perfil precisam ser revisados antes da geração.'
-    case 'AI_TEMPORARILY_UNAVAILABLE': return 'A geração está temporariamente indisponível. Tente novamente em alguns instantes.'
-    case 'AI_GENERATION_FAILED': return 'Não foi possível gerar seu plano agora. Tente novamente.'
+    case 'FREE_USAGE_LIMIT_REACHED': return 'Seus cardápios grátis acabaram.'
+    case 'PROFILE_NOT_FOUND': return 'Complete seu perfil para a gente montar seu cardápio.'
+    case 'PROFILE_NOT_READY_FOR_GENERATION': return 'Falta conferir alguns dados do seu perfil antes de montar o cardápio.'
+    case 'AI_TEMPORARILY_UNAVAILABLE': return 'A montagem de cardápios está fora do ar agora. Tente de novo em alguns minutos.'
+    case 'AI_GENERATION_FAILED': return 'Não deu para montar seu plano agora. Tente de novo.'
     case 'AI_INVALID_RESPONSE':
-    case 'INVALID_GENERATED_MEAL_PLAN': return 'Não foi possível gerar um plano válido. Inicie uma nova tentativa.'
+    case 'INVALID_GENERATED_MEAL_PLAN': return 'O plano saiu com erro. Peça um novo.'
     default:
       if (error.status === 403) return 'Seu acesso está indisponível no momento.'
-      return 'Não foi possível concluir a solicitação agora. Tente novamente.'
+      return 'Algo deu errado. Tente de novo.'
   }
 }
 
@@ -122,7 +122,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
         className="mp-page-header"
         eyebrow="Plano alimentar"
         title="Seu plano alimentar"
-        description="Organizado de acordo com seu perfil, objetivo, rotina e orçamento."
+        description="Sete dias de refeições, com lista de compras e custo estimado."
         actions={usage ? <UsageSummary usage={usage}/> : undefined}
       />
 
@@ -130,19 +130,19 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
         <Button loading={generating} loadingLabel="Gerando seu plano" disabled={limitReached || pending} onClick={() => void requestGeneration(false)}>{generationLabel}</Button>
         {pending && hasAttemptKey && <Button variant="secondary" loading={generating} loadingLabel="Verificando geração" onClick={() => void requestGeneration(true)}>Verificar novamente</Button>}
         <Button variant="ghost" onClick={onMealPhoto}>Analisar foto do prato</Button>
-        <span>Revise as estimativas da foto antes de registrar.</span>
+        <span>Comeu algo fora do plano? Fotografe e salve no diário.</span>
       </div>
 
       <div className="mp-feedback">
         {error && <Alert variant="error" title="Não foi possível concluir">{error}{needsProfile && <Button className="mp-alert-action" variant="ghost" onClick={onProfile}>Revisar perfil</Button>}</Alert>}
-        {pending && <Alert variant="info" title="Geração em processamento">Seu plano ainda está sendo processado. Verifique novamente em alguns instantes usando a mesma tentativa.</Alert>}
-        {limitReached && <Alert variant="info" title="Limite gratuito alcançado">Seus planos anteriores continuam disponíveis. Para criar novos planos, escolha uma assinatura Premium.</Alert>}
+        {pending && <Alert variant="info" title="Ainda montando seu plano">Ele ainda não ficou pronto. Toque em “Verificar novamente” daqui a pouco.</Alert>}
+        {limitReached && <Alert variant="info" title="Os cardápios grátis acabaram">Os planos que você já gerou continuam aqui. Para gerar novos, assine o Premium.</Alert>}
       </div>
 
       {limitReached && <Paywall/>}
-      {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu plano, seu acesso e suas gerações disponíveis."/></Surface> : <>
+      {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu último plano."/></Surface> : <>
         {!mealPlan && !generating && <EmptyPlanState/>}
-        {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Estamos organizando sete dias de refeições com base no seu perfil. Isso pode levar alguns instantes; mantenha esta página aberta."/></Surface>}
+        {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta."/></Surface>}
         {mealPlan && <PlanContent key={mealPlan.id} mealPlan={mealPlan}/>}
       </>}
     </main>
@@ -150,15 +150,15 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
 }
 
 function UsageSummary({ usage }: { usage: Usage }) {
-  if (usage.adminAccess) return <div className="mp-usage"><Badge variant="success">Premium (admin)</Badge><span>Novas gerações liberadas para administradores</span></div>
-  if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Novas gerações liberadas pela assinatura</span></div>
-  return <div className="mp-usage"><strong>{usage.freeUsesAvailable}</strong><span>{usage.freeUsesAvailable === 1 ? 'geração gratuita restante' : 'gerações gratuitas restantes'}</span>{usage.freeUsesReserved > 0 && <small>Uma geração está em processamento.</small>}</div>
+  if (usage.adminAccess) return <div className="mp-usage"><Badge variant="success">Premium (admin)</Badge><span>Planos novos liberados para administradores</span></div>
+  if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Planos novos liberados pela assinatura</span></div>
+  return <div className="mp-usage"><strong>{usage.freeUsesAvailable}</strong><span>{usage.freeUsesAvailable === 1 ? 'cardápio grátis restante' : 'cardápios grátis restantes'}</span>{usage.freeUsesReserved > 0 && <small>Um plano está sendo montado.</small>}</div>
 }
 
 function EmptyPlanState() {
   return <Surface as="section" className="mp-empty" level="soft" aria-labelledby="mp-empty-title">
     <span className="mp-empty__mark" aria-hidden="true">7</span>
-    <div><p className="mp-kicker">Sua semana, organizada</p><h2 id="mp-empty-title">Seu plano começa aqui.</h2><p>Quando você solicitar, a IA usará os dados do seu perfil para montar o cardápio. Nenhuma geração acontece automaticamente.</p></div>
+    <div><p className="mp-kicker">Ainda sem cardápio</p><h2 id="mp-empty-title">Seu plano começa aqui.</h2><p>Toque em “Gerar meu plano” e a Alyvora monta sete dias de refeições com o que está no seu perfil, do café ao jantar, com a lista de compras.</p></div>
   </Surface>
 }
 
@@ -175,13 +175,13 @@ function PlanContent({ mealPlan }: { mealPlan: MealPlan }) {
     </Surface>
 
     <section className="mp-week" aria-labelledby="mp-week-title">
-      <div className="mp-section-heading"><div><p className="mp-kicker">Sua semana</p><h2 id="mp-week-title">Refeições do dia</h2></div><p>Escolha um dia para consultar refeições, preparo e estimativas nutricionais.</p></div>
+      <div className="mp-section-heading"><div><p className="mp-kicker">Sua semana</p><h2 id="mp-week-title">Refeições do dia</h2></div><p>Toque em um dia para ver o que comer e como preparar.</p></div>
       <DayNavigation days={plan.days} selectedDay={selectedDayNumber} onSelect={setSelectedDayNumber}/>
       {selectedDay && <DayContent day={selectedDay}/>}
     </section>
 
     <Surface as="section" className="mp-shopping" level="base" aria-labelledby="mp-shopping-title">
-      <div className="mp-section-heading"><div><p className="mp-kicker">Para a semana</p><h2 id="mp-shopping-title">Lista de compras</h2></div><p>Quantidades organizadas por categoria conforme o plano gerado.</p></div>
+      <div className="mp-section-heading"><div><p className="mp-kicker">Para a semana</p><h2 id="mp-shopping-title">Lista de compras</h2></div><p>Tudo o que você precisa comprar para a semana, separado por categoria.</p></div>
       <div className="mp-shopping__grid">{plan.shoppingList.map((group, groupIndex) => <article className="mp-shopping__category" key={`${group.category}-${groupIndex}`}><h3>{group.category}</h3><ul>{group.items.map((item, index) => <li key={`${item.name}-${index}`}><span>{item.name}</span><strong>{number.format(item.quantity)}&nbsp;{item.unit}</strong></li>)}</ul></article>)}</div>
     </Surface>
 

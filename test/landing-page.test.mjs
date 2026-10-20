@@ -38,6 +38,9 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(progress, /createProgress/);
   assert.doesNotMatch(page.toLowerCase(), /depoimento|clientes satisfeitos|estrelas|perdi kg|emagreci kg/);
   assert.doesNotMatch(page, /<video|<iframe/);
+  assert.doesNotMatch(page, /experiência conectada|Informações reunidas em um só fluxo|decisões soltas|sem promessas irreais/);
+  // One legal notice, in the footer; the FAQ answers the question in its own words.
+  assert.equal((page.match(/não substitui/g) ?? []).length, 1);
   assert.match(page, /não substitui orientação de nutricionista ou profissional de saúde/);
 
   assert.match(page, /aria-expanded=\{open\}/);
@@ -75,15 +78,15 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(page, /premiumFeatures\.map/);
   assert.match(paywall, /startCheckout/);
   assert.doesNotMatch(page, /startCheckout/);
-  assert.match(page, /checkout seguro é apresentado somente depois que você entra na sua conta/);
-  assert.match(page, /Nenhum pagamento é realizado nesta página/);
+  assert.match(page, /O pagamento só acontece depois que você entra na sua conta/);
+  assert.match(page, /Nada é cobrado nesta página/);
 
   assert.match(brand, /alyvora-logo-horizontal\.png/);
   assert.match(brand, /<img/);
   assert.match(brand, /alt="Alyvora"/);
   assert.doesNotMatch(brand, /<span[^>]*>Alyvora<\/span>|assets\/brand|nutri-ai/i);
   assert.match(metadata, /<title>Alyvora \| Sua alimentação cabe na sua vida<\/title>/);
-  assert.match(metadata, /Alyvora ajuda você a organizar sua alimentação/);
+  assert.match(metadata, /Alyvora monta seu cardápio da semana com IA/);
   assert.doesNotMatch(metadata, /nutri-ai/i);
   assert.match(app, /view === 'onboarding'/);
   assert.match(app, /setOnboardingDraft\(draft\)/);
