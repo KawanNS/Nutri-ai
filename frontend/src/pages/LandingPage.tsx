@@ -189,7 +189,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
         <DecorLeaf className="public-section-decor public-section-decor--how"/>
         <DecorSeeds className="public-section-decor public-section-decor--how-seeds"/>
         <div className="public-section public-how__inner">
-          <div className="public-how__intro"><div data-reveal><p className="public-eyebrow">Como funciona</p><h2 id="public-how-title">Quatro perguntas e a semana sai pronta.</h2></div><p>Depois é só abrir o app na hora de cozinhar ou de ir ao mercado.</p><Button className="landing-cta-button" onClick={onStart}>Quero começar <span className="landing-cta-button__arrow" aria-hidden="true">→</span></Button></div>
+          <div className="public-how__intro"><div data-reveal><p className="public-eyebrow">Como funciona</p><h2 id="public-how-title">Cinco perguntas e você já vê sua segunda-feira.</h2></div><p>Depois é só abrir o app na hora de cozinhar ou de ir ao mercado.</p><Button className="landing-cta-button" onClick={onStart}>Quero começar <span className="landing-cta-button__arrow" aria-hidden="true">→</span></Button></div>
           <div className="public-how__steps-wrap">
           <DecorStem className="public-how__stem"/>
           <ol className="public-how__steps">
@@ -281,7 +281,7 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
       <section className="public-final-cta" aria-labelledby="public-final-title" data-reveal>
         <DecorLeaf className="public-final-cta__leaf public-final-cta__leaf--left"/>
         <DecorSprig className="public-final-cta__leaf public-final-cta__sprig"/>
-        <div><p className="public-eyebrow">No seu ritmo</p><h2 id="public-final-title">Monte sua primeira semana hoje.</h2><p>Responda quatro perguntas, crie sua conta e peça seu primeiro cardápio. É grátis.</p></div>
+        <div><p className="public-eyebrow">No seu ritmo</p><h2 id="public-final-title">Monte sua primeira semana hoje.</h2><p>Responda cinco perguntas e veja sua segunda-feira na hora, antes de criar conta. A semana inteira sai grátis com a sua conta.</p></div>
         <Button className="landing-cta-button" onClick={onStart}>Começar agora <span className="landing-cta-button__arrow" aria-hidden="true">→</span></Button>
         <DecorLeaf className="public-final-cta__leaf public-final-cta__leaf--right"/>
       </section>
