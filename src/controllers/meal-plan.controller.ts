@@ -6,6 +6,8 @@ import {
   generateMealPlanBodySchema,
   mealPlanIdSchema,
   mealPlanListQuerySchema,
+  mealSwapBodySchema,
+  mealSwapParamsSchema,
 } from "../schemas/meal-plan.schema.js";
 import {
   generateMealPlan,
@@ -16,6 +18,7 @@ import {
   listMealPlans,
   MealPlanError,
 } from "../services/meal-plan.service.js";
+import { MealSwapError, swapMeal } from "../services/meal-swap.service.js";
 import { UsageControlError } from "../services/usage-control.service.js";
 import { idempotencyKeySchema } from "../schemas/usage-control.schema.js";
 
@@ -37,6 +40,7 @@ function handleError(error: unknown, response: Response): void {
   if (
     error instanceof MealPlanError ||
     error instanceof MealPlanGenerationError ||
+    error instanceof MealSwapError ||
     error instanceof AIProviderError ||
     error instanceof UsageControlError
   ) {
@@ -153,6 +157,48 @@ export async function getMealPlanController(
     response.status(200).json({
       mealPlan: await getMealPlan(userId, validation.data),
     });
+  } catch (error: unknown) {
+    handleError(error, response);
+  }
+}
+
+export async function swapMealController(
+  request: AuthenticatedRequest,
+  response: Response,
+  dependencies: { swap?: typeof swapMeal } = {},
+): Promise<void> {
+  const userId = getAuthenticatedUserId(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  const params = mealSwapParamsSchema.safeParse(request.params);
+
+  if (!params.success) {
+    response.status(400).json({
+      error: "Invalid meal plan, day or meal",
+      code: "INVALID_MEAL_SWAP_TARGET",
+    });
+    return;
+  }
+
+  if (!mealSwapBodySchema.safeParse(request.body ?? {}).success) {
+    response.status(400).json({
+      error: "Request body must be empty",
+      code: "INVALID_MEAL_SWAP_BODY",
+    });
+    return;
+  }
+
+  try {
+    response.status(200).json(
+      await (dependencies.swap ?? swapMeal)(userId, {
+        mealPlanId: params.data.id,
+        day: params.data.day,
+        mealIndex: params.data.index,
+      }),
+    );
   } catch (error: unknown) {
     handleError(error, response);
   }

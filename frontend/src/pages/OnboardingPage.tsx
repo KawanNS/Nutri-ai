@@ -13,18 +13,18 @@ interface Props {
 }
 
 const goals: Array<[Goal, string, string]> = [
-  ['WEIGHT_LOSS', 'Emagrecer', 'Reduzir peso com uma rotina alimentar possível.'],
-  ['MAINTENANCE', 'Manter o peso', 'Organizar a alimentação sem buscar mudança de peso.'],
-  ['WEIGHT_GAIN', 'Ganhar peso', 'Aumentar o peso de forma planejada.'],
-  ['MUSCLE_GAIN', 'Ganhar massa', 'Apoiar uma rotina voltada a massa muscular.'],
+  ['WEIGHT_LOSS', 'Emagrecer', 'Perder peso comendo coisas que você consegue manter.'],
+  ['MAINTENANCE', 'Manter o peso', 'Comer melhor sem mexer no peso.'],
+  ['WEIGHT_GAIN', 'Ganhar peso', 'Ganhar peso com refeições mais reforçadas.'],
+  ['MUSCLE_GAIN', 'Ganhar massa', 'Mais proteína para acompanhar o treino.'],
 ]
 
 const activities: Array<[ActivityLevel, string, string]> = [
   ['SEDENTARY', 'Pouco ativo', 'A maior parte do dia é sentada ou com pouco movimento.'],
-  ['LIGHT', 'Levemente ativo', 'Movimento leve ou exercícios em alguns dias da semana.'],
-  ['MODERATE', 'Moderadamente ativo', 'Exercícios ou movimento frequente durante a semana.'],
-  ['ACTIVE', 'Ativo', 'Atividade intensa ou rotina fisicamente ativa.'],
-  ['VERY_ACTIVE', 'Muito ativo', 'Treinos intensos e rotina com alto gasto físico.'],
+  ['LIGHT', 'Levemente ativo', 'Caminha um pouco ou treina uma ou duas vezes por semana.'],
+  ['MODERATE', 'Moderadamente ativo', 'Treina três ou quatro vezes por semana.'],
+  ['ACTIVE', 'Ativo', 'Treina quase todo dia ou passa o dia em pé, se mexendo.'],
+  ['VERY_ACTIVE', 'Muito ativo', 'Treino puxado todo dia ou trabalho braçal.'],
 ]
 
 const totalSteps = 4
@@ -70,9 +70,9 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
 
     <main className="onboarding-flow__main">
       <aside className="onboarding-flow__intro">
-        <p className="onboarding-flow__eyebrow">Seu ponto de partida</p>
-        <h1>Um plano que começa pela sua rotina.</h1>
-        <p>Responda quatro perguntas rápidas. Suas escolhas serão reaproveitadas quando você completar o perfil.</p>
+        <p className="onboarding-flow__eyebrow">Antes de tudo</p>
+        <h1>Quatro perguntas rápidas.</h1>
+        <p>Com elas a Alyvora já sabe por onde começar seu cardápio. O que você responder aqui continua valendo quando criar a conta.</p>
         <ol aria-label="Progresso do onboarding">
           {['Objetivo', 'Atividade', 'Refeições', 'Orçamento'].map((label, index) => <li className={index === step ? 'onboarding-flow__step onboarding-flow__step--current' : index < step ? 'onboarding-flow__step onboarding-flow__step--complete' : 'onboarding-flow__step'} aria-current={index === step ? 'step' : undefined} key={label}>
             <span>{index < step ? '✓' : index + 1}</span><strong>{label}</strong>
@@ -89,7 +89,7 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
         <form onSubmit={handleSubmit}>
           {step === 0 && <fieldset className="onboarding-flow__question">
             <legend id="onboarding-step-title">Qual é o seu objetivo?</legend>
-            <p>Escolha o resultado que mais combina com o seu momento.</p>
+            <p>Escolha um. Dá para mudar depois.</p>
             <div className="onboarding-flow__options onboarding-flow__options--goals">
               {goals.map(([value, label, description]) => <label className={goal === value ? 'onboarding-option onboarding-option--selected' : 'onboarding-option'} key={value}>
                 <input className="ui-visually-hidden" type="radio" name="goal" value={value} checked={goal === value} onChange={() => setGoal(value)}/>
@@ -101,8 +101,8 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
           </fieldset>}
 
           {step === 1 && <fieldset className="onboarding-flow__question">
-            <legend id="onboarding-step-title">Como é sua rotina de atividade?</legend>
-            <p>Considere uma semana comum, sem precisar buscar precisão absoluta.</p>
+            <legend id="onboarding-step-title">Quanto você se mexe na semana?</legend>
+            <p>Pense numa semana normal. Não precisa ser exato.</p>
             <div className="onboarding-flow__options">
               {activities.map(([value, label, description]) => <label className={activityLevel === value ? 'onboarding-option onboarding-option--compact onboarding-option--selected' : 'onboarding-option onboarding-option--compact'} key={value}>
                 <input className="ui-visually-hidden" type="radio" name="activityLevel" value={value} checked={activityLevel === value} onChange={() => setActivityLevel(value)}/>
@@ -113,8 +113,8 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
           </fieldset>}
 
           {step === 2 && <fieldset className="onboarding-flow__question">
-            <legend id="onboarding-step-title">Quantas refeições combinam com seu dia?</legend>
-            <p>Escolha uma frequência que pareça viável para a sua rotina atual.</p>
+            <legend id="onboarding-step-title">Quantas refeições você faz por dia?</legend>
+            <p>Conte os lanches também. Escolha um número que você consegue manter.</p>
             <div className="onboarding-flow__meal-options">
               {[3, 4, 5, 6].map((value) => <label className={mealsPerDay === value ? 'onboarding-meal onboarding-meal--selected' : 'onboarding-meal'} key={value}>
                 <input className="ui-visually-hidden" type="radio" name="mealsPerDay" value={value} checked={mealsPerDay === value} onChange={() => setMealsPerDay(value)}/>
@@ -125,14 +125,14 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
 
           {step === 3 && <fieldset className="onboarding-flow__question">
             <legend id="onboarding-step-title">Qual é seu orçamento semanal?</legend>
-            <p>Uma estimativa já ajuda a deixar as sugestões mais próximas da sua realidade.</p>
+            <p>Um valor aproximado já serve. É ele que decide se o plano leva salmão ou sardinha.</p>
             <FormField id="onboarding-budget-input" label="Valor em reais" hint="Você poderá alterar esse valor depois." error={budgetError ? 'Informe um valor válido, com até duas casas decimais.' : undefined} required>
               {(controlProps) => <div className="onboarding-flow__budget">
                 <span aria-hidden="true">R$</span>
                 <input {...controlProps} type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" placeholder="Ex.: 350" value={weeklyFoodBudget} onChange={(event) => setWeeklyFoodBudget(event.target.value)}/>
               </div>}
             </FormField>
-            <div className="onboarding-flow__ready"><span aria-hidden="true">✓</span><p><strong>Última etapa</strong> Depois disso, você cria sua conta e completa somente os dados essenciais do perfil.</p></div>
+            <div className="onboarding-flow__ready"><span aria-hidden="true">✓</span><p><strong>Última pergunta</strong> Depois você cria sua conta e completa o resto do perfil.</p></div>
           </fieldset>}
 
           <div className="onboarding-flow__actions">

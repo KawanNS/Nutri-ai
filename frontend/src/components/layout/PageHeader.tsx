@@ -1,17 +1,16 @@
 import type { ReactNode } from 'react'
 
 interface PageHeaderProps {
-  eyebrow?: string
   title: string
   description?: string
   actions?: ReactNode
   className?: string
 }
 
-export function PageHeader({ eyebrow, title, description, actions, className = '' }: PageHeaderProps) {
+// Inside the app the header names the screen and offers its main action: no label above it, no display type.
+export function PageHeader({ title, description, actions, className = '' }: PageHeaderProps) {
   return <header className={`ui-page-header ${className}`.trim()}>
     <div className="ui-page-header__content">
-      {eyebrow && <p className="ui-page-header__eyebrow">{eyebrow}</p>}
       <h1 className="ui-page-header__title">{title}</h1>
       {description && <p className="ui-page-header__description">{description}</p>}
     </div>

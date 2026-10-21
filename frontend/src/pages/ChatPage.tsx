@@ -14,7 +14,7 @@ import './ChatPage.css'
 
 interface ChatPageProps { onMealPlan(): void; onDiary(): void; onProgress(): void }
 
-const WELCOME_MESSAGE = 'Oi! Eu sou a Alyvora 👋 Como posso ajudar hoje? Me conta o que você precisa: uma troca no seu plano, uma ideia de refeição com o que você tem em casa ou ajuda para organizar a semana. É só escrever aqui embaixo.'
+const WELCOME_MESSAGE = 'Oi! Como posso ajudar hoje? Dá para pedir uma troca no plano, uma ideia de jantar com o que tem na geladeira ou a lista do mercado da semana.'
 
 // The API saves the user's message before calling the AI, so these failures keep it in the conversation.
 const SAVED_BEFORE_FAILURE = ['CHAT_TEMPORARILY_UNAVAILABLE', 'CHAT_INVALID_RESPONSE', 'CHAT_GENERATION_FAILED']
@@ -83,7 +83,7 @@ function ConversationHistory({ conversations, activeId, sending, open, onClose, 
         <strong>{conversationTitle(item.messages[0]?.content)}</strong>
         <time dateTime={item.updatedAt}>{new Date(item.updatedAt).toLocaleDateString('pt-BR')}</time>
       </button>)}
-      {conversations.length === 0 && <p className="assistant-history__empty">Sua primeira conversa começa quando você envia uma mensagem.</p>}
+      {conversations.length === 0 && <p className="assistant-history__empty">Nenhuma conversa ainda.</p>}
     </div>
   </Surface>
 }
@@ -181,7 +181,7 @@ export function ChatPage({ onMealPlan }: ChatPageProps) {
     </header>
     <main className="assistant-page">
       <h1 className="ui-visually-hidden">Assistente Alyvora</h1>
-      {loading ? <div className="assistant-loading"><LoadingState label="Carregando seu assistente" description="Preparando suas conversas com segurança."/></div> : premium === false ? <div className="assistant-locked"><Alert variant="info" title="Recurso exclusivo Premium">O assistente de organização alimentar está disponível para assinantes Premium.</Alert><Paywall/></div> :
+      {loading ? <div className="assistant-loading"><LoadingState label="Carregando seu assistente" description="Buscando suas conversas."/></div> : premium === false ? <div className="assistant-locked"><Alert variant="info" title="Recurso exclusivo Premium">O assistente faz parte do Premium. Com ele você pergunta o que quiser sobre o seu plano.</Alert><Paywall/></div> :
       <div className="assistant-layout">
         <ConversationHistory conversations={conversations} activeId={activeId} sending={sending} open={historyOpen} onClose={() => setHistoryOpen(false)} onNew={newConversation} onOpen={(id) => void openConversation(id)}/>
         {historyOpen && <div className="assistant-backdrop" aria-hidden="true" onClick={() => setHistoryOpen(false)}/>}
@@ -202,7 +202,7 @@ export function ChatPage({ onMealPlan }: ChatPageProps) {
           <div className="assistant-composer">
             <div className="assistant-composer__box">
               <label className="ui-visually-hidden" htmlFor="chat-message">Sua mensagem</label>
-              <textarea ref={inputRef} id="chat-message" aria-describedby="chat-message-hint" value={draft} maxLength={2000} rows={1} placeholder="Pergunte sobre sua alimentação…" disabled={sending} onChange={(event) => setDraft(event.target.value)} onKeyDown={keyDown}/>
+              <textarea ref={inputRef} id="chat-message" aria-describedby="chat-message-hint" value={draft} maxLength={2000} rows={1} placeholder="Ex.: o que como no lugar do frango?" disabled={sending} onChange={(event) => setDraft(event.target.value)} onKeyDown={keyDown}/>
               <Button className="assistant-composer__send" loading={sending} loadingLabel="Enviando mensagem" disabled={draft.trim().length === 0} onClick={() => void submit()}><SendIcon/><span className="ui-visually-hidden">Enviar</span></Button>
             </div>
             <span className="ui-visually-hidden" id="chat-message-hint">Enter envia, Shift+Enter quebra a linha. Até 2000 caracteres.</span>
@@ -210,7 +210,7 @@ export function ChatPage({ onMealPlan }: ChatPageProps) {
           </div>
         </section>
       </div>}
-      {error && (loading || premium === false) && <Alert variant="error" title="Não foi possível obter uma resposta agora.">{error}</Alert>}
+      {error && (loading || premium === false) && <Alert variant="error" title="Não deu para abrir o assistente.">{error}</Alert>}
     </main>
   </div>
 }

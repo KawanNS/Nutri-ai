@@ -80,58 +80,52 @@ export function ProgressPage({ notice, onMealPlan, onChat, onDiary }: ProgressPa
   }
 
   return <div className="app-shell"><AppTopbar active="progress" onMealPlan={onMealPlan} onChat={onChat} onDiary={onDiary}/>
-    <main className="page progress-page">
-      <PageHeader eyebrow="Seu histórico" title="Evolução" description="Acompanhe seus registros de peso ao longo do tempo, com uma visão simples e responsável da sua trajetória."/>
+    <main className="page page--narrow progress-page">
+      <PageHeader title="Evolução"/>
 
       <div className="progress-feedback" aria-live="polite">
         {error && <Alert variant="error" title="Não foi possível atualizar sua evolução">{error}</Alert>}
         {(success || notice) && <Alert variant="success" title="Registro atualizado">{success || notice}</Alert>}
       </div>
 
-      <Surface as="section" className="progress-summary" aria-label="Resumo da evolução">
-        <div className="progress-summary__intro"><p>Visão atual</p><h2>Seus registros, com clareza</h2></div>
-        <dl>
-          <div><dt>Peso atual</dt><dd>{current ? <><strong>{formatWeight(current.weightKg)}</strong><span>kg</span></> : <strong>—</strong>}</dd></div>
-          <div><dt>Variação no período carregado</dt><dd>{variation === null ? <strong>—</strong> : <><strong>{variation > 0 ? '+' : ''}{formatWeight(variation)}</strong><span>kg</span></>}</dd></div>
-          <div><dt>Registros carregados</dt><dd><strong>{entries.length}</strong>{nextCursor && <Badge>há mais</Badge>}</dd></div>
+      <section className="progress-summary" aria-label="Resumo da evolução">
+        <dl className="ui-stat-row">
+          <div><dt>Peso atual</dt><dd>{current ? <>{formatWeight(current.weightKg)}<span>kg</span></> : '—'}</dd></div>
+          <div><dt>Variação no período carregado</dt><dd>{variation === null ? '—' : <>{variation > 0 ? '+' : ''}{formatWeight(variation)}<span>kg</span></>}</dd></div>
+          <div><dt>Registros carregados</dt><dd>{entries.length}{nextCursor && <Badge>há mais</Badge>}</dd></div>
         </dl>
-        <p className="progress-summary__note">A variação é informativa e não classifica ganho ou perda de peso.</p>
+        <p className="progress-summary__note">A variação é a diferença entre o primeiro e o último registro carregado.</p>
+      </section>
+
+      <Surface as="section" level="soft" className="progress-form-card" aria-labelledby="progress-form-title">
+        <h2 id="progress-form-title">Registrar peso</h2>
+        <form className="progress-form" onSubmit={(event) => void handleSubmit(event)}>
+          <FormField id="progress-weight" label="Peso (kg)" hint="Até duas casas decimais." required>
+            {(controlProps) => <input {...controlProps} ref={weightInputRef} type="number" inputMode="decimal" min="0.01" max="9999.99" step="0.01" placeholder="Ex.: 72,5" value={weight} onChange={(event) => setWeight(event.target.value)}/>}
+          </FormField>
+          <FormField id="progress-date" label="Data" required>
+            {(controlProps) => <input {...controlProps} type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)}/>}
+          </FormField>
+          <FormField id="progress-note" className="progress-form__note" label="Observação" hint={`${note.length}/1000 · opcional`}>
+            {(controlProps) => <textarea {...controlProps} maxLength={1000} rows={2} placeholder="Como foi sua semana?" value={note} onChange={(event) => setNote(event.target.value)}/>}
+          </FormField>
+          <Button type="submit" fullWidth loading={submitting} loadingLabel="Salvando registro">Salvar registro</Button>
+        </form>
       </Surface>
 
-      <div className="progress-layout">
-        <div className="progress-content">
-          <Surface as="section" className="progress-chart-section" aria-labelledby="progress-chart-title">
-            <div className="progress-section-heading"><div><p>Trajetória</p><h2 id="progress-chart-title">Evolução do peso</h2></div><Badge>{entries.length} {entries.length === 1 ? 'registro' : 'registros'}</Badge></div>
-            {loading ? <LoadingState label="Carregando sua evolução" description="Buscando seus registros mais recentes."/> : <WeightChart entries={entries}/>}
-          </Surface>
+      <section className="progress-chart-section" aria-labelledby="progress-chart-title">
+        <div className="ui-section-heading"><h2 id="progress-chart-title">Peso ao longo do tempo</h2></div>
+        {loading ? <LoadingState label="Carregando sua evolução" description="Buscando seus registros mais recentes."/> : <WeightChart entries={entries}/>}
+      </section>
 
-          <Surface as="section" className="progress-history" aria-labelledby="progress-history-title">
-            <div className="progress-section-heading"><div><p>Registros</p><h2 id="progress-history-title">Histórico</h2></div><span>Mais recente primeiro</span></div>
-            {loading ? <LoadingState label="Carregando histórico"/> : entries.length === 0 ? <div className="progress-empty"><span aria-hidden="true">↗</span><h3>Ainda não há registros de evolução.</h3><p>Registre seu peso para acompanhar mudanças ao longo do tempo.</p><Button variant="secondary" onClick={focusWeightForm}>Registrar primeiro peso</Button></div> : <ol className="progress-history__list">{entries.map((entry) => <li key={entry.id}>
-              <div><time dateTime={entry.recordedAt}>{formatDate(entry.recordedAt)}</time><strong>{formatWeight(entry.weightKg)} <small>kg</small></strong></div>
-              <p className={entry.note ? '' : 'progress-history__empty-note'}>{entry.note || 'Sem observação'}</p>
-            </li>)}</ol>}
-            {nextCursor && <div className="progress-load-more"><Button variant="secondary" loading={loadingMore} loadingLabel="Carregando mais registros" onClick={() => void handleLoadMore()}>Carregar mais</Button></div>}
-          </Surface>
-        </div>
-
-        <Surface as="section" level="soft" className="progress-form-card" aria-labelledby="progress-form-title">
-          <div className="progress-form-card__heading"><span aria-hidden="true">＋</span><div><p>Novo registro</p><h2 id="progress-form-title">Registrar peso</h2></div></div>
-          <p className="progress-form-card__description">Adicione uma medição real para manter seu histórico atualizado.</p>
-          <form className="progress-form" onSubmit={(event) => void handleSubmit(event)}>
-            <FormField id="progress-weight" label="Peso (kg)" hint="Use até duas casas decimais." required>
-              {(controlProps) => <input {...controlProps} ref={weightInputRef} type="number" inputMode="decimal" min="0.01" max="9999.99" step="0.01" placeholder="Ex.: 72,5" value={weight} onChange={(event) => setWeight(event.target.value)}/>}
-            </FormField>
-            <FormField id="progress-date" label="Data" required>
-              {(controlProps) => <input {...controlProps} type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)}/>}
-            </FormField>
-            <FormField id="progress-note" label="Observação" hint={`${note.length}/1000 · opcional`}>
-              {(controlProps) => <textarea {...controlProps} maxLength={1000} placeholder="Como foi sua semana?" value={note} onChange={(event) => setNote(event.target.value)}/>}
-            </FormField>
-            <Button type="submit" fullWidth loading={submitting} loadingLabel="Salvando registro">Salvar registro</Button>
-          </form>
-        </Surface>
-      </div>
+      <section className="progress-history" aria-labelledby="progress-history-title">
+        <div className="ui-section-heading"><h2 id="progress-history-title">Histórico</h2><span>Mais recente primeiro</span></div>
+        {loading ? <LoadingState label="Carregando histórico"/> : entries.length === 0 ? <div className="progress-empty"><h3>Ainda não há registros de evolução.</h3><p>Anote seu peso de hoje e o gráfico começa a aparecer.</p><Button variant="secondary" onClick={focusWeightForm}>Registrar primeiro peso</Button></div> : <ol className="progress-history__list">{entries.map((entry) => <li key={entry.id}>
+          <time dateTime={entry.recordedAt}>{formatDate(entry.recordedAt)}</time><strong>{formatWeight(entry.weightKg)} <small>kg</small></strong>
+          {entry.note && <p>{entry.note}</p>}
+        </li>)}</ol>}
+        {nextCursor && <div className="progress-load-more"><Button variant="secondary" loading={loadingMore} loadingLabel="Carregando mais registros" onClick={() => void handleLoadMore()}>Carregar mais</Button></div>}
+      </section>
     </main>
   </div>
 }

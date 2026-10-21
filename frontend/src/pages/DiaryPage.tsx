@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AppTopbar } from '../components/layout/AppTopbar'
+import { CountUp } from '../components/motion/CountUp'
+import { MacroBar } from '../components/motion/MacroBar'
+import { SpotlightCard } from '../components/motion/SpotlightCard'
 import { DiaryIcon } from '../components/DiaryNavButton'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Alert } from '../components/ui/Alert'
-import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { LoadingState } from '../components/ui/LoadingState'
-import { Surface } from '../components/ui/Surface'
 import { listDiaryFoodLogs } from '../services/diaryService'
 import type { DiaryFoodLog } from '../types/diary'
 import { today } from '../utils/date'
@@ -22,6 +23,12 @@ interface DiaryPageProps {
 type NutrientKey = 'estimatedCaloriesKcal' | 'estimatedProteinGrams' | 'estimatedCarbohydrateGrams' | 'estimatedFatGrams'
 
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
+const whole = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
+const formatNumber = (value: number) => number.format(value)
+const formatWhole = (value: number) => whole.format(value)
+
+/** React Bits' SpotlightCard in the app's light colors, glowing brand green under the pointer. */
+const spotlightStyle = { '--spotlight-card-surface': 'var(--surface)', '--spotlight-card-border': 'var(--border)', '--spotlight-card-shadow': 'var(--shadow-soft)' } as CSSProperties
 
 function addDays(date: string, amount: number): string {
   const value = new Date(`${date}T12:00:00.000Z`)
@@ -44,7 +51,7 @@ function completeTotal(foodLogs: DiaryFoodLog[], field: NutrientKey): number | n
 }
 
 function errorMessage(): string {
-  return 'Não foi possível carregar seu diário agora. Tente novamente.'
+  return 'Não deu para abrir o diário agora. Tente de novo.'
 }
 
 export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: DiaryPageProps) {
@@ -88,53 +95,60 @@ export function DiaryPage({ onMealPlan, onChat, onMealPhoto, onProgress }: Diary
 
   return <div className="app-shell">
     <AppTopbar active="diary" onMealPlan={onMealPlan} onChat={onChat} onProgress={onProgress}/>
-    <main className="page diary-page">
-      <PageHeader eyebrow="Seus registros" title="Diário alimentar" description="Acompanhe suas refeições e veja como está sua alimentação ao longo do dia."/>
+    <main className="page page--narrow diary-page">
+      <PageHeader title="Diário alimentar" actions={<Button onClick={onMealPhoto}>Registrar refeição</Button>}/>
 
-      <Surface as="section" className="diary-day-picker" level="soft" aria-label="Selecionar dia do diário">
-        <Button variant="ghost" aria-label="Ver dia anterior" onClick={() => setDate((current) => addDays(current, -1))}>←</Button>
-        <div><span>Dia selecionado</span><strong>{dayLabel(date)}</strong></div>
-        <Button variant="ghost" aria-label="Ver próximo dia" disabled={date >= today()} onClick={() => setDate((current) => addDays(current, 1))}>→</Button>
-      </Surface>
+      <nav className="diary-day-picker" aria-label="Selecionar dia do diário">
+        <Button variant="ghost" aria-label="Ver dia anterior" onClick={() => setDate((current) => addDays(current, -1))}><Chevron direction="left"/></Button>
+        <strong aria-live="polite" key={date}>{dayLabel(date)}</strong>
+        <Button variant="ghost" aria-label="Ver próximo dia" disabled={date >= today()} onClick={() => setDate((current) => addDays(current, 1))}><Chevron direction="right"/></Button>
+      </nav>
 
       {error && <Alert variant="error" title="Não foi possível abrir o diário"><span>{error}</span><Button className="diary-retry" variant="ghost" onClick={() => setReloadKey((value) => value + 1)}>Tentar novamente</Button></Alert>}
-      {loading ? <Surface className="diary-loading"><LoadingState label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/></Surface> : !error && foodLogs.length === 0 ? <Surface as="section" className="diary-empty" level="soft" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><div><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>Use a Foto do Prato para registrar sua próxima refeição.</p></div><Button onClick={onMealPhoto}>Registrar refeição</Button></Surface> : !error && <>
-        <Surface as="section" className="diary-summary" aria-labelledby="diary-summary-title">
-          <div className="diary-section-heading"><div><p>Resumo do dia</p><h2 id="diary-summary-title">Estimativas registradas</h2></div><Badge>{foodLogs.length} {foodLogs.length === 1 ? 'refeição' : 'refeições'}</Badge></div>
+      {loading ? <LoadingState className="diary-loading" label="Carregando seu diário" description="Buscando as refeições registradas neste dia."/> : !error && foodLogs.length === 0 ? <section className="diary-empty" aria-labelledby="diary-empty-title"><span className="diary-empty__icon"><DiaryIcon/></span><h2 id="diary-empty-title">Nenhuma refeição registrada {date === today() ? 'hoje' : 'neste dia'}.</h2><p>Tire uma foto do prato na próxima refeição e ela aparece aqui.</p></section> : !error && <>
+        <SpotlightCard as="section" className="diary-summary" aria-labelledby="diary-summary-title" key={`summary-${date}`} theme="light" spotlightColor="var(--brand-green)" intensity={0.7} borderGlow={0.9} spotlightSize={320} style={spotlightStyle}>
+          <div className="diary-summary__heading"><h2 id="diary-summary-title">Total do dia</h2><span>{foodLogs.length} {foodLogs.length === 1 ? 'refeição' : 'refeições'}</span></div>
+          <p className="diary-summary__calories">{totals.calories === null ? <strong aria-label="Calorias: estimativa indisponível">—</strong> : <CountUp className="diary-summary__big" value={totals.calories} format={formatWhole}/>}<span>kcal</span></p>
           <dl className="diary-summary__values">
-            <SummaryValue label="Calorias" value={totals.calories} unit="kcal"/>
-            <SummaryValue label="Proteínas" value={totals.protein} unit="g"/>
-            <SummaryValue label="Carboidratos" value={totals.carbohydrates} unit="g"/>
-            <SummaryValue label="Gorduras" value={totals.fat} unit="g"/>
+            <SummaryValue label="Proteínas" value={totals.protein} unit="g" order={0}/>
+            <SummaryValue label="Carboidratos" value={totals.carbohydrates} unit="g" order={1}/>
+            <SummaryValue label="Gorduras" value={totals.fat} unit="g" order={2}/>
           </dl>
+          <MacroBar proteinGrams={totals.protein} carbohydrateGrams={totals.carbohydrates} fatGrams={totals.fat}/>
           {Object.values(totals).some((value) => value === null) && <p className="diary-summary__note">“—” indica que a estimativa não está completa em todos os registros do dia.</p>}
-        </Surface>
+        </SpotlightCard>
 
         <section className="diary-entries" aria-labelledby="diary-entries-title">
-          <div className="diary-section-heading"><div><p>Refeições registradas</p><h2 id="diary-entries-title">Seu dia, em ordem</h2></div><span>Mais antigas primeiro</span></div>
-          <ol>{foodLogs.map((foodLog) => <DiaryEntry key={foodLog.id} foodLog={foodLog}/>)}</ol>
+          <div className="ui-section-heading"><h2 id="diary-entries-title">Refeições</h2><span>Mais antigas primeiro</span></div>
+          {/* Keyed by day so the timeline builds up again when another day is picked. */}
+          <ol key={`entries-${date}`}>{foodLogs.map((foodLog) => <DiaryEntry key={foodLog.id} foodLog={foodLog}/>)}</ol>
         </section>
       </>}
     </main>
   </div>
 }
 
-function SummaryValue({ label, value, unit }: { label: string; value: number | null; unit: string }) {
-  return <div><dt>{label}</dt><dd>{value === null ? <strong aria-label={`${label}: estimativa indisponível`}>—</strong> : <><strong>{number.format(value)}</strong><span>{unit}</span></>}</dd></div>
+function Chevron({ direction }: { direction: 'left' | 'right' }) {
+  return <svg className="diary-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d={direction === 'left' ? 'm14.5 6-6 6 6 6' : 'm9.5 6 6 6-6 6'}/></svg>
+}
+
+function SummaryValue({ label, value, unit, order }: { label: string; value: number | null; unit: string; order: number }) {
+  return <div><dt>{label}</dt><dd>{value === null ? <strong aria-label={`${label}: estimativa indisponível`}>—</strong> : <><CountUp value={value} format={formatNumber} delay={120 + order * 80}/><span>{unit}</span></>}</dd></div>
 }
 
 function DiaryEntry({ foodLog }: { foodLog: DiaryFoodLog }) {
   const nutrients: Array<[string, number | null, string]> = [
-    ['Calorias', foodLog.estimatedCaloriesKcal, 'kcal'],
     ['Proteínas', foodLog.estimatedProteinGrams, 'g'],
     ['Carboidratos', foodLog.estimatedCarbohydrateGrams, 'g'],
     ['Gorduras', foodLog.estimatedFatGrams, 'g'],
   ]
   const time = timeLabel(foodLog.consumedAt)
-  return <li><Surface as="article" className="diary-entry">
-    <header><div><time dateTime={foodLog.consumedAt}>{time}</time><h3>Refeição — {time}</h3></div><Badge>{foodLog.items.length} {foodLog.items.length === 1 ? 'item' : 'itens'}</Badge></header>
+  return <li className="diary-entry">
+    <span className="diary-entry__dot" aria-hidden="true"/>
+    <header><h3><time dateTime={foodLog.consumedAt}>Refeição — {time}</time></h3><span>{foodLog.estimatedCaloriesKcal === null ? '— kcal' : `${number.format(foodLog.estimatedCaloriesKcal)} kcal`}</span></header>
     <ul className="diary-entry__foods">{foodLog.items.map((item) => <li key={item.id}><span>{item.name}</span><small>{item.portionDescription}</small></li>)}</ul>
     <dl className="diary-entry__nutrition">{nutrients.map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{value === null ? '—' : `${number.format(value)} ${unit}`}</dd></div>)}</dl>
-    {foodLog.notes && <p className="diary-entry__notes"><strong>Observação:</strong> {foodLog.notes}</p>}
-  </Surface></li>
+    <MacroBar className="diary-entry__macros" proteinGrams={foodLog.estimatedProteinGrams} carbohydrateGrams={foodLog.estimatedCarbohydrateGrams} fatGrams={foodLog.estimatedFatGrams} legend={false}/>
+    {foodLog.notes && <p className="diary-entry__notes">{foodLog.notes}</p>}
+  </li>
 }

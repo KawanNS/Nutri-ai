@@ -11,6 +11,7 @@ import {
 } from "../ai-router.types.js";
 import {
   mealPhotoResponseSchema,
+  mealSwapResponseSchema,
   mealPlanResponseSchema,
 } from "./gemini-response-schema.js";
 
@@ -114,6 +115,7 @@ export function normalizeGeminiAdapterError(error: unknown): AIRouterError {
 function responseSchemaFor(route: AIRoute): Schema {
   if (route.task === "MEAL_PLAN_GENERATION") return mealPlanResponseSchema;
   if (route.task === "MEAL_PHOTO_ANALYSIS") return mealPhotoResponseSchema;
+  if (route.task === "MEAL_REPLACEMENT") return mealSwapResponseSchema;
   throw new AIRouterError("AI_UNSUPPORTED_TASK", false, "AI task is not supported");
 }
 

@@ -1,0 +1,17 @@
+.macro-bar { display: grid; gap: var(--space-2); }
+.macro-bar__track { height: 0.625rem; overflow: hidden; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--border) 70%, transparent); }
+.macro-bar__fill { height: 100%; display: flex; gap: 2px; transform-origin: left center; animation: macro-bar-fill 900ms var(--ease-standard) 150ms both; }
+.macro-bar__part { flex: var(--share) 1 0; min-width: 0; }
+.macro-bar__part--protein { background: var(--green-strong); }
+.macro-bar__part--carbohydrate { background: var(--brand-green-light); }
+.macro-bar__part--fat { background: var(--brand-orange); }
+.macro-bar__legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: 0; color: var(--text-secondary); font-size: var(--type-caption-size); list-style: none; }
+.macro-bar__legend li { display: inline-flex; align-items: center; gap: var(--space-1); }
+.macro-bar__legend strong { color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+.macro-bar__dot { width: 0.5rem; height: 0.5rem; border-radius: var(--radius-pill); }
+
+@keyframes macro-bar-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .macro-bar__fill { animation: none; }
+}
