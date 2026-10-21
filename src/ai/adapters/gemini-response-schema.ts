@@ -4,6 +4,7 @@ import { z, type ZodType } from "zod";
 import {
   generatedMealPlanSchema,
   mealSwapAIResponseSchema,
+  planPreviewAIResponseSchema,
 } from "../../schemas/meal-plan.schema.js";
 import { mealPhotoAnalysisSchema } from "../../schemas/meal-photo.schema.js";
 
@@ -102,4 +103,8 @@ export const mealPhotoResponseSchema = toGeminiResponseSchema(
 
 export const mealSwapResponseSchema = toGeminiResponseSchema(
   mealSwapAIResponseSchema,
+);
+
+export const planPreviewResponseSchema = toGeminiResponseSchema(
+  planPreviewAIResponseSchema,
 );

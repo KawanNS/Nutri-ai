@@ -16,7 +16,7 @@ test("onboarding redesign preserves the four-field draft and profile handoff", a
     assert.match(onboarding, new RegExp(`${field}:`));
     assert.match(types, new RegExp(`'${field}'`));
   }
-  assert.match(onboarding, /const totalSteps = 4/);
+  assert.match(onboarding, /const totalSteps = 5/);
   assert.match(onboarding, /Etapa \{step \+ 1\} de \{totalSteps\}/);
   assert.match(onboarding, /role="progressbar"/);
   assert.match(onboarding, /type="radio"/);
@@ -25,7 +25,7 @@ test("onboarding redesign preserves the four-field draft and profile handoff", a
   assert.match(onboarding, /<FormField/);
   assert.match(onboarding, /<Surface/);
   assert.match(onboarding, /<Button/);
-  assert.match(onboarding, /Salvar e criar conta/);
+  assert.match(onboarding, /Ver minha segunda-feira/);
   assert.equal((onboarding.match(/type="number"/g) ?? []).length, 1);
   assert.match(onboarding, /weeklyFoodBudget: weeklyFoodBudget\.trim\(\)/);
 

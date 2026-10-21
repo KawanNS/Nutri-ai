@@ -425,6 +425,12 @@ test("route summary resolves the current effective route", async () => {
       model: configuredModel,
       enabled: true,
     },
+    {
+      task: "MEAL_PLAN_PREVIEW",
+      provider: "GEMINI",
+      model: configuredModel,
+      enabled: true,
+    },
   ]);
 });
 

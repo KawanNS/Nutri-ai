@@ -94,7 +94,7 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(profile, /draft\?\.activityLevel/);
   assert.match(onboarding, /type="radio"/);
   assert.match(onboarding, /<fieldset/);
-  assert.match(onboarding, /Salvar e criar conta/);
+  assert.match(onboarding, /Ver minha segunda-feira/);
   assert.equal((onboarding.match(/type="number"/g) ?? []).length, 1);
 });
 

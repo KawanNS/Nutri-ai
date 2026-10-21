@@ -127,6 +127,16 @@ const shoppingListChangesSchema = z
   })
   .strict();
 
+/** One day of meals for the public preview shown before sign-up (see plan-preview.service). */
+export const planPreviewAIResponseSchema = z
+  .object({
+    meals: z.array(mealSchema).min(1).max(10),
+    estimatedDailyCost: finiteNumber.nonnegative().max(1_000_000),
+  })
+  .strict();
+
+export type PlanPreviewAIResponse = z.infer<typeof planPreviewAIResponseSchema>;
+
 export const mealSwapAIResponseSchema = z
   .object({
     meal: mealSchema,

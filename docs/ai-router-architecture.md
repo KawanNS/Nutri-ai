@@ -20,7 +20,7 @@ HTTP controller
 
 Os contratos comuns ficam em `src/ai/ai-router.types.ts`. `AIRouterRequest` contém tarefa, instruções, entrada, formato e timeout; não contém chave, configuração de conta ou objetos do SDK. `AIRouterResponse` contém conteúdo, provider/model, latência, usage normalizado, motivo de término e request ID sanitizado. Nenhum objeto bruto do SDK cruza o adapter.
 
-As tarefas habilitadas ficam em `AI_TASKS`: `MEAL_PLAN_GENERATION`, `NUTRITION_ASSISTANT`, `MEAL_PHOTO_ANALYSIS` e `MEAL_REPLACEMENT`. `PROFILE_INSIGHT` continua como possibilidade futura e falha fechada enquanto não for implementada.
+As tarefas habilitadas ficam em `AI_TASKS`: `MEAL_PLAN_GENERATION`, `NUTRITION_ASSISTANT`, `MEAL_PHOTO_ANALYSIS`, `MEAL_REPLACEMENT` e `MEAL_PLAN_PREVIEW`. `PROFILE_INSIGHT` continua como possibilidade futura e falha fechada enquanto não for implementada.
 
 `MEAL_REPLACEMENT` atende `POST /api/meal-plans/:id/days/:day/meals/:index/swap`: troca uma única refeição de um plano salvo, com prompt próprio (`src/prompts/meal-swap.prompt.ts`, `meal-swap-v1`) e schema estruturado próprio (`mealSwapAIResponseSchema`). A troca:
 

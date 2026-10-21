@@ -17,8 +17,13 @@ import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
 import { mealPhotoRouter } from "./routes/meal-photo.routes.js";
 import { foodLogRouter } from "./routes/food-log.routes.js";
+import { planPreviewRouter } from "./routes/plan-preview.routes.js";
 
 const app = express();
+
+// Render (and most hosts) put one load balancer in front of the app: trust its X-Forwarded-For hop so
+// request.ip is the visitor, not the proxy, and per-address rate limits (auth, plan preview) work.
+app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 app.use((_request, response, next) => {
@@ -53,6 +58,7 @@ app.use("/api/billing", billingRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/meal-photo", mealPhotoRouter);
 app.use("/api/food-logs", foodLogRouter);
+app.use("/api/plan-preview", planPreviewRouter);
 app.use("/api/admin/ai-router", aiRouterAdminRouter);
 
 export { app };

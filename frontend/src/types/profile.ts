@@ -21,7 +21,7 @@ export interface ProfilePayload {
 export type ProfileOnboardingDraft = Pick<
   ProfilePayload,
   'goal' | 'activityLevel' | 'mealsPerDay' | 'weeklyFoodBudget'
->
+> & Partial<Pick<ProfilePayload, 'foodAllergies' | 'foodRestrictions' | 'dislikedFoods'>>
 
 export interface Profile extends ProfilePayload {
   id: string
