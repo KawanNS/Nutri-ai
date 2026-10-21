@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage'
 import { AdminRouterPage } from './pages/AdminRouterPage'
 import { LandingPage } from './pages/LandingPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { PlanPreviewPage } from './pages/PlanPreviewPage'
 import { MealPlanPage } from './pages/MealPlanPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ProgressPage } from './pages/ProgressPage'
@@ -19,15 +20,19 @@ import { getProfile } from './services/profileService'
 import { getSubscription, waitForPremiumConfirmation } from './services/billingService'
 import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken, saveRole } from './services/authToken'
 import type { AuthUser } from './types/auth'
+import type { PlanPreview } from './types/planPreview'
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
 import './App.css'
 
-type View = 'landing' | 'onboarding' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'diary' | 'profile' | 'progress' | 'subscription' | 'admin'
+type View = 'landing' | 'onboarding' | 'plan-preview' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'diary' | 'profile' | 'progress' | 'subscription' | 'admin'
 
 function App() {
   const [view, setView] = useState<View>(() => getToken() ? 'checking-profile' : 'landing')
   const [profile, setProfile] = useState<Profile | undefined>(), [progressNotice, setProgressNotice] = useState<string | undefined>()
   const [onboardingDraft, setOnboardingDraft] = useState<ProfileOnboardingDraft | undefined>()
+  // The preview of the visitor's Monday, kept while they go back and forth so it is generated once per answers.
+  const [planPreview, setPlanPreview] = useState<PlanPreview | undefined>()
+  const handlePreviewLoaded = useCallback((preview: PlanPreview) => setPlanPreview(preview), [])
   const [loginEmail, setLoginEmail] = useState(''), [loginNotice, setLoginNotice] = useState<string | undefined>()
   const [account, setAccount] = useState<AuthUser | undefined>(), [premium, setPremium] = useState<PremiumState>('loading')
   // Responses from an earlier session or a superseded check must not overwrite the current Premium state.
@@ -90,7 +95,8 @@ function App() {
   }, [restoreAuthenticatedSession, resetAccount])
   const logout = () => { removeToken(); setProfile(undefined); resetAccount(); setOnboardingDraft(undefined); setProgressNotice(undefined); setLoginNotice(undefined); setView('login') }
   if (view === 'landing') return <LandingPage onLogin={() => setView('login')} onRegister={() => setView('register')} onStart={() => setView('onboarding')}/>
-  if (view === 'onboarding') return <OnboardingPage onBack={() => setView('landing')} onComplete={(draft) => { setOnboardingDraft(draft); setView('register') }}/>
+  if (view === 'onboarding') return <OnboardingPage initial={onboardingDraft} onBack={() => setView('landing')} onComplete={(draft) => { if (JSON.stringify(draft) !== JSON.stringify(onboardingDraft)) setPlanPreview(undefined); setOnboardingDraft(draft); setView('plan-preview') }}/>
+  if (view === 'plan-preview' && onboardingDraft) return <PlanPreviewPage draft={onboardingDraft} preview={planPreview} onLoaded={handlePreviewLoaded} onBack={() => setView('onboarding')} onRegister={() => setView('register')} onHome={() => setView('landing')}/>
   const handleAuthenticated = (role: 'USER' | 'ADMIN') => { setLoginNotice(undefined); void loadAccount(); if (role === 'ADMIN') { setView('admin'); return } setView('checking-profile'); void loadProfile() }
   if (view === 'register') return <RegisterPage onHome={() => setView('landing')} onLogin={() => setView('login')} onRegistered={(email) => { setLoginEmail(email); setLoginNotice('Conta criada. Entre para continuar.'); setView('login') }} onAuthenticated={handleAuthenticated}/>
   if (view === 'admin' && getToken()) return <AdminRouterPage onApp={checkProfile} onLogout={logout}/>

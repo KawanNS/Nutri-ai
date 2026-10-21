@@ -36,7 +36,7 @@ function initialState(profile?: Profile, draft?: ProfileOnboardingDraft): FormSt
   return {
     birthDate: profile?.birthDate.slice(0, 10) ?? '', sex: profile?.sex ?? '', heightCm: profile?.heightCm ?? '', weightKg: profile?.weightKg ?? '',
     goal: profile?.goal ?? draft?.goal ?? '', activityLevel: profile?.activityLevel ?? draft?.activityLevel ?? '', mealsPerDay: profile ? String(profile.mealsPerDay) : draft ? String(draft.mealsPerDay) : '', weeklyFoodBudget: profile?.weeklyFoodBudget ?? draft?.weeklyFoodBudget ?? '',
-    foodPreferences: profile?.foodPreferences ?? [], likedFoods: profile?.likedFoods ?? [], dislikedFoods: profile?.dislikedFoods ?? [], foodRestrictions: profile?.foodRestrictions ?? [], foodAllergies: profile?.foodAllergies ?? [],
+    foodPreferences: profile?.foodPreferences ?? [], likedFoods: profile?.likedFoods ?? [], dislikedFoods: profile?.dislikedFoods ?? draft?.dislikedFoods ?? [], foodRestrictions: profile?.foodRestrictions ?? draft?.foodRestrictions ?? [], foodAllergies: profile?.foodAllergies ?? draft?.foodAllergies ?? [],
   }
 }
 

@@ -8,6 +8,8 @@ import type { ActivityLevel, Goal, ProfileOnboardingDraft } from '../types/profi
 import './OnboardingPage.css'
 
 interface Props {
+  /** Answers to restore when the visitor comes back from the preview to change something. */
+  initial?: ProfileOnboardingDraft
   onBack(): void
   onComplete(draft: ProfileOnboardingDraft): void
 }
@@ -27,20 +29,32 @@ const activities: Array<[ActivityLevel, string, string]> = [
   ['VERY_ACTIVE', 'Muito ativo', 'Treino puxado todo dia ou trabalho braçal.'],
 ]
 
-const totalSteps = 4
+// Allergies are asked before the preview: an allergy-blind preview could suggest something unsafe.
+const allergyOptions = ['amendoim', 'frutos do mar', 'ovo', 'leite', 'glúten', 'soja']
+const restrictionOptions = ['vegetariano', 'vegano', 'sem lactose', 'sem glúten']
+
+const totalSteps = 5
 
 function validBudget(value: string): boolean {
   return /^\d+(\.\d{1,2})?$/.test(value.trim()) && Number(value) <= 99_999_999.99
 }
 
-export function OnboardingPage({ onBack, onComplete }: Props) {
+function toggle(list: string[], value: string): string[] {
+  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
+}
+
+export function OnboardingPage({ initial, onBack, onComplete }: Props) {
   const [step, setStep] = useState(0)
-  const [goal, setGoal] = useState<Goal | null>(null)
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null)
-  const [mealsPerDay, setMealsPerDay] = useState<number | null>(null)
-  const [weeklyFoodBudget, setWeeklyFoodBudget] = useState('')
+  const [goal, setGoal] = useState<Goal | null>(initial?.goal ?? null)
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(initial?.activityLevel ?? null)
+  const [mealsPerDay, setMealsPerDay] = useState<number | null>(initial?.mealsPerDay ?? null)
+  const [weeklyFoodBudget, setWeeklyFoodBudget] = useState(initial?.weeklyFoodBudget ?? '')
+  const [allergies, setAllergies] = useState<string[]>(initial?.foodAllergies ?? [])
+  const [noAllergy, setNoAllergy] = useState(initial !== undefined && (initial.foodAllergies ?? []).length === 0)
+  const [restrictions, setRestrictions] = useState<string[]>(initial?.foodRestrictions ?? [])
+  const [otherFoods, setOtherFoods] = useState((initial?.dislikedFoods ?? []).join(', '))
   const budgetError = weeklyFoodBudget.length > 0 && !validBudget(weeklyFoodBudget)
-  const stepValid = [goal !== null, activityLevel !== null, mealsPerDay !== null, validBudget(weeklyFoodBudget)][step]
+  const stepValid = [goal !== null, activityLevel !== null, mealsPerDay !== null, validBudget(weeklyFoodBudget), noAllergy || allergies.length > 0][step]
 
   function goBack() {
     if (step === 0) onBack()
@@ -59,6 +73,9 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
       activityLevel: activityLevel as ActivityLevel,
       mealsPerDay: mealsPerDay as number,
       weeklyFoodBudget: weeklyFoodBudget.trim(),
+      foodAllergies: noAllergy ? [] : allergies,
+      foodRestrictions: restrictions,
+      dislikedFoods: otherFoods.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 15),
     })
   }
 
@@ -71,10 +88,10 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
     <main className="onboarding-flow__main">
       <aside className="onboarding-flow__intro">
         <p className="onboarding-flow__eyebrow">Antes de tudo</p>
-        <h1>Quatro perguntas rápidas.</h1>
+        <h1>Cinco perguntas rápidas.</h1>
         <p>Com elas a Alyvora já sabe por onde começar seu cardápio. O que você responder aqui continua valendo quando criar a conta.</p>
         <ol aria-label="Progresso do onboarding">
-          {['Objetivo', 'Atividade', 'Refeições', 'Orçamento'].map((label, index) => <li className={index === step ? 'onboarding-flow__step onboarding-flow__step--current' : index < step ? 'onboarding-flow__step onboarding-flow__step--complete' : 'onboarding-flow__step'} aria-current={index === step ? 'step' : undefined} key={label}>
+          {['Objetivo', 'Atividade', 'Refeições', 'Orçamento', 'O que não come'].map((label, index) => <li className={index === step ? 'onboarding-flow__step onboarding-flow__step--current' : index < step ? 'onboarding-flow__step onboarding-flow__step--complete' : 'onboarding-flow__step'} aria-current={index === step ? 'step' : undefined} key={label}>
             <span>{index < step ? '✓' : index + 1}</span><strong>{label}</strong>
           </li>)}
         </ol>
@@ -132,12 +149,40 @@ export function OnboardingPage({ onBack, onComplete }: Props) {
                 <input {...controlProps} type="number" inputMode="decimal" min="0" max="99999999.99" step="0.01" placeholder="Ex.: 350" value={weeklyFoodBudget} onChange={(event) => setWeeklyFoodBudget(event.target.value)}/>
               </div>}
             </FormField>
-            <div className="onboarding-flow__ready"><span aria-hidden="true">✓</span><p><strong>Última pergunta</strong> Depois você cria sua conta e completa o resto do perfil.</p></div>
+            <div className="onboarding-flow__ready"><span aria-hidden="true">✓</span><p><strong>Falta uma</strong> Depois você já vê como fica a sua segunda-feira, antes de criar conta.</p></div>
+          </fieldset>}
+
+          {step === 4 && <fieldset className="onboarding-flow__question">
+            <legend id="onboarding-step-title">Tem algo que você não come?</legend>
+            <p>Alergia fica de fora sempre. Marque o que vale para você.</p>
+            <fieldset className="onboarding-chips" aria-describedby="onboarding-allergy-hint">
+              <legend>Alergias</legend>
+              <div>
+                {allergyOptions.map((value) => <label className={allergies.includes(value) ? 'onboarding-chip onboarding-chip--selected' : 'onboarding-chip'} key={value}>
+                  <input className="ui-visually-hidden" type="checkbox" checked={allergies.includes(value)} onChange={() => { setAllergies((current) => toggle(current, value)); setNoAllergy(false) }}/>{value}
+                </label>)}
+                <label className={noAllergy ? 'onboarding-chip onboarding-chip--selected' : 'onboarding-chip'}>
+                  <input className="ui-visually-hidden" type="checkbox" checked={noAllergy} onChange={() => { setNoAllergy((current) => !current); setAllergies([]) }}/>Nenhuma
+                </label>
+              </div>
+              <small id="onboarding-allergy-hint">Escolha pelo menos uma opção, nem que seja "Nenhuma".</small>
+            </fieldset>
+            <fieldset className="onboarding-chips">
+              <legend>Jeito de comer</legend>
+              <div>
+                {restrictionOptions.map((value) => <label className={restrictions.includes(value) ? 'onboarding-chip onboarding-chip--selected' : 'onboarding-chip'} key={value}>
+                  <input className="ui-visually-hidden" type="checkbox" checked={restrictions.includes(value)} onChange={() => setRestrictions((current) => toggle(current, value))}/>{value}
+                </label>)}
+              </div>
+            </fieldset>
+            <FormField id="onboarding-other-foods" label="Outra coisa?" hint="Separe por vírgula. Opcional.">
+              {(controlProps) => <input {...controlProps} type="text" maxLength={300} placeholder="fígado, berinjela…" value={otherFoods} onChange={(event) => setOtherFoods(event.target.value)}/>}
+            </FormField>
           </fieldset>}
 
           <div className="onboarding-flow__actions">
             <Button variant="ghost" type="button" onClick={goBack}><span aria-hidden="true">←</span> {step === 0 ? 'Voltar ao início' : 'Voltar'}</Button>
-            <Button type="submit" disabled={!stepValid}>{step === totalSteps - 1 ? 'Salvar e criar conta' : 'Continuar'} <span aria-hidden="true">→</span></Button>
+            <Button type="submit" disabled={!stepValid}>{step === totalSteps - 1 ? 'Ver minha segunda-feira' : 'Continuar'} <span aria-hidden="true">→</span></Button>
           </div>
         </form>
       </Surface>

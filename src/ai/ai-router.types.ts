@@ -3,6 +3,7 @@ export const AI_TASKS = [
   "NUTRITION_ASSISTANT",
   "MEAL_PHOTO_ANALYSIS",
   "MEAL_REPLACEMENT",
+  "MEAL_PLAN_PREVIEW",
 ] as const;
 export const AI_ROUTER_PROVIDERS = ["GEMINI"] as const;
 
