@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "smoke:ai-gateway": "node dist/scripts/smoke-ai-gateway.js",
     "smoke:ai-gateway:error": "node dist/scripts/smoke-ai-gateway.js --auth-error-only",
