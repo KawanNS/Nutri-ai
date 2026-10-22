@@ -75,6 +75,7 @@ function HeroFoodDecor() {
     <DecorSeeds className="public-hero-decor public-hero-decor--seeds"/>
     <DecorSprig className="public-hero-decor public-hero-decor--sprig"/>
     <DecorLeaf className="public-hero-decor public-hero-decor--leaf-low"/>
+    <span className="public-hero-food__plate"/>
     <span className="public-hero-food__crop public-hero-food__crop--tomato" data-required-asset="tomato-transparent"><img src={tomatoDecor} alt="" width={1200} height={800} loading="eager" decoding="async" draggable="false"/></span>
     <span className="public-hero-food__crop public-hero-food__crop--avocado" data-required-asset="avocado-transparent"><img src={avocadoDecor} alt="" width={1200} height={879} loading="eager" decoding="async" draggable="false"/></span>
   </div>
