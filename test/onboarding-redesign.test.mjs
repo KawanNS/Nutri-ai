@@ -65,3 +65,10 @@ test("landing edge-food structure waits safely for approved transparent assets a
   assert.match(showcase, /public-phone-screen--success/);
   assert.match(styles, /9\.6s/);
 });
+
+test("on phones the five step dots share one row and the last button cannot widen the page", async () => {
+  const css = await readFile("frontend/src/pages/OnboardingPage.css", "utf8");
+  assert.match(css, /\.onboarding-flow__intro ol \{ grid-template-columns: repeat\(5, 1fr\)/);
+  assert.match(css, /\.onboarding-flow__main \{ grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.ui-button\[type="submit"\] \{ flex: 1 1 0; min-width: 0; white-space: normal;/);
+});
