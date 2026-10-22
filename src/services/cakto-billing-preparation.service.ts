@@ -6,7 +6,7 @@ import type {
   CaktoApiSubscription,
 } from "../schemas/cakto-api.schema.js";
 import { caktoCorrelationTokenSchema } from "../schemas/cakto-webhook.schema.js";
-import type { CaktoApiClient } from "./cakto-api.service.js";
+import { CaktoApiError, type CaktoApiClient } from "./cakto-api.service.js";
 import { hashCheckoutCorrelationToken } from "./billing.service.js";
 import {
   matchesCaktoPlanPrice,
@@ -44,6 +44,20 @@ export type CaktoPreparationBlockReason =
   | "PROVIDER_STATE_TAKES_PRECEDENCE"
   | "RENEWAL_REFUSAL_POLICY_NOT_CONFIRMED"
   | "UNSUPPORTED_EVENT";
+
+/** The provider read in progress when a confirmation failed. */
+type CaktoConfirmationStep = "GET_ORDER" | "GET_SUBSCRIPTION" | "GET_OFFER" | "VALIDATE";
+
+/**
+ * "GET_ORDER:CAKTO_API_HTTP_ERROR:401" says which read failed and how, without
+ * any provider data. A token exchange failure shows up on the first read.
+ */
+export function describeCaktoConfirmationFailure(step: CaktoConfirmationStep, error: unknown): string {
+  if (error instanceof CaktoApiError) {
+    return [step, error.code, error.providerStatus].filter((part) => part !== null).join(":");
+  }
+  return `${step}:UNEXPECTED_ERROR`;
+}
 
 type ValidationResult =
   | { ok: true }
@@ -182,7 +196,7 @@ export type CaktoBillingDecision =
   | { kind: "CANCEL_CANDIDATE"; accessUntil: Date }
   | { kind: "REVOKE_CANDIDATE" }
   | { kind: "NO_CHANGE"; reason: "PROVIDER_STATE_TAKES_PRECEDENCE" }
-  | { kind: "BLOCKED"; reason: CaktoPreparationBlockReason };
+  | { kind: "BLOCKED"; reason: CaktoPreparationBlockReason; detail?: string };
 
 export interface CaktoBillingDecisionContext {
   checkoutConfirmed: boolean;
@@ -265,8 +279,10 @@ export async function prepareCaktoBillingDecision(
     return { kind: "BLOCKED", reason: attemptValidation.reason };
   }
 
+  let step: CaktoConfirmationStep = "GET_ORDER";
   try {
     const order = await apiClient.getOrder(input.orderId);
+    step = "VALIDATE";
     const orderValidation = validateCaktoOrderCorrelation(order, {
       orderId: input.orderId,
       tokenHash: input.checkoutAttempt.tokenHash,
@@ -276,13 +292,17 @@ export async function prepareCaktoBillingDecision(
     });
     if (!orderValidation.ok) return { kind: "BLOCKED", reason: orderValidation.reason };
 
+    step = "GET_SUBSCRIPTION";
     const subscription = await apiClient.getSubscription(order.subscription!);
+    step = "VALIDATE";
     const subscriptionValidation = validateCaktoOrderSubscription(order, subscription);
     if (!subscriptionValidation.ok) {
       return { kind: "BLOCKED", reason: subscriptionValidation.reason };
     }
 
+    step = "GET_OFFER";
     const offer = await apiClient.getOffer(subscription.offer);
+    step = "VALIDATE";
     const offerValidation = validateCaktoOffer(offer, subscription);
     if (!offerValidation.ok) return { kind: "BLOCKED", reason: offerValidation.reason };
 
@@ -306,8 +326,12 @@ export async function prepareCaktoBillingDecision(
       commercialMappingConfirmed: true,
       period: resolveCaktoEntitlementPeriod(input.entitlementPeriod),
     });
-  } catch {
-    return { kind: "BLOCKED", reason: "PROVIDER_CONFIRMATION_FAILED" };
+  } catch (error: unknown) {
+    return {
+      kind: "BLOCKED",
+      reason: "PROVIDER_CONFIRMATION_FAILED",
+      detail: describeCaktoConfirmationFailure(step, error),
+    };
   }
 }
 
@@ -327,7 +351,7 @@ export type PreparedCaktoBillingEffect =
       period: { start: Date; end: Date } | null;
       correlationTokenHash: string | null;
     }
-  | { kind: "BLOCKED"; reason: CaktoPreparationBlockReason };
+  | { kind: "BLOCKED"; reason: CaktoPreparationBlockReason; detail?: string };
 
 export interface PrepareCaktoBillingEffectInput {
   event: string;
@@ -412,8 +436,10 @@ export async function prepareCaktoBillingEffect(
     return { kind: "BLOCKED", reason: "PLAN_CONFIGURATION_NOT_AVAILABLE" };
   }
 
+  let step: CaktoConfirmationStep = "GET_ORDER";
   try {
     const order = await apiClient.getOrder(input.orderId);
+    step = "VALIDATE";
     if (order.id !== input.orderId) return { kind: "BLOCKED", reason: "ORDER_ID_MISMATCH" };
     if (!statuses.includes(order.status)) {
       return { kind: "BLOCKED", reason: "ORDER_STATUS_NOT_ELIGIBLE" };
@@ -425,7 +451,9 @@ export async function prepareCaktoBillingEffect(
       return { kind: "BLOCKED", reason: "ORDER_SUBSCRIPTION_NOT_AVAILABLE" };
     }
 
+    step = "GET_SUBSCRIPTION";
     const subscription = await apiClient.getSubscription(order.subscription);
+    step = "VALIDATE";
     const subscriptionValidation = validateCaktoOrderSubscription(order, subscription);
     if (!subscriptionValidation.ok) {
       return { kind: "BLOCKED", reason: subscriptionValidation.reason };
@@ -438,7 +466,9 @@ export async function prepareCaktoBillingEffect(
       return { kind: "BLOCKED", reason: "PROVIDER_SUBSCRIPTION_STATE_NOT_ELIGIBLE" };
     }
 
+    step = "GET_OFFER";
     const offer = await apiClient.getOffer(subscription.offer);
+    step = "VALIDATE";
     const offerValidation = validateCaktoOffer(offer, subscription);
     if (!offerValidation.ok) return { kind: "BLOCKED", reason: offerValidation.reason };
     const plan = resolveCaktoPlan(input.allowlist, {
@@ -487,7 +517,11 @@ export async function prepareCaktoBillingEffect(
       period,
       correlationTokenHash,
     };
-  } catch {
-    return { kind: "BLOCKED", reason: "PROVIDER_CONFIRMATION_FAILED" };
+  } catch (error: unknown) {
+    return {
+      kind: "BLOCKED",
+      reason: "PROVIDER_CONFIRMATION_FAILED",
+      detail: describeCaktoConfirmationFailure(step, error),
+    };
   }
 }
