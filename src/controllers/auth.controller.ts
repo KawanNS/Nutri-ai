@@ -14,6 +14,7 @@ import {
   loginWithGoogle,
   loginWithGoogleCode,
   register,
+  renewSession,
 } from "../services/auth.service.js";
 
 function handleError(error: unknown, response: Response): void {
@@ -102,6 +103,22 @@ export async function currentUserController(
   try {
     const user = await getCurrentUser(request.auth.userId);
     response.status(200).json({ user });
+  } catch (error: unknown) {
+    handleError(error, response);
+  }
+}
+
+export async function renewSessionController(
+  request: AuthenticatedRequest,
+  response: Response,
+): Promise<void> {
+  if (!request.auth?.userId) {
+    response.status(401).json({ error: "Authentication is required" });
+    return;
+  }
+
+  try {
+    response.status(200).json(await renewSession(request.auth.userId));
   } catch (error: unknown) {
     handleError(error, response);
   }

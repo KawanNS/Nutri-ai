@@ -16,3 +16,8 @@ export function loginWithGoogleCode(code: string): Promise<LoginResponse> {
 export function getCurrentUser(): Promise<CurrentUserResponse> {
   return apiRequest<CurrentUserResponse>('/auth/me')
 }
+
+/** Trades a still-valid token for a fresh one, so active users are not signed out. */
+export function renewSession(): Promise<LoginResponse> {
+  return apiRequest<LoginResponse>('/auth/refresh', { method: 'POST' })
+}

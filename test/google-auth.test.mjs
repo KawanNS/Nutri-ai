@@ -105,7 +105,7 @@ test("existing Google identity logs into its associated user with the current JW
   })));
 
   assert.equal(emailLookups, 0);
-  assert.equal(response.expiresIn, "1h");
+  assert.equal(response.expiresIn, "7d");
   assert.equal(response.user.id, publicUser.id);
   assert.equal(jwt.decode(response.token).sub, publicUser.id);
 });
@@ -342,7 +342,7 @@ test("code login reuses the account and JWT session flow", async () => {
     return { subject: "google-subject-123", email: "person@example.com", name: "Pessoa" };
   }));
 
-  assert.equal(response.expiresIn, "1h");
+  assert.equal(response.expiresIn, "7d");
   assert.equal(jwt.decode(response.token).sub, publicUser.id);
 });
 

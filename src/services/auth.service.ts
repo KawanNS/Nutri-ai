@@ -11,7 +11,8 @@ import {
 } from "./google-auth.service.js";
 
 const PASSWORD_SALT_ROUNDS = 12;
-const TOKEN_EXPIRATION = "1h";
+// Active users renew the token (POST /api/auth/refresh), so only a week away signs them out.
+const TOKEN_EXPIRATION = "7d";
 
 const publicUserSelect = {
   id: true,
@@ -248,4 +249,22 @@ export async function getCurrentUser(userId: string) {
   }
 
   return user;
+}
+
+interface SessionUserReader {
+  findUnique(args: {
+    where: { id: string };
+    select: typeof publicUserSelect;
+  }): Promise<Parameters<typeof createSession>[0] | null>;
+}
+
+/** Issues a fresh token for a user whose current token is still valid. */
+export async function renewSession(userId: string, users: SessionUserReader = prisma.user) {
+  const user = await users.findUnique({ where: { id: userId }, select: publicUserSelect });
+
+  if (!user) {
+    throw new AuthError(401, "Invalid authentication token");
+  }
+
+  return createSession(user);
 }
