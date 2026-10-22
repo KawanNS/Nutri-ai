@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("the preview wait is honest and a waking server gets a second try", async () => {
+test("the preview wait is honest and keeps trying while the server wakes up", async () => {
   const [page, service] = await Promise.all([
     readFile("frontend/src/pages/PlanPreviewPage.tsx", "utf8"),
     readFile("frontend/src/services/planPreviewService.ts", "utf8"),
@@ -14,8 +14,10 @@ test("the preview wait is honest and a waking server gets a second try", async (
     assert.ok(page.includes(step), step);
   }
   assert.match(page, /Math\.round\(95 \* \(1 - Math\.exp\(-seconds \/ 11\)\)\)/);
-  // One silent retry for network errors and 5xx; 4xx answers (bad data, rate limit) are final.
+  // Network errors and 5xx keep retrying for about a minute while "Montando" stays on screen;
+  // 4xx answers (bad data, rate limit) are final.
   assert.match(page, /getPlanPreviewWithRetry\(draft\)/);
   assert.match(service, /return !\(error instanceof ApiError\) \|\| error\.status >= 500/);
-  assert.match(service, /if \(!isTransient\(error\)\) throw error/);
+  assert.match(service, /if \(!isTransient\(error\) \|\| Date\.now\(\) - started \+ retryDelayMs > giveUpAfterMs\) throw error/);
+  assert.match(service, /retryDelayMs = 4000, giveUpAfterMs = 60_000/);
 });

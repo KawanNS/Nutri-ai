@@ -13,15 +13,17 @@ function isTransient(error: unknown): boolean {
 }
 
 /**
- * Asks once more after a short pause when the first request fails in a way that tends to pass,
- * so a visitor who arrives while the API is waking up gets the preview instead of an error.
+ * Keeps asking while failures look like a waking server, so the visitor keeps seeing "Montando…"
+ * instead of an error. Gives up only after ~1 minute of trying; 4xx answers are final right away.
  */
-export async function getPlanPreviewWithRetry(draft: ProfileOnboardingDraft, retryDelayMs = 3000): Promise<PlanPreviewResponse> {
-  try {
-    return await getPlanPreview(draft)
-  } catch (error) {
-    if (!isTransient(error)) throw error
-    await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
-    return getPlanPreview(draft)
+export async function getPlanPreviewWithRetry(draft: ProfileOnboardingDraft, retryDelayMs = 4000, giveUpAfterMs = 60_000): Promise<PlanPreviewResponse> {
+  const started = Date.now()
+  for (;;) {
+    try {
+      return await getPlanPreview(draft)
+    } catch (error) {
+      if (!isTransient(error) || Date.now() - started + retryDelayMs > giveUpAfterMs) throw error
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+    }
   }
 }
