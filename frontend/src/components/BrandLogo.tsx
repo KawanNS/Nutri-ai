@@ -1,4 +1,4 @@
-import alyvoraLogoHorizontal from '../assets/alyvora/alyvora-logo-horizontal.png'
+import alyvoraLogoHorizontal from '../assets/alyvora/alyvora-logo-horizontal.webp'
 
 interface BrandLogoProps {
   variant?: 'full' | 'symbol'
