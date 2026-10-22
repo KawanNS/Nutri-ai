@@ -3,9 +3,8 @@ import { BrandLogo } from '../components/BrandLogo'
 import { MacroBar } from '../components/motion/MacroBar'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
-import { LoadingState } from '../components/ui/LoadingState'
 import { ApiError } from '../services/api'
-import { getPlanPreview } from '../services/planPreviewService'
+import { getPlanPreviewWithRetry } from '../services/planPreviewService'
 import type { PlanPreview } from '../types/planPreview'
 import type { Goal, ProfileOnboardingDraft } from '../types/profile'
 import './PlanPreviewPage.css'
@@ -39,6 +38,35 @@ function summaryLine(draft: ProfileOnboardingDraft): string {
   return [goalText[draft.goal], ...exclusions, `até ${budget} na semana`].join(', ') + '.'
 }
 
+// What the AI is doing, by seconds waited. It usually takes 10-20 s; the first visit of the day
+// can take up to ~30 s while the server wakes up, so the copy never promises a fixed time.
+const loadingSteps: Array<[number, string]> = [
+  [0, 'Lendo suas respostas…'],
+  [3, 'Escolhendo as refeições do dia…'],
+  [9, 'Calculando calorias e custo…'],
+  [16, 'Conferindo o seu orçamento…'],
+  [24, 'Quase pronto…'],
+]
+
+function PreviewLoading() {
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    const started = Date.now()
+    const timer = window.setInterval(() => setSeconds((Date.now() - started) / 1000), 250)
+    return () => window.clearInterval(timer)
+  }, [])
+  const step = [...loadingSteps].reverse().find(([from]) => seconds >= from)?.[1] ?? loadingSteps[0][1]
+  // Eases toward 95% and never claims to be done before the answer arrives.
+  const progress = Math.round(95 * (1 - Math.exp(-seconds / 11)))
+  return <div className="plan-preview__loading" role="status" aria-live="polite">
+    <span className="ui-loading__spinner" aria-hidden="true"/>
+    <strong>Montando sua segunda-feira</strong>
+    <p className="plan-preview__loading-step">{step}</p>
+    <span className="plan-preview__progress" aria-hidden="true"><i style={{ width: `${progress}%` }}/></span>
+    <small>Pode levar até meio minuto. Não feche esta página.</small>
+  </div>
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError && (error.code === 'PLAN_PREVIEW_RATE_LIMIT_EXCEEDED' || error.code === 'PLAN_PREVIEW_BUSY')) {
     return 'Você já viu várias prévias agora. Crie sua conta para montar o plano completo.'
@@ -56,7 +84,7 @@ export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, 
     // One request per attempt, also under React's double-invoked effects in development.
     if (preview || requested.current === attempt) return
     requested.current = attempt
-    getPlanPreview(draft)
+    getPlanPreviewWithRetry(draft)
       .then(({ preview: loaded }) => onLoaded(loaded))
       .catch((requestError: unknown) => setError(errorMessage(requestError)))
       .finally(() => setLoading(false))
@@ -75,7 +103,7 @@ export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, 
     </header>
 
     <main className="plan-preview__main" aria-live="polite" aria-busy={loading}>
-      {loading && <div className="plan-preview__loading"><LoadingState label="Montando sua segunda-feira…" description="Leva uns 10 segundos."/></div>}
+      {loading && <PreviewLoading/>}
 
       {!loading && error && <div className="plan-preview__error">
         <Alert variant="error" title="Prévia indisponível">{error}</Alert>
