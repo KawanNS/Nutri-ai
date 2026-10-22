@@ -22,8 +22,6 @@ test("the first visit downloads light images and only the public screens", async
   // Images are sized for how they are shown (they were 0.1-0.5 MB each).
   for (const [file, maxKb] of [
     ["frontend/src/assets/alyvora/alyvora-logo-horizontal.webp", 30],
-    ["frontend/src/assets/landing/tomato.webp", 60],
-    ["frontend/src/assets/landing/avocado.webp", 70],
     ["frontend/src/assets/landing/differentials-food-photo.webp", 100],
   ]) {
     assert.ok((await stat(file)).size <= maxKb * 1024, `${file} should stay under ${maxKb} KB`);

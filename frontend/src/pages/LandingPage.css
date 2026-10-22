@@ -96,18 +96,6 @@
   transform: translateX(-50%);
 }
 
-.public-hero-food__crop {
-  position: absolute;
-  display: block;
-}
-
-.public-hero-food__crop:empty { display: none; }
-.public-hero-food__crop img { width: 100%; height: auto; display: block; }
-/* The tomato asset is already cropped on its left and bottom edges. The left crop sits exactly on the
-   viewport edge so the fruit reads as bleeding off-screen, and the bottom crop dissolves in a fade. */
-.public-hero-food__crop--tomato { z-index: 1; width: clamp(15rem, 19vw, 22rem); left: 0; bottom: -5.5rem; -webkit-mask-image: linear-gradient(to top, transparent 4%, #000 46%); mask-image: linear-gradient(to top, transparent 4%, #000 46%); }
-/* The avocado asset is a complete cut-out, so it always stays whole inside the viewport. */
-.public-hero-food__crop--avocado { z-index: 1; width: clamp(13rem, 16vw, 19rem); right: clamp(1rem, 2.5vw, 2.5rem); bottom: -3.5rem; transform: rotate(6deg); }
 
 .landing-decor { display: block; height: auto; overflow: visible; pointer-events: none; user-select: none; }
 .landing-decor__fill { fill: var(--brand-green-light); }
@@ -432,8 +420,6 @@
   .public-header__nav a { font-size: .78rem; }
   .public-hero { grid-template-columns: minmax(0, .88fr) minmax(30rem, 1.12fr); }
   .public-showcase { transform: scale(.9); transform-origin: center right; }
-  .public-hero-food__crop--tomato { width: 15rem; }
-  .public-hero-food__crop--avocado { width: 13rem; }
   .public-hero-decor--seeds { display: none; }
   .public-demo__grid { grid-template-columns: repeat(2, 1fr); row-gap: var(--space-10); }
 }
@@ -449,11 +435,7 @@
   .public-hero { min-height: 0; grid-template-columns: 1fr; padding-top: var(--space-16); text-align: center; }
   .public-hero__copy { max-width: 46rem; margin-inline: auto; }.public-hero__tag { margin-inline: auto; }.public-hero__copy > p:not(.public-hero__note) { margin-inline: auto; }.public-hero__actions { justify-content: center; }.public-hero__benefits { max-width: 40rem; margin-inline: auto; text-align: left; }
   .public-showcase { width: min(43rem, 100%); margin: -2rem auto 0; transform: scale(.95); transform-origin: center; }
-  /* One column: the fruits get their own band under the phones, whole and inside the hero, instead of
-     hanging over the edge of the next section. The hero's bottom padding makes room for them. */
-  .public-hero { padding-bottom: 9rem; }
-  .public-hero-food__crop--tomato { width: 13rem; bottom: 0; -webkit-mask-image: linear-gradient(to top, transparent 2%, #000 22%); mask-image: linear-gradient(to top, transparent 2%, #000 22%); }
-  .public-hero-food__crop--avocado { width: 11rem; right: 1rem; bottom: .75rem; }
+  .public-hero { padding-bottom: var(--space-10); }
   .public-hero-decor--leaf-low { display: none; }
   .public-section-decor--demo { display: none; }
   .public-hero-decor--sprig { top: 1rem; right: 1rem; }
@@ -470,9 +452,6 @@
   .public-hero h1 { font-size: clamp(3rem, 13vw, 5rem); }
   .public-hero__benefits { grid-template-columns: 1fr; max-width: 20rem; }
   .public-showcase { height: 38rem; margin-top: -1rem; transform: scale(.86); }
-  .public-hero { padding-bottom: 7.5rem; }
-  .public-hero-food__crop--tomato { width: 11rem; }
-  .public-hero-food__crop--avocado { width: 9.5rem; right: .75rem; }
   .public-feature--1,.public-feature--2,.public-feature--3,.public-feature--4 { grid-column: span 12; }
   .public-feature { min-height: 22rem; }
   .public-benefits__inner ul { grid-template-columns: 1fr; }
@@ -488,15 +467,12 @@
   .public-hero h1 { font-size: clamp(2.35rem, 11.5vw, 3.8rem); }
   .public-hero__actions { display: grid; }.public-hero__actions > * { width: 100%; }
   .public-showcase { width: min(23rem, calc(100vw - var(--space-5) - var(--space-5))); height: 31.5rem; margin-top: 0; transform: none; }
-  .public-hero { padding-bottom: 6rem; }
-  .public-hero-food__crop--tomato { width: 8.5rem; }
   .public-how__steps-wrap { --how-col: 3.5rem; }
   .public-how__number { font-size: 2.4rem; }
   .public-benefits__lemon { width: 2.75rem; top: -2.5rem; right: 0; }
   .public-benefits__seeds { top: -1.85rem; right: 3.5rem; }
   .public-final-cta__sprig { display: none; }
   .public-final-cta__leaf--right { width: 3.25rem; top: .9rem; right: .9rem; }
-  .public-hero-food__crop--avocado { width: 7.5rem; right: .75rem; }
   .public-hero-decor--leaf-top { width: 2.75rem; top: .75rem; left: .75rem; }
   .public-hero-decor--sprig { width: 3.5rem; top: .25rem; right: .5rem; }
   .public-showcase__shape { width: 22rem; height: 24rem; top: 3rem; right: 50%; transform: translateX(50%) rotate(-8deg); }
@@ -513,8 +489,6 @@
 }
 
 @media (max-width: 22rem) {
-  .public-hero-food__crop--tomato { width: 7.5rem; }
-  .public-hero-food__crop--avocado { width: 6.5rem; }
   .public-showcase { width: 18rem; transform: scale(.92); transform-origin: top center; margin-bottom: -2rem; }
   .public-feature { padding: var(--space-5); }.public-feature__week,.public-feature__chart { right: var(--space-5); bottom: var(--space-5); left: var(--space-5); }
 }
@@ -535,3 +509,22 @@
   .public-phone-screen--home { display: block; opacity: 1; }
   .public-progress-ring { background: conic-gradient(var(--green-strong) 0 63%, var(--green-soft) 63% 100%); }
 }
+
+/* Price statement: the illustrated fruits slide in from both sides as the section scrolls into view
+   (--price-progress goes 0 -> 1, set by PriceStatement). */
+.public-price { --price-progress: 0; position: relative; overflow: clip; padding: clamp(5rem, 11vw, 9rem) var(--page-gutter); text-align: center; }
+.public-price__copy { position: relative; z-index: 2; max-width: 52rem; margin-inline: auto; }
+.public-price h2 { margin: 0; font-family: var(--font-display); font-size: clamp(2.6rem, 6.4vw, 5rem); line-height: 1.02; letter-spacing: -.045em; }
+.public-price__value { display: inline-block; color: var(--green-strong); }
+.public-price p { max-width: 32rem; margin: var(--space-5) auto 0; color: var(--text-secondary); font-size: var(--type-body-large-size); }
+.public-price__fruit { position: absolute; z-index: 1; top: 50%; display: block; height: auto; overflow: visible; pointer-events: none; user-select: none; will-change: transform; }
+.public-price__fruit--tomato { left: clamp(.5rem, 3vw, 3rem); width: clamp(9rem, 20vw, 17rem); transform: translate3d(calc((var(--price-progress) - 1) * 40vw), -62%, 0) rotate(calc((1 - var(--price-progress)) * -14deg)); }
+.public-price__fruit--avocado { right: clamp(.5rem, 3vw, 3rem); width: clamp(7rem, 15vw, 13rem); transform: translate3d(calc((1 - var(--price-progress)) * 40vw), -38%, 0) rotate(calc(4deg + (1 - var(--price-progress)) * 18deg)); }
+
+@media (max-width: 62rem) {
+  /* Narrower screens: the fruits sit above and below the text instead of beside it, still sliding in. */
+  .public-price { padding-block: clamp(8.5rem, 22vw, 12rem) clamp(7rem, 18vw, 10rem); }
+  .public-price__fruit--tomato { top: 1rem; width: clamp(7.5rem, 22vw, 12rem); transform: translate3d(calc((var(--price-progress) - 1) * 60vw), 0, 0) rotate(calc((1 - var(--price-progress)) * -14deg)); }
+  .public-price__fruit--avocado { top: auto; bottom: 1rem; width: clamp(5.5rem, 15vw, 9rem); transform: translate3d(calc((1 - var(--price-progress)) * 60vw), 0, 0) rotate(calc(4deg + (1 - var(--price-progress)) * 18deg)); }
+}
+

@@ -2,11 +2,10 @@ import { useEffect, useId, useState, type CSSProperties } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
 import { DecorHerb, DecorLeaf, DecorLemon, DecorSeeds, DecorSprig, DecorStem, DecorWave } from '../components/landing/LandingDecor'
 import { PhoneShowcase } from '../components/landing/PhoneShowcase'
+import { PriceStatement } from '../components/landing/PriceStatement'
 import { revealDelay, useRevealOnScroll } from '../components/landing/useRevealOnScroll'
 import { Button } from '../components/ui/Button'
-import avocadoDecor from '../assets/landing/avocado.webp'
 import mealPhoto from '../assets/landing/differentials-food-photo.webp'
-import tomatoDecor from '../assets/landing/tomato.webp'
 import { premiumFeatures, subscriptionPlans } from '../data/subscriptionPlans'
 import './LandingPage.css'
 
@@ -69,14 +68,12 @@ function LandingIcon({ name }: { name: IconName }) {
 }
 
 function HeroFoodDecor() {
-  // Above-the-fold decor: eager loading, with intrinsic sizes so nothing shifts while the images arrive.
+  // Light hand-drawn decor only; the fruits moved to the price section below, where they slide in on scroll.
   return <div className="public-hero-food" aria-hidden="true">
     <DecorLeaf className="public-hero-decor public-hero-decor--leaf-top"/>
     <DecorSeeds className="public-hero-decor public-hero-decor--seeds"/>
     <DecorSprig className="public-hero-decor public-hero-decor--sprig"/>
     <DecorLeaf className="public-hero-decor public-hero-decor--leaf-low"/>
-    <span className="public-hero-food__crop public-hero-food__crop--tomato" data-required-asset="tomato-transparent"><img src={tomatoDecor} alt="" width={1200} height={800} loading="eager" decoding="async" draggable="false"/></span>
-    <span className="public-hero-food__crop public-hero-food__crop--avocado" data-required-asset="avocado-transparent"><img src={avocadoDecor} alt="" width={1200} height={879} loading="eager" decoding="async" draggable="false"/></span>
   </div>
 }
 
@@ -165,6 +162,8 @@ export function LandingPage({ onLogin, onRegister, onStart }: Props) {
         </div>
         <PhoneShowcase/>
       </section>
+
+      <PriceStatement/>
 
       <section className="public-section public-features" id="funcionalidades" aria-labelledby="public-features-title">
         <div className="public-section-heading public-section-heading--split">

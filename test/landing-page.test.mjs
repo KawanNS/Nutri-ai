@@ -99,29 +99,33 @@ test("public landing presents the real product without fabricated social proof",
 });
 
 test("landing hero food is framed on purpose and its decorations stay out of the way", async () => {
-  const [page, styles, decor, showcase, authLayout] = await Promise.all([
+  const [page, styles, decor, showcase, authLayout, price, art] = await Promise.all([
     readFile("frontend/src/pages/LandingPage.tsx", "utf8"),
     readFile("frontend/src/pages/LandingPage.css", "utf8"),
     readFile("frontend/src/components/landing/LandingDecor.tsx", "utf8"),
     readFile("frontend/src/components/landing/PhoneShowcase.tsx", "utf8"),
     readFile("frontend/src/components/AuthLayout.tsx", "utf8"),
+    readFile("frontend/src/components/landing/PriceStatement.tsx", "utf8"),
+    readFile("frontend/src/components/landing/FruitArt.tsx", "utf8"),
   ]);
 
-  // The tomato asset is pre-cropped: its left crop sits on the viewport edge and the bottom fades out.
-  assert.match(styles, /\.public-hero-food__crop--tomato \{[^}]*left: 0;[^}]*mask-image: linear-gradient\(to top, transparent 4%, #000 46%\)/);
-  assert.doesNotMatch(styles, /\.public-hero-food__crop--tomato \{[^}]*rotate/);
-  // The avocado is a whole cut-out and must never be pushed past the right edge.
-  assert.match(styles, /\.public-hero-food__crop--avocado \{[^}]*right: clamp\(1rem, 2\.5vw, 2\.5rem\)/);
-  assert.doesNotMatch(styles, /\.public-hero-food__crop--avocado \{[^}]*right: (clamp\()?-/);
+  // The fruits left the hero: they are vector art in the price section and slide in with the scroll.
+  assert.doesNotMatch(page, /public-hero-food__crop|tomatoDecor|avocadoDecor/);
+  assert.doesNotMatch(styles, /public-hero-food__crop/);
   assert.match(styles, /\.public-hero-food \{[^}]*overflow-x: clip;[^}]*overflow-y: visible/);
   assert.match(styles, /overflow-x: clip/);
-
-  // Above-the-fold images load eagerly, in WebP, with intrinsic sizes to avoid layout shifts.
-  for (const asset of ["tomato", "avocado"]) {
-    assert.match(page, new RegExp(`import ${asset}Decor from '\.\./assets/landing/${asset}\.webp'`));
-  }
-  assert.match(page, /src=\{tomatoDecor\} alt="" width=\{1200\} height=\{800\} loading="eager"/);
-  assert.match(page, /src=\{avocadoDecor\} alt="" width=\{1200\} height=\{879\} loading="eager"/);
+  assert.match(page, /<PriceStatement\/>/);
+  assert.match(price, /<TomatoArt className="public-price__fruit public-price__fruit--tomato"\/>/);
+  assert.match(price, /<AvocadoArt className="public-price__fruit public-price__fruit--avocado"\/>/);
+  assert.match(price, /prefers-reduced-motion: reduce/);
+  assert.match(price, /element\.style\.setProperty\('--price-progress', progress\.toFixed\(3\)\)/);
+  assert.match(price, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+  assert.match(price, /<span className="public-price__value">R\$ 26<\/span> por dia\./);
+  assert.match(art, /export function TomatoArt/);
+  assert.match(art, /export function AvocadoArt/);
+  assert.equal((art.match(/aria-hidden="true" focusable="false"/g) ?? []).length, 2);
+  assert.match(styles, /\.public-price__fruit--tomato \{[^}]*translate3d\(calc\(\(var\(--price-progress\) - 1\) \* 40vw\)/);
+  assert.match(styles, /\.public-price__fruit--avocado \{[^}]*translate3d\(calc\(\(1 - var\(--price-progress\)\) \* 40vw\)/);
   assert.match(showcase, /differentials-food-photo\.webp/);
   assert.doesNotMatch(showcase, /loading="lazy"/);
   assert.doesNotMatch(page, /Folhas Verdes|\.png'/);
@@ -137,7 +141,7 @@ test("landing hero food is framed on purpose and its decorations stay out of the
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.landing-decor \{ animation: none !important; \}/);
 });
 
-test("landing WebP assets keep transparency where the design needs it", async () => {
+test("landing WebP photo is a real WebP file", async () => {
   const header = async (name) => {
     const bytes = await readFile(`frontend/src/assets/landing/${name}`);
     assert.equal(bytes.toString("ascii", 0, 4), "RIFF", name);
@@ -145,11 +149,6 @@ test("landing WebP assets keep transparency where the design needs it", async ()
     return { chunk: bytes.toString("ascii", 12, 16), flags: bytes[20] };
   };
 
-  for (const name of ["tomato.webp", "avocado.webp"]) {
-    const { chunk, flags } = await header(name);
-    assert.equal(chunk, "VP8X", name);
-    assert.equal(Boolean(flags & 0x10), true, `${name} keeps its alpha channel`);
-  }
   await header("differentials-food-photo.webp");
 });
 

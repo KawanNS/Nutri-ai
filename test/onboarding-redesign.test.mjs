@@ -50,13 +50,12 @@ test("landing edge-food structure waits safely for approved transparent assets a
   assert.match(page, /differentials-food-photo\.webp/);
   assert.match(page, /<HeroFoodDecor\/>/);
   assert.match(page, /aria-hidden="true"/);
-  assert.match(page, /data-required-asset="tomato-transparent"/);
-  assert.match(page, /data-required-asset="avocado-transparent"/);
+  // The fruits are vector art in the price section now (see landing-page.test.mjs).
+  assert.match(page, /<PriceStatement\/>/);
   // The blurred leaf PNG was replaced by the hand-drawn SVG leaves from LandingDecor.
   assert.match(page, /<DecorLeaf className="public-hero-decor/);
-  assert.match(styles, /public-hero-food__crop--tomato/);
-  assert.match(styles, /public-hero-food__crop--avocado/);
-  assert.match(styles, /public-hero-food__crop:empty \{ display: none; \}/);
+  assert.match(styles, /\.public-price__fruit--tomato \{/);
+  assert.match(styles, /\.public-price__fruit--avocado \{/);
   assert.match(styles, /pointer-events: none/);
   assert.match(styles, /@media \(max-width: 34rem\)/);
   assert.match(showcase, /public-phone-screen--home/);
