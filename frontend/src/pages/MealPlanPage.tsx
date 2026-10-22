@@ -19,7 +19,10 @@ import type { Usage } from '../types/usage'
 import { nextMealIndex, shortDayLabel, todayPlanDay } from '../utils/mealPlanSchedule'
 import './MealPlanPage.css'
 
-interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void }
+interface MealPlanPageProps { onProfile(): void; onChat(): void; onMealPhoto(): void; onDiary(): void; onProgress(): void; onSubscription(): void }
+
+// The annual plan (R$ 159,90 / 12) is the lowest monthly price.
+const premiumFromPerMonth = 'R$ 13,33'
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
@@ -87,7 +90,7 @@ function shouldStartFreshAfter(error: unknown): boolean {
   ].includes(error.code ?? '')
 }
 
-export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgress }: MealPlanPageProps) {
+export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgress, onSubscription }: MealPlanPageProps) {
   const [usage, setUsage] = useState<Usage | null>(null), [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
   const [loading, setLoading] = useState(true), [generating, setGenerating] = useState(false), [pending, setPending] = useState(false)
   const [hasAttemptKey, setHasAttemptKey] = useState(() => sessionStorage.getItem(generationAttemptStorageKey) !== null)
@@ -153,16 +156,22 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
       <div className="mp-feedback">
         {error && <Alert variant="error" title="Não foi possível concluir">{error}{needsProfile && <Button className="mp-alert-action" variant="ghost" onClick={onProfile}>Revisar perfil</Button>}</Alert>}
         {pending && <Alert variant="info" title="Ainda montando seu plano">Ele ainda não ficou pronto. Toque em “Verificar novamente” daqui a pouco.{hasAttemptKey && <Button className="mp-alert-action" variant="secondary" loading={generating} loadingLabel="Verificando geração" onClick={() => void requestGeneration(true)}>Verificar novamente</Button>}</Alert>}
-        {limitReached && <Alert variant="info" title="Os cardápios grátis acabaram">Os planos que você já gerou continuam aqui. Para gerar novos, assine o Premium.</Alert>}
+        {limitReached && <section className="mp-offer" aria-labelledby="mp-offer-title">
+          <h2 id="mp-offer-title">Seus {usage?.freeUsesLimit ?? 3} cardápios grátis acabaram</h2>
+          <p>Os planos que você gerou continuam aqui. No Premium você gera quantos quiser, troca refeições e usa o assistente.</p>
+          <p className="mp-offer__price">A partir de <strong>{premiumFromPerMonth}</strong>/mês</p>
+          {/* The plans are right below the current plan; take the person there instead of to another page. */}
+          <Button onClick={() => document.getElementById('paywall-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Assinar o Premium</Button>
+        </section>}
       </div>
 
       {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu último plano."/></Surface> : <>
         {!mealPlan && !generating && <EmptyPlanState/>}
         {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta."/></Surface>}
-        {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto} canSwap={usage?.isPremium === true} onPlanUpdated={setMealPlan}/>}
+        {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto} canSwap={usage?.isPremium === true} onPlanUpdated={setMealPlan} onSubscription={onSubscription}/>}
 
         <section className={mealPlan ? 'mp-generate' : 'mp-generate mp-generate--first'} aria-label="Gerar plano alimentar">
-          {usage && <UsageSummary usage={usage}/>}
+          {usage && <UsageSummary usage={usage} onSubscription={onSubscription}/>}
           <Button variant={mealPlan ? 'secondary' : 'primary'} loading={generating} loadingLabel="Gerando seu plano" disabled={limitReached || pending} onClick={() => void requestGeneration(false)}>{generationLabel}</Button>
         </section>
         {limitReached && <Paywall/>}
@@ -171,10 +180,16 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
   </div>
 }
 
-function UsageSummary({ usage }: { usage: Usage }) {
+function UsageSummary({ usage, onSubscription }: { usage: Usage; onSubscription(): void }) {
   if (usage.adminAccess) return <div className="mp-usage"><Badge variant="success">Premium (admin)</Badge><span>Planos novos liberados para administradores</span></div>
   if (usage.isPremium) return <div className="mp-usage"><Badge variant="success">Premium ativo</Badge><span>Planos novos liberados pela assinatura</span></div>
-  return <div className="mp-usage"><span><strong>{usage.freeUsesAvailable}</strong> {usage.freeUsesAvailable === 1 ? 'cardápio grátis restante' : 'cardápios grátis restantes'}</span>{usage.freeUsesReserved > 0 && <small>Um plano está sendo montado.</small>}</div>
+  const used = Math.min(usage.freeUsesLimit, usage.freeUsesConsumed + usage.freeUsesReserved)
+  return <div className="mp-usage mp-usage--free">
+    <span><strong>{usage.freeUsesAvailable}</strong> {usage.freeUsesAvailable === 1 ? 'cardápio grátis restante' : 'cardápios grátis restantes'}</span>
+    <span className="mp-usage__bar" aria-hidden="true"><i style={{ width: `${usage.freeUsesLimit > 0 ? (used / usage.freeUsesLimit) * 100 : 100}%` }}/></span>
+    {usage.freeUsesReserved > 0 && <small>Um plano está sendo montado.</small>}
+    {usage.freeUsesAvailable > 0 && <button className="mp-usage__premium" type="button" onClick={onSubscription}>Conhecer o Premium <span aria-hidden="true">→</span></button>}
+  </div>
 }
 
 function EmptyPlanState() {
@@ -193,11 +208,11 @@ function dayNutrition(day: MealPlanDay): Nutrition {
   }), { caloriesKcal: 0, proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0 })
 }
 
-type SwapFeedback = { kind: 'error' | 'info' | 'success'; message: string }
+type SwapFeedback = { kind: 'error' | 'info' | 'success'; message: string; showPlans?: boolean }
 
-interface PlanContentProps { mealPlan: MealPlan; onMealPhoto(): void; canSwap: boolean; onPlanUpdated(mealPlan: MealPlan): void }
+interface PlanContentProps { mealPlan: MealPlan; onMealPhoto(): void; canSwap: boolean; onPlanUpdated(mealPlan: MealPlan): void; onSubscription(): void }
 
-function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanContentProps) {
+function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated, onSubscription }: PlanContentProps) {
   const plan = mealPlan.content
   // Read the clock once per plan view so the highlighted meal stays put while the page is open.
   const [now] = useState(() => new Date())
@@ -216,7 +231,7 @@ function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanCont
   async function requestSwap(day: number, mealIndex: number) {
     const key = `${day}-${mealIndex}`
     if (!canSwap) {
-      setSwapFeedback((current) => ({ ...current, [key]: { kind: 'info', message: 'Trocar uma refeição sem gerar o plano de novo é um recurso Premium.' } }))
+      setSwapFeedback((current) => ({ ...current, [key]: { kind: 'info', message: 'Trocar só esta refeição é do Premium. O resto do plano continua igual.', showPlans: true } }))
       return
     }
     // One swap at a time keeps the shared rate limit for real retries.
@@ -253,7 +268,7 @@ function PlanContent({ mealPlan, onMealPhoto, canSwap, onPlanUpdated }: PlanCont
           const key = `${selectedDay.day}-${index}`
           const past = next === 'done' || (typeof next === 'number' && index < next)
           // Keyed by position so an open meal stays open when a swap replaces it.
-          return <MealPresentation meal={meal} order={index} next={index === next} past={past} key={key} swapping={swappingKey === key} swapDisabled={swappingKey !== null && swappingKey !== key} feedback={swapFeedback[key]} onSwap={() => void requestSwap(selectedDay.day, index)}/>
+          return <MealPresentation meal={meal} order={index} next={index === next} past={past} key={key} swapping={swappingKey === key} swapDisabled={swappingKey !== null && swappingKey !== key} feedback={swapFeedback[key]} onSwap={() => void requestSwap(selectedDay.day, index)} onPlans={onSubscription}/>
         })}
       </ol>
     </div>}
@@ -351,9 +366,9 @@ function NextMeal({ meal, onMealPhoto }: { meal: Meal; onMealPhoto(): void }) {
   </SpotlightCard>
 }
 
-interface MealPresentationProps { meal: Meal; order: number; next: boolean; past: boolean; swapping: boolean; swapDisabled: boolean; feedback?: SwapFeedback; onSwap(): void }
+interface MealPresentationProps { meal: Meal; order: number; next: boolean; past: boolean; swapping: boolean; swapDisabled: boolean; feedback?: SwapFeedback; onSwap(): void; onPlans(): void }
 
-function MealPresentation({ meal, order, next, past, swapping, swapDisabled, feedback, onSwap }: MealPresentationProps) {
+function MealPresentation({ meal, order, next, past, swapping, swapDisabled, feedback, onSwap, onPlans }: MealPresentationProps) {
   const classes = ['mp-meal', next ? 'mp-meal--next' : '', past ? 'mp-meal--past' : '', swapping ? 'mp-meal--swapping' : ''].filter(Boolean).join(' ')
   return <li className={classes} aria-busy={swapping || undefined} style={{ '--i': order } as CSSProperties}>
     <details>
@@ -373,6 +388,6 @@ function MealPresentation({ meal, order, next, past, swapping, swapDisabled, fee
     {swapping && <p className="mp-meal__swap-status" role="status">Buscando uma alternativa equivalente…</p>}
     {feedback && (feedback.kind === 'error'
       ? <p className="mp-meal__swap-feedback mp-meal__swap-feedback--error" role="alert">{feedback.message}</p>
-      : <p className={`mp-meal__swap-feedback mp-meal__swap-feedback--${feedback.kind}`} role="status">{feedback.message}</p>)}
+      : <p className={`mp-meal__swap-feedback mp-meal__swap-feedback--${feedback.kind}`} role="status">{feedback.message}{feedback.showPlans && <button className="mp-meal__swap-plans" type="button" onClick={onPlans}>Ver planos</button>}</p>)}
   </li>
 }
