@@ -28,7 +28,9 @@ test("existing sessions still validate through auth me before loading the profil
 
   assert.match(authService, /apiRequest<CurrentUserResponse>\('\/auth\/me'\)/);
   assert.match(app, /const \{ user \} = await getCurrentUser\(\)/);
-  assert.match(app, /if \(user\.role === 'ADMIN'\) setView\('admin'\)\s*else await loadProfile\(\)/);
+  assert.match(app, /if \(user\.role === 'ADMIN'\) setView\('admin'\)\s*else await loadProfile\(profileRequest\)/);
+  // The profile is requested together with the user check, not after it.
+  assert.match(app, /const profileRequest = getProfile\(\)[\s\S]*const \{ user \} = await getCurrentUser\(\)/);
   assert.match(app, /if \(getToken\(\)\) void restoreAuthenticatedSession\(\)/);
   assert.equal((app.match(/void restoreAuthenticatedSession\(\)/g) ?? []).length, 1);
 });

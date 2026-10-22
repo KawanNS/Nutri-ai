@@ -4,12 +4,19 @@ import {
   checkAIReadiness,
   type AIReadinessResult,
 } from "../services/ai-readiness.service.js";
+import { warmUpDependencies } from "../services/warm-up.service.js";
 
 type AIReadinessChecker = () => Promise<AIReadinessResult>;
 
-export function livenessController(_request: Request, response: Response): void {
-  response.status(200).json({ status: "ok" });
+export function createLivenessController(warmUp: () => boolean = warmUpDependencies) {
+  return function livenessController(_request: Request, response: Response): void {
+    // The site calls /health on load to wake the API; use it to wake the AI gateway and database too.
+    warmUp();
+    response.status(200).json({ status: "ok" });
+  };
 }
+
+export const livenessController = createLivenessController();
 
 export function createReadinessController(
   check: AIReadinessChecker = checkAIReadiness,
