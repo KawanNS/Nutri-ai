@@ -372,7 +372,7 @@ test("provider read failure leaves Subscription and Premium unchanged", async ()
   );
   assert.equal(result.pendingAssociation, true);
   assert.equal(db.state.subscriptions.length, 0);
-  assert.equal(db.state.events[0].processingError, "PROVIDER_CONFIRMATION_FAILED");
+  assert.equal(db.state.events[0].processingError, "PROVIDER_CONFIRMATION_FAILED:GET_ORDER:UNEXPECTED_ERROR");
 });
 
 for (const event of ["pix_gerado", "boleto_gerado", "purchase_refused"]) {
@@ -421,4 +421,28 @@ test("durable identity mismatch fails closed without changing Premium", async ()
   assert.equal(result.pendingAssociation, true);
   assert.equal(db.state.subscriptions[0].providerCustomerId, "customer-original");
   assert.equal(db.state.events[0].processingError, "DURABLE_CORRELATION_MISMATCH");
+});
+
+test("a failed provider read records which step failed and how, and logs no customer data", async () => {
+  const { CaktoApiError } = await import("../dist/services/cakto-api.service.js");
+  const db = fakeBillingClient();
+  const remote = provider("purchase_approved");
+  remote.api.getOffer = async () => { throw new CaktoApiError("CAKTO_API_HTTP_ERROR", 401); };
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args);
+  try {
+    await processCaktoWebhook(
+      { secret: "not-persisted", event: "purchase_approved", data: { id: remote.orderId } },
+      { client: db.client, apiClient: remote.api, allowlist },
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(db.state.events[0].processingError, "PROVIDER_CONFIRMATION_FAILED:GET_OFFER:CAKTO_API_HTTP_ERROR:401");
+  assert.equal(db.state.subscriptions.length, 0);
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0][0], "[cakto.webhook] payment not applied");
+  assert.deepEqual(Object.keys(warnings[0][1]).sort(), ["eventType", "processingError", "webhookEventId"]);
+  assert.doesNotMatch(JSON.stringify(warnings), new RegExp(remote.orderId));
 });

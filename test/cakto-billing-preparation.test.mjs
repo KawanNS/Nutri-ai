@@ -363,6 +363,7 @@ test("Preparation fails closed on provider errors and incomplete commercial mapp
   assert.deepEqual(await prepareCaktoBillingDecision(preparationInput(), failingApi.client), {
     kind: "BLOCKED",
     reason: "PROVIDER_CONFIRMATION_FAILED",
+    detail: "GET_ORDER:UNEXPECTED_ERROR",
   });
 
   const commercialApi = fakeApi();

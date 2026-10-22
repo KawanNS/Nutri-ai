@@ -342,6 +342,11 @@ async function markEvent(
   await transaction.paymentWebhookEvent.update({ where: { id: eventId }, data });
 }
 
+/** Leaves a trace in the server logs; only internal ids and error codes, no customer data. */
+function logBlockedEvent(webhookEventId: string, eventType: string, processingError: string): void {
+  console.warn("[cakto.webhook] payment not applied", { webhookEventId, eventType, processingError });
+}
+
 async function applyPreparedEffect(
   transaction: BillingTransaction,
   eventId: string,
@@ -517,9 +522,11 @@ export async function processCaktoWebhook(
   try {
     apiClient = dependencies.apiClient ?? createConfiguredCaktoApiClient();
   } catch {
+    const processingError = "PROVIDER_CONFIRMATION_FAILED:API_CLIENT_NOT_CONFIGURED";
+    logBlockedEvent(receipt.event.id, payload.event, processingError);
     await client.paymentWebhookEvent.update({
       where: { id: receipt.event.id },
-      data: { processingError: "PROVIDER_CONFIRMATION_FAILED" },
+      data: { processingError },
     });
     return {
       duplicate: receipt.duplicate,
@@ -540,9 +547,11 @@ export async function processCaktoWebhook(
     apiClient,
   );
   if (effect.kind === "BLOCKED") {
+    const processingError = effect.detail ? `${effect.reason}:${effect.detail}` : effect.reason;
+    logBlockedEvent(receipt.event.id, payload.event, processingError);
     await client.paymentWebhookEvent.update({
       where: { id: receipt.event.id },
-      data: { processingError: effect.reason },
+      data: { processingError },
     });
     return {
       duplicate: receipt.duplicate,
@@ -562,6 +571,9 @@ export async function processCaktoWebhook(
     ),
     { isolationLevel: "Serializable" },
   );
+  if (!applied.processed && !applied.ignored && applied.reason) {
+    logBlockedEvent(receipt.event.id, payload.event, applied.reason);
+  }
   return {
     duplicate: receipt.duplicate,
     pendingAssociation: !applied.processed,
