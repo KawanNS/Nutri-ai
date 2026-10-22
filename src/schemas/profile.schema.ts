@@ -3,6 +3,7 @@ import { z } from "zod";
 function decimalField(options: {
   field: string;
   maximum: number;
+  minimum?: number;
   allowZero?: boolean;
 }) {
   return z.union([z.string(), z.number()]).transform((value, context) => {
@@ -18,9 +19,11 @@ function decimalField(options: {
     }
 
     const numericValue = Number(normalizedValue);
-    const minimumIsValid = options.allowZero
-      ? numericValue >= 0
-      : numericValue > 0;
+    const minimumIsValid = options.minimum !== undefined
+      ? numericValue >= options.minimum
+      : options.allowZero
+        ? numericValue >= 0
+        : numericValue > 0;
 
     if (!Number.isFinite(numericValue) || !minimumIsValid || numericValue > options.maximum) {
       context.addIssue({
@@ -80,8 +83,9 @@ export const profileSchema = z
   .object({
     birthDate: birthDateSchema,
     sex: z.enum(["MALE", "FEMALE", "OTHER"]),
-    heightCm: decimalField({ field: "heightCm", maximum: 999.99 }),
-    weightKg: decimalField({ field: "weightKg", maximum: 9999.99 }),
+    // Realistic adult ranges: a height typed in meters (1.53) must not become 1.53 cm.
+    heightCm: decimalField({ field: "heightCm", minimum: 50, maximum: 260 }),
+    weightKg: decimalField({ field: "weightKg", minimum: 20, maximum: 400 }),
     goal: z.enum([
       "WEIGHT_LOSS",
       "MAINTENANCE",

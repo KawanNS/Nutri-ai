@@ -40,10 +40,19 @@ function initialState(profile?: Profile, draft?: ProfileOnboardingDraft): FormSt
   }
 }
 
-function validDecimal(value: string, maximum: number, allowZero = false): boolean {
+function validDecimal(value: string, maximum: number, allowZero = false, minimum?: number): boolean {
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return false
   const number = Number(value)
-  return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) && number <= maximum
+  const aboveMinimum = minimum !== undefined ? number >= minimum : allowZero ? number >= 0 : number > 0
+  return Number.isFinite(number) && aboveMinimum && number <= maximum
+}
+
+function heightError(value: string): string | undefined {
+  if (validDecimal(value, 260, false, 50)) return undefined
+  const number = Number(value)
+  // 1.53 or 1,53 is a height in meters.
+  if (number > 0 && number < 3) return `Parece que está em metros. Use centímetros: ${value.replace('.', ',')} m = ${Math.round(number * 100)} cm.`
+  return 'Informe a altura em centímetros, entre 50 e 260. Ex.: 165.'
 }
 
 export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onChat, onDiary, onProgress }: ProfilePageProps) {
@@ -54,8 +63,9 @@ export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onC
     const errors: Record<string, string> = {}
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthDate) || form.birthDate > today()) errors.birthDate = 'Informe uma data válida e não futura.'
     if (!form.sex) errors.sex = 'Selecione o sexo.'
-    if (!validDecimal(form.heightCm, 999.99)) errors.heightCm = 'Informe uma altura entre 0,01 e 999,99 cm, com até 2 casas.'
-    if (!validDecimal(form.weightKg, 9999.99)) errors.weightKg = 'Informe um peso entre 0,01 e 9999,99 kg, com até 2 casas.'
+    const heightProblem = heightError(form.heightCm)
+    if (heightProblem) errors.heightCm = heightProblem
+    if (!validDecimal(form.weightKg, 400, false, 20)) errors.weightKg = 'Informe o peso em kg, entre 20 e 400. Ex.: 72,5.'
     if (!form.goal) errors.goal = 'Selecione um objetivo.'
     if (!form.activityLevel) errors.activityLevel = 'Selecione o nível de atividade.'
     const meals = Number(form.mealsPerDay)
@@ -87,8 +97,8 @@ export function ProfilePage({ profile, draft, required, onSaved, onMealPlan, onC
         <section className="profile-section" aria-labelledby="profile-personal-title"><div className="profile-section__heading"><h2 id="profile-personal-title">Dados pessoais</h2><p>Base dos cálculos nutricionais.</p></div><div className="profile-fields">
           <div className="field"><label htmlFor="birthDate">Data de nascimento</label><input id="birthDate" type="date" max={today()} value={form.birthDate} onChange={(event) => change('birthDate', event.target.value)}/>{fieldErrors.birthDate && <span className="field-error">{fieldErrors.birthDate}</span>}</div>
           <div className="field"><label htmlFor="sex">Sexo</label><select id="sex" value={form.sex} onChange={(event) => change('sex', event.target.value as Sex | '')}><option value="">Selecione</option>{sexOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldErrors.sex && <span className="field-error">{fieldErrors.sex}</span>}</div>
-          <div className="field"><label htmlFor="heightCm">Altura (cm)</label><input id="heightCm" type="number" inputMode="decimal" min="0.01" max="999.99" step="0.01" value={form.heightCm} onChange={(event) => change('heightCm', event.target.value)} placeholder="Ex.: 175"/>{fieldErrors.heightCm && <span className="field-error">{fieldErrors.heightCm}</span>}</div>
-          <div className="field"><label htmlFor="profileWeightKg">Peso (kg)</label><input id="profileWeightKg" type="number" inputMode="decimal" min="0.01" max="9999.99" step="0.01" value={form.weightKg} onChange={(event) => change('weightKg', event.target.value)} placeholder="Ex.: 72,5"/>{fieldErrors.weightKg && <span className="field-error">{fieldErrors.weightKg}</span>}</div>
+          <div className="field"><label htmlFor="heightCm">Altura (cm)</label><input id="heightCm" type="number" inputMode="decimal" min="50" max="260" step="0.01" value={form.heightCm} onChange={(event) => change('heightCm', event.target.value)} placeholder="Ex.: 175"/>{fieldErrors.heightCm && <span className="field-error">{fieldErrors.heightCm}</span>}</div>
+          <div className="field"><label htmlFor="profileWeightKg">Peso (kg)</label><input id="profileWeightKg" type="number" inputMode="decimal" min="20" max="400" step="0.01" value={form.weightKg} onChange={(event) => change('weightKg', event.target.value)} placeholder="Ex.: 72,5"/>{fieldErrors.weightKg && <span className="field-error">{fieldErrors.weightKg}</span>}</div>
           <div className="field"><label htmlFor="goal">Objetivo</label><select id="goal" value={form.goal} onChange={(event) => change('goal', event.target.value as Goal | '')}><option value="">Selecione</option>{goalOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldErrors.goal && <span className="field-error">{fieldErrors.goal}</span>}</div>
           <div className="field"><label htmlFor="activityLevel">Nível de atividade</label><select id="activityLevel" value={form.activityLevel} onChange={(event) => change('activityLevel', event.target.value as ActivityLevel | '')}><option value="">Selecione</option>{activityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{fieldErrors.activityLevel && <span className="field-error">{fieldErrors.activityLevel}</span>}</div>
           <div className="field"><label htmlFor="mealsPerDay">Refeições por dia</label><input id="mealsPerDay" type="number" inputMode="numeric" min="1" max="10" step="1" value={form.mealsPerDay} onChange={(event) => change('mealsPerDay', event.target.value)}/>{fieldErrors.mealsPerDay && <span className="field-error">{fieldErrors.mealsPerDay}</span>}</div>
