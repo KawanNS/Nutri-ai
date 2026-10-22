@@ -1,17 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LoginPage } from './pages/LoginPage'
-import { AdminRouterPage } from './pages/AdminRouterPage'
 import { LandingPage } from './pages/LandingPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { PlanPreviewPage } from './pages/PlanPreviewPage'
-import { MealPlanPage } from './pages/MealPlanPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { ProgressPage } from './pages/ProgressPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { ChatPage } from './pages/ChatPage'
-import { MealPhotoPage } from './pages/MealPhotoPage'
-import { DiaryPage } from './pages/DiaryPage'
-import { SubscriptionPage } from './pages/SubscriptionPage'
 import { BrandLogo } from './components/BrandLogo'
 import { AccountMenuContext, type AccountMenuValue, type PremiumState } from './components/layout/accountMenuContext'
 import { ApiError } from './services/api'
@@ -24,6 +16,17 @@ import type { AuthUser } from './types/auth'
 import type { PlanPreview } from './types/planPreview'
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
 import './App.css'
+
+// The public funnel (landing, questions, preview, sign-in) ships in the first bundle;
+// screens behind sign-in download only when opened.
+const AdminRouterPage = lazy(() => import('./pages/AdminRouterPage').then((module) => ({ default: module.AdminRouterPage })))
+const MealPlanPage = lazy(() => import('./pages/MealPlanPage').then((module) => ({ default: module.MealPlanPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const ProgressPage = lazy(() => import('./pages/ProgressPage').then((module) => ({ default: module.ProgressPage })))
+const ChatPage = lazy(() => import('./pages/ChatPage').then((module) => ({ default: module.ChatPage })))
+const MealPhotoPage = lazy(() => import('./pages/MealPhotoPage').then((module) => ({ default: module.MealPhotoPage })))
+const DiaryPage = lazy(() => import('./pages/DiaryPage').then((module) => ({ default: module.DiaryPage })))
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage').then((module) => ({ default: module.SubscriptionPage })))
 
 type View = 'landing' | 'onboarding' | 'plan-preview' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'diary' | 'profile' | 'progress' | 'subscription' | 'admin'
 

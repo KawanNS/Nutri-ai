@@ -13,6 +13,14 @@ export class ApiError extends Error {
     this.details = details
   }
 }
+/**
+ * The API sleeps when idle on the hosting plan and takes ~20-50 s to wake up.
+ * Pinging it as soon as the site opens lets it wake while the visitor reads the
+ * page or answers the questions, instead of when they ask for something.
+ */
+export function wakeApi(): void {
+  fetch(`${API_URL}/health`, { cache: 'no-store' }).catch(() => { /* Only a warm-up; failures do not matter. */ })
+}
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')

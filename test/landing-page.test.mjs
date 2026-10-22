@@ -81,7 +81,7 @@ test("public landing presents the real product without fabricated social proof",
   assert.match(page, /O pagamento só acontece depois que você entra na sua conta/);
   assert.match(page, /Nada é cobrado nesta página/);
 
-  assert.match(brand, /alyvora-logo-horizontal\.png/);
+  assert.match(brand, /alyvora-logo-horizontal\.webp/);
   assert.match(brand, /<img/);
   assert.match(brand, /alt="Alyvora"/);
   assert.doesNotMatch(brand, /<span[^>]*>Alyvora<\/span>|assets\/brand|nutri-ai/i);
