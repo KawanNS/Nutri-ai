@@ -1,11 +1,13 @@
 # Render's free plan puts the API to sleep after ~15 minutes without traffic, and the
-# next visitor waits ~50 s for it to wake up. Pinging /health every few minutes keeps it up.
-# GitHub may delay scheduled runs, so a long gap can still let it sleep now and then.
+# next visitor waits ~50 s for it to wake up. Pinging /health keeps it up.
+# GitHub often delays scheduled runs, so each run pings twice, 4 minutes apart, and the
+# schedule avoids the top of the hour, when delays are worst. A long delay can still let
+# the API sleep now and then; an external monitor (e.g. UptimeRobot) covers those gaps.
 name: Keep API awake
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-57/5 * * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -17,7 +19,11 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 8
     steps:
       - name: Ping the API
+        run: curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors https://nutri-ai-api.onrender.com/health
+      - name: Wait 4 minutes
+        run: sleep 240
+      - name: Ping the API again
         run: curl --fail --silent --show-error --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors https://nutri-ai-api.onrender.com/health
