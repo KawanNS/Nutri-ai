@@ -19,6 +19,7 @@ import { getCurrentUser } from './services/authService'
 import { getProfile } from './services/profileService'
 import { getSubscription, waitForPremiumConfirmation } from './services/billingService'
 import { AUTH_UNAUTHORIZED_EVENT, getToken, removeToken, saveRole } from './services/authToken'
+import { renewSessionIfStale } from './services/session'
 import type { AuthUser } from './types/auth'
 import type { PlanPreview } from './types/planPreview'
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
@@ -65,6 +66,7 @@ function App() {
       const { user } = await getCurrentUser()
       saveRole(user.role)
       setAccount(user)
+      void renewSessionIfStale()
       let premiumConfirmed = false
       if (user.role !== 'ADMIN') {
         const query = new URLSearchParams(window.location.search)
@@ -89,9 +91,17 @@ function App() {
     // Initial session loading synchronizes the authenticated UI with the API.
     const handleUnauthorized = () => { setProfile(undefined); resetAccount(); setLoginNotice('Sua sessão expirou. Entre novamente.'); setView('login') }
     window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized)
+    // Renewing on return to the tab, and hourly while it stays open, keeps active users signed in.
+    const renewWhenVisible = () => { if (document.visibilityState === 'visible') void renewSessionIfStale() }
+    document.addEventListener('visibilitychange', renewWhenVisible)
+    const renewal = window.setInterval(renewWhenVisible, 60 * 60 * 1000)
     // oxlint-disable-next-line react/set-state-in-effect
     if (getToken()) void restoreAuthenticatedSession()
-    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized)
+    return () => {
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized)
+      document.removeEventListener('visibilitychange', renewWhenVisible)
+      window.clearInterval(renewal)
+    }
   }, [restoreAuthenticatedSession, resetAccount])
   const logout = () => { removeToken(); setProfile(undefined); resetAccount(); setOnboardingDraft(undefined); setProgressNotice(undefined); setLoginNotice(undefined); setView('login') }
   if (view === 'landing') return <LandingPage onLogin={() => setView('login')} onRegister={() => setView('register')} onStart={() => setView('onboarding')}/>
