@@ -57,14 +57,18 @@ function App() {
     try { setAccount((await getCurrentUser()).user) }
     catch { /* The menu falls back to a generic account label. */ }
   }, [refreshPremium])
-  const loadProfile = useCallback(async () => {
-    try { const response = await getProfile(); setProfile(response.profile); setView('meal-plan') }
+  // Accepts a request already in flight, so a returning visit asks for the user and the profile at once.
+  const loadProfile = useCallback(async (profileRequest?: ReturnType<typeof getProfile>) => {
+    try { const response = await (profileRequest ?? getProfile()); setProfile(response.profile); setView('meal-plan') }
     catch (error) {
       if (error instanceof ApiError && error.status === 404) { setProfile(undefined); setView('profile') }
       else if (!(error instanceof ApiError && error.status === 401)) setView('profile-error')
     }
   }, [])
   const restoreAuthenticatedSession = useCallback(async () => {
+    // Started together with the user check instead of after it: one round trip less on every return.
+    const profileRequest = getProfile()
+    profileRequest.catch(() => { /* Handled by loadProfile; admins never read it. */ })
     try {
       const { user } = await getCurrentUser()
       saveRole(user.role)
@@ -84,7 +88,7 @@ function App() {
       if (premiumConfirmed) { premiumRequest.current += 1; setPremium('premium') }
       else void refreshPremium()
       if (user.role === 'ADMIN') setView('admin')
-      else await loadProfile()
+      else await loadProfile(profileRequest)
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 401)) setView('profile-error')
     }
