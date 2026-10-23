@@ -10,7 +10,9 @@ import {
   type GoogleIdentity,
 } from "./google-auth.service.js";
 
-const PASSWORD_SALT_ROUNDS = 12;
+// 10 is the OWASP minimum for bcrypt and ~4x cheaper than 12 on the free plan's shared CPU, where a
+// cost of 12 made every login wait 1-3 s just to check the password.
+const PASSWORD_SALT_ROUNDS = 10;
 // Active users renew the token (POST /api/auth/refresh), so only a week away signs them out.
 const TOKEN_EXPIRATION = "7d";
 
@@ -131,8 +133,22 @@ export async function login(input: LoginInput) {
     throw new AuthError(401, "Invalid email or password");
   }
 
+  if (user.passwordHash && bcrypt.getRounds(user.passwordHash) > PASSWORD_SALT_ROUNDS) {
+    void upgradePasswordHash(user.id, input.password);
+  }
+
   const { passwordHash: _passwordHash, ...publicUser } = user;
   return createSession(publicUser);
+}
+
+/** Re-hashes an older, costlier hash after a successful login, in the background. */
+async function upgradePasswordHash(userId: string, password: string): Promise<void> {
+  try {
+    const passwordHash = await bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  } catch {
+    // The old hash keeps working; the next login tries again.
+  }
 }
 
 async function resolveGoogleIdentity(verify: () => Promise<GoogleIdentity>): Promise<GoogleIdentity> {
