@@ -17,7 +17,7 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         // Images ship with each version too, so a cached screen never shows a broken logo.
-        globPatterns: ['**/*.{js,css,html,webp,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,ico}', 'assets/**/*.{webp,png,svg}'],
       },
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
