@@ -4,6 +4,7 @@ import { LandingPage } from './pages/LandingPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { PlanPreviewPage } from './pages/PlanPreviewPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { AlyvoraLoader } from './components/AlyvoraLoader'
 import { BrandLogo } from './components/BrandLogo'
 import { AccountMenuContext, type AccountMenuValue, type PremiumState } from './components/layout/accountMenuContext'
 import { ApiError } from './services/api'
@@ -117,7 +118,7 @@ function App() {
   const handleAuthenticated = (role: 'USER' | 'ADMIN') => { setLoginNotice(undefined); void loadAccount(); if (role === 'ADMIN') { setView('admin'); return } setView('checking-profile'); void loadProfile() }
   if (view === 'register') return <RegisterPage onHome={() => setView('landing')} onLogin={() => setView('login')} onRegistered={(email) => { setLoginEmail(email); setLoginNotice('Conta criada. Entre para continuar.'); setView('login') }} onAuthenticated={handleAuthenticated}/>
   if (view === 'admin' && getToken()) return <AdminRouterPage onApp={checkProfile} onLogout={logout}/>
-  if (view === 'checking-profile') return <div className="app-loading"><div className="brand"><BrandLogo/></div><span className="spinner" aria-label="Carregando perfil"/></div>
+  if (view === 'checking-profile') return <div className="app-loading"><div className="brand"><BrandLogo/></div><AlyvoraLoader size={64} label="Carregando perfil"/></div>
   if (view === 'profile-error') return <div className="app-loading"><p>Não foi possível carregar seu perfil.</p><button className="button button--primary" type="button" onClick={() => void checkProfile()}>Tentar novamente</button><button className="logout-button" type="button" onClick={logout}>Sair</button></div>
   const accountMenu: AccountMenuValue = {
     account,
