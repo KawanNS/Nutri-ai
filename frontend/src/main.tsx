@@ -1,4 +1,5 @@
 import { StrictMode, Suspense } from 'react'
+import { registerSW } from 'virtual:pwa-register'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
@@ -6,6 +7,15 @@ import { wakeApi } from './services/api'
 import { AlyvoraLoader } from './components/AlyvoraLoader'
 
 wakeApi()
+
+// With autoUpdate, the page reloads by itself once a new version is installed. Long-open tabs and
+// installed apps also check for a new version every hour.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    if (registration) window.setInterval(() => { void registration.update() }, 60 * 60 * 1000)
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

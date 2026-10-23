@@ -8,6 +8,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered from main.tsx, which reloads the page as soon as a new version takes over.
+      injectRegister: false,
+      workbox: {
+        // A new deploy replaces the old version right away and drops its caches, so a phone never
+        // keeps showing an old screen whose images no longer exist on the server.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // Images ship with each version too, so a cached screen never shows a broken logo.
+        globPatterns: ['**/*.{js,css,html,webp,png,svg,ico}'],
+      },
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Alyvora',
