@@ -258,9 +258,10 @@
   .mp-day__stats { gap: var(--space-1); }
   .mp-day__stats > div { padding: var(--space-2); }
   .mp-day__stats dd { font-size: 1.125rem; }
-  .mp-meal__body { padding-left: 0; }
+  /* The open meal stays to the right of the time rail; with no padding the rail ran through the text. */
+  .mp-meal__body,
   .mp-meal__swap-status,
-  .mp-meal__swap-feedback { padding-left: 0; }
+  .mp-meal__swap-feedback { padding-left: calc(var(--rail-x) + var(--space-3)); }
   .mp-shopping { grid-template-columns: 1fr; }
 }
 
