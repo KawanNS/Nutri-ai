@@ -21,6 +21,22 @@ export class ApiError extends Error {
 export function wakeApi(): void {
   fetch(`${API_URL}/health`, { cache: 'no-store' }).catch(() => { /* Only a warm-up; failures do not matter. */ })
 }
+/**
+ * Retries a request while the failure looks like the API still waking up (network error or 5xx),
+ * for up to ~1 minute. 4xx answers are real answers and return right away.
+ */
+export async function retryWhileWaking<T>(request: () => Promise<T>, retryDelayMs = 4000, giveUpAfterMs = 60_000): Promise<T> {
+  const started = Date.now()
+  for (;;) {
+    try {
+      return await request()
+    } catch (error) {
+      const transient = !(error instanceof ApiError) || error.status >= 500
+      if (!transient || Date.now() - started + retryDelayMs > giveUpAfterMs) throw error
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+    }
+  }
+}
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')

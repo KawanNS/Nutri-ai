@@ -5,7 +5,8 @@ import { GoogleSignInButton } from '../components/auth/GoogleSignInButton'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/FormField'
-import { ApiError } from '../services/api'
+import { WakingHint } from '../components/WakingHint'
+import { ApiError, retryWhileWaking } from '../services/api'
 import { login, loginWithGoogleCode } from '../services/authService'
 import { saveRole, saveToken } from '../services/authToken'
 
@@ -37,7 +38,7 @@ export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegist
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (submitting) return
     setSubmitting(true); setError(null)
-    try { const response = await login({ email: email.trim(), password }); saveToken(response.token); saveRole(response.user.role); onAuthenticated(response.user.role) }
+    try { const response = await retryWhileWaking(() => login({ email: email.trim(), password })); saveToken(response.token); saveRole(response.user.role); onAuthenticated(response.user.role) }
     catch (requestError) { setError(requestError instanceof ApiError && requestError.status === 401 ? 'E-mail ou senha incorretos.' : 'Não foi possível entrar agora. Tente novamente.') }
     finally { setSubmitting(false) }
   }
@@ -82,6 +83,7 @@ export function LoginPage({ initialEmail = '', notice, onAuthenticated, onRegist
         placeholder="Sua senha"
       />
       <Button type="submit" fullWidth loading={submitting} loadingLabel="Entrando">Entrar <span aria-hidden="true">→</span></Button>
+      {submitting && <WakingHint/>}
     </form>
     <div className="auth-shell__separator"><span>ou</span></div>
     <GoogleSignInButton disabled={submitting} onCode={(code) => void handleGoogleCode(code)} onError={setError}/>

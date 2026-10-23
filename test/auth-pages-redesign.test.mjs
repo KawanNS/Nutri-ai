@@ -13,7 +13,7 @@ test("login and registration redesign preserve auth behavior and accessible cont
     readFile("frontend/src/App.tsx", "utf8"),
   ]);
 
-  assert.match(login, /await login\(\{ email: email\.trim\(\), password \}\)/);
+  assert.match(login, /await retryWhileWaking\(\(\) => login\(\{ email: email\.trim\(\), password \}\)\)/);
   assert.match(login, /saveToken\(response\.token\)/);
   assert.match(login, /saveRole\(response\.user\.role\)/);
   assert.match(login, /onAuthenticated\(response\.user\.role\)/);
