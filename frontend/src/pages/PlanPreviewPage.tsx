@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { AlyvoraLoader } from '../components/AlyvoraLoader'
 import { BrandLogo } from '../components/BrandLogo'
 import { MacroBar } from '../components/motion/MacroBar'
 import { Alert } from '../components/ui/Alert'
@@ -59,7 +60,7 @@ function PreviewLoading() {
   // Eases toward 95% and never claims to be done before the answer arrives.
   const progress = Math.round(95 * (1 - Math.exp(-seconds / 11)))
   return <div className="plan-preview__loading" role="status" aria-live="polite">
-    <span className="ui-loading__spinner" aria-hidden="true"/>
+    <AlyvoraLoader size={88}/>
     <strong>Montando sua segunda-feira</strong>
     <p className="plan-preview__loading-step">{step}</p>
     <span className="plan-preview__progress" aria-hidden="true"><i style={{ width: `${progress}%` }}/></span>

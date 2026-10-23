@@ -1,0 +1,18 @@
+.alyvora-loader { display: block; overflow: visible; }
+.alyvora-loader__trace { fill: none; stroke: #fff; stroke-width: 110; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: 2.6s cubic-bezier(.45, 0, .25, 1) infinite; }
+.alyvora-loader__trace--1 { animation-name: alyvora-trace-1; }
+.alyvora-loader__trace--2 { animation-name: alyvora-trace-2; }
+.alyvora-loader__trace--3 { animation-name: alyvora-trace-3; }
+.alyvora-loader__mark { animation: alyvora-mark 2.6s ease-in-out infinite; }
+
+/* Left leaf, then right leaf, then the swoosh; the whole mark rests, fades and starts over. */
+@keyframes alyvora-trace-1 { 0% { stroke-dashoffset: 1; } 24%, 100% { stroke-dashoffset: 0; } }
+@keyframes alyvora-trace-2 { 0%, 18% { stroke-dashoffset: 1; } 46%, 100% { stroke-dashoffset: 0; } }
+@keyframes alyvora-trace-3 { 0%, 40% { stroke-dashoffset: 1; } 64%, 100% { stroke-dashoffset: 0; } }
+@keyframes alyvora-mark { 0%, 78% { opacity: 1; transform: scale(1); } 92% { opacity: 0; transform: scale(.96); } 100% { opacity: 0; } }
+.alyvora-loader__mark { transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .alyvora-loader__trace { animation: none; stroke-dashoffset: 0; }
+  .alyvora-loader__mark { animation: none; }
+}
