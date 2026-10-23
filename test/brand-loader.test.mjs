@@ -10,10 +10,14 @@ test("loading screens draw the Alyvora A piece by piece", async () => {
     readFile("frontend/src/App.tsx", "utf8"),
     readFile("frontend/src/main.tsx", "utf8"),
   ]);
-  // Three pieces (left leaf, right leaf, swoosh), each revealed by its own traced mask.
-  assert.equal((loader.match(/<mask /g) ?? []).length, 3);
-  for (const piece of [1, 2, 3]) assert.match(css, new RegExp(`@keyframes alyvora-trace-${piece} `));
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*stroke-dashoffset: 0;/);
+  // Three pieces grow in turn. No SVG masks: Safari does not animate inside them, so the A stayed invisible on iPhone.
+  assert.doesNotMatch(loader, /<mask /);
+  for (const piece of [1, 2, 3]) {
+    assert.match(loader, new RegExp(`alyvora-loader__piece--${piece}`));
+    assert.match(css, new RegExp(`@keyframes alyvora-piece-${piece} `));
+  }
+  assert.match(css, /\.alyvora-loader__piece \{ transform-box: fill-box;/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s+\.alyvora-loader__piece \{ opacity: 1; animation: none; \}/);
   assert.match(preview, /<AlyvoraLoader size=\{88\}\/>/);
   assert.match(app, /<AlyvoraLoader size=\{64\} label="Carregando perfil"\/>/);
   assert.match(main, /<AlyvoraLoader size=\{64\} label="Carregando"\/>/);
