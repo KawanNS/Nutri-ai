@@ -70,5 +70,6 @@ test("the preview signs up with Google and the first week starts from it", async
   assert.match(mealPlan, /const firstDayMeals = mealPlan \? undefined : loadPreviewFirstDay\(\)/);
   assert.match(mealPlan, /if \(loading \|\| autoStarted\.current \|\| mealPlan \|\| pending \|\| !usage \|\| limitReached \|\| !loadPreviewFirstDay\(\)\) return/);
   assert.match(mealPlan, /clearGenerationAttempt\(\); clearPreviewFirstDay\(\)/);
-  assert.match(service, /body: JSON\.stringify\(firstDayMeals\?\.length \? \{ firstDayMeals \} : \{\}\)/);
+  assert.match(service, /return await request\(\{ firstDayMeals \}\)/);
+  assert.match(service, /error\.code === 'INVALID_GENERATION_BODY'\) return request\(\{\}\)/);
 });
