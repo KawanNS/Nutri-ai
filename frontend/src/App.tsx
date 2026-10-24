@@ -114,9 +114,9 @@ function App() {
   }, [restoreAuthenticatedSession, resetAccount])
   const logout = () => { removeToken(); setProfile(undefined); resetAccount(); setOnboardingDraft(undefined); setProgressNotice(undefined); setLoginNotice(undefined); setView('login') }
   if (view === 'landing') return <LandingPage onLogin={() => setView('login')} onRegister={() => setView('register')} onStart={() => setView('onboarding')}/>
-  if (view === 'onboarding') return <OnboardingPage initial={onboardingDraft} onBack={() => setView('landing')} onComplete={(draft) => { if (JSON.stringify(draft) !== JSON.stringify(onboardingDraft)) setPlanPreview(undefined); setOnboardingDraft(draft); setView('plan-preview') }}/>
-  if (view === 'plan-preview' && onboardingDraft) return <PlanPreviewPage draft={onboardingDraft} preview={planPreview} onLoaded={handlePreviewLoaded} onBack={() => setView('onboarding')} onRegister={() => setView('register')} onHome={() => setView('landing')}/>
   const handleAuthenticated = (role: 'USER' | 'ADMIN') => { setLoginNotice(undefined); void loadAccount(); if (role === 'ADMIN') { setView('admin'); return } setView('checking-profile'); void loadProfile() }
+  if (view === 'onboarding') return <OnboardingPage initial={onboardingDraft} onBack={() => setView('landing')} onComplete={(draft) => { if (JSON.stringify(draft) !== JSON.stringify(onboardingDraft)) setPlanPreview(undefined); setOnboardingDraft(draft); setView('plan-preview') }}/>
+  if (view === 'plan-preview' && onboardingDraft) return <PlanPreviewPage draft={onboardingDraft} preview={planPreview} onLoaded={handlePreviewLoaded} onBack={() => setView('onboarding')} onRegister={() => setView('register')} onAuthenticated={handleAuthenticated} onHome={() => setView('landing')}/>
   if (view === 'register') return <RegisterPage onHome={() => setView('landing')} onLogin={() => setView('login')} onRegistered={(email) => { setLoginEmail(email); setLoginNotice('Conta criada. Entre para continuar.'); setView('login') }} onAuthenticated={handleAuthenticated}/>
   if (view === 'admin' && getToken()) return <AdminRouterPage onApp={checkProfile} onLogout={logout}/>
   if (view === 'checking-profile') return <div className="app-loading"><div className="brand"><BrandLogo/></div><AlyvoraLoader size={64} label="Carregando perfil"/><WakingHint/></div>

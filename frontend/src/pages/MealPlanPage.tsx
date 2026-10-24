@@ -7,6 +7,7 @@ import { LoadingState } from '../components/ui/LoadingState'
 import { Surface } from '../components/ui/Surface'
 import { ApiError } from '../services/api'
 import { generateMealPlan, getMealPlan, listLatestMealPlan, swapMeal } from '../services/mealPlanService'
+import { clearPreviewFirstDay, loadPreviewFirstDay } from '../services/previewSeed'
 import { getUsage } from '../services/usageService'
 import { getSubscription } from '../services/billingService'
 import { Paywall } from '../components/Paywall'
@@ -96,6 +97,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
   const [hasAttemptKey, setHasAttemptKey] = useState(() => sessionStorage.getItem(generationAttemptStorageKey) !== null)
   const [error, setError] = useState<string | null>(null)
   const attemptKey = useRef<string | null>(sessionStorage.getItem(generationAttemptStorageKey)), generatingRef = useRef(false)
+  const [fromPreview, setFromPreview] = useState(false), autoStarted = useRef(false)
 
   function clearGenerationAttempt() {
     attemptKey.current = null
@@ -111,8 +113,11 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
       setUsage({ ...currentUsage, ...subscription })
       setPending(currentUsage.freeUsesReserved > 0)
       if (currentUsage.freeUsesReserved === 0) clearGenerationAttempt()
-      if (list.mealPlans[0]) setMealPlan((await getMealPlan(list.mealPlans[0].id)).mealPlan)
-      else setMealPlan(null)
+      if (list.mealPlans[0]) {
+        // An account that already has a week (say, an old Google account) keeps it; the preview is not reused.
+        clearPreviewFirstDay()
+        setMealPlan((await getMealPlan(list.mealPlans[0].id)).mealPlan)
+      } else setMealPlan(null)
     } catch (requestError) {
       if (!(requestError instanceof ApiError && requestError.status === 401)) setError(errorMessage(requestError))
     } finally { setLoading(false) }
@@ -129,10 +134,13 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
     if (useExistingKey && !attemptKey.current) return
     const key = useExistingKey && attemptKey.current ? attemptKey.current : crypto.randomUUID()
     attemptKey.current = key; sessionStorage.setItem(generationAttemptStorageKey, key); setHasAttemptKey(true); generatingRef.current = true; setGenerating(true); setError(null)
+    // Only the first week starts from the preview's Monday.
+    const firstDayMeals = mealPlan ? undefined : loadPreviewFirstDay()
+    setFromPreview(Boolean(firstDayMeals))
     try {
-      const response = await generateMealPlan(key)
+      const response = await generateMealPlan(key, firstDayMeals)
       if ('status' in response) { setPending(true); return }
-      setMealPlan(response.mealPlan); setUsage((current) => current ? { ...current, ...response.usage } : response.usage); setPending(false); clearGenerationAttempt()
+      setMealPlan(response.mealPlan); setUsage((current) => current ? { ...current, ...response.usage } : response.usage); setPending(false); clearGenerationAttempt(); clearPreviewFirstDay()
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.code === 'FREE_USAGE_LIMIT_REACHED') {
         setUsage((current) => current ? { ...current, freeUsesAvailable: 0 } : current)
@@ -143,6 +151,15 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
   }
 
   const needsProfile = error?.includes('perfil'), limitReached = usage?.isPremium === false && usage.freeUsesAvailable === 0
+
+  useEffect(() => {
+    // Someone who just signed up from the preview lands here with no plan: build the week from that Monday
+    // right away instead of making them find the button.
+    if (loading || autoStarted.current || mealPlan || pending || !usage || limitReached || !loadPreviewFirstDay()) return
+    autoStarted.current = true
+    // oxlint-disable-next-line react/set-state-in-effect
+    void requestGeneration(false)
+  })
   const generationLabel = mealPlan ? 'Gerar novo plano' : 'Gerar meu plano'
 
   return <div className="app-shell"><AppTopbar active="meal-plan" onChat={onChat} onDiary={onDiary} onProgress={onProgress}/>
@@ -167,7 +184,7 @@ export function MealPlanPage({ onProfile, onChat, onMealPhoto, onDiary, onProgre
 
       {loading ? <Surface className="mp-state" level="base"><LoadingState label="Carregando seu plano alimentar" description="Buscando seu último plano."/></Surface> : <>
         {!mealPlan && !generating && <EmptyPlanState/>}
-        {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description="Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta."/></Surface>}
+        {generating && <Surface className="mp-state mp-state--generation" level="soft"><LoadingState label="Montando seu plano alimentar…" description={fromPreview ? 'Começando pela segunda-feira que você viu, com as quantidades do seu corpo. Mais seis dias e a lista de compras; deixe esta página aberta.' : 'Sete dias de refeições, com preparo e lista de compras. Leva um tempinho; deixe esta página aberta.'}/></Surface>}
         {mealPlan && !generating && <PlanContent key={mealPlan.id} mealPlan={mealPlan} onMealPhoto={onMealPhoto} canSwap={usage?.isPremium === true} onPlanUpdated={setMealPlan} onSubscription={onSubscription}/>}
 
         <section className={mealPlan ? 'mp-generate' : 'mp-generate mp-generate--first'} aria-label="Gerar plano alimentar">
