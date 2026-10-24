@@ -181,10 +181,11 @@ test("onboarding asks about allergies before showing the preview, then sign-up k
   assert.match(app, /if \(JSON\.stringify\(draft\) !== JSON\.stringify\(onboardingDraft\)\) setPlanPreview\(undefined\)/);
   assert.match(app, /onRegister=\{\(\) => setView\('register'\)\}/);
   assert.match(profile, /foodAllergies: profile\?\.foodAllergies \?\? draft\?\.foodAllergies \?\? \[\]/);
-  // The preview screen: approximate amounts, the rest of the week locked behind a free account.
+  // The preview screen: approximate amounts, the rest of the week behind a free account that keeps this Monday.
   assert.match(preview, /Sua segunda-feira/);
   assert.match(preview, /Quantidades aproximadas: ajustamos ao seu corpo quando você completar o perfil\./);
-  assert.match(preview, /Mais 6 dias e a lista de compras/);
-  assert.match(preview, /Criar conta e ver a semana/);
+  assert.match(preview, /Salve esta segunda-feira e veja a semana/);
+  assert.match(preview, /mais 6 dias e a lista de compras/);
+  assert.match(preview, /Prefiro usar e-mail/);
   assert.match(preview, /if \(preview \|\| requested\.current === attempt\) return/);
 });

@@ -6,6 +6,7 @@ import {
   type MealPlanPrompt,
 } from "../prompts/meal-plan.prompt.js";
 import {
+  type FirstDayMeal,
   type GeneratedMealPlan,
   validateGeneratedMealPlan,
 } from "../schemas/meal-plan.schema.js";
@@ -144,6 +145,7 @@ export function createProfileSnapshot(profile: Profile): ProfileSnapshot {
 
 export async function prepareMealPlanGeneration(
   userId: string,
+  firstDayMeals?: FirstDayMeal[],
 ): Promise<MealPlanGenerationContext> {
   const profile = await prisma.profile.findUnique({ where: { userId } });
 
@@ -159,7 +161,7 @@ export async function prepareMealPlanGeneration(
 
   return {
     profileSnapshot,
-    prompt: buildMealPlanPrompt(profileSnapshot),
+    prompt: buildMealPlanPrompt(profileSnapshot, firstDayMeals),
   };
 }
 

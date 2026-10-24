@@ -53,7 +53,7 @@ test("meal-plan redesign presents every real state without inventing product beh
   assert.match(source, /usage\.freeUsesAvailable/);
   assert.match(source, /usage\.isPremium/);
   assert.match(source, /limitReached && <Paywall\/>/);
-  assert.match(source, /generateMealPlan\(key\)/);
+  assert.match(source, /generateMealPlan\(key, firstDayMeals\)/);
   assert.match(source, /getUsage\(\), listLatestMealPlan\(\), getSubscription\(\)/);
 
   // All seven days fit at iPhone width (no sideways scrolling) and every tab is a full touch target.

@@ -6,7 +6,7 @@ import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { FormField } from '../components/ui/FormField'
 import { ApiError } from '../services/api'
-import { loginWithGoogleCode, register } from '../services/authService'
+import { login, loginWithGoogleCode, register } from '../services/authService'
 import { saveRole, saveToken } from '../services/authToken'
 
 interface RegisterPageProps { onLogin(): void; onRegistered(email: string): void; onAuthenticated(role: 'USER' | 'ADMIN'): void; onHome(): void }
@@ -37,8 +37,14 @@ export function RegisterPage({ onLogin, onRegistered, onAuthenticated, onHome }:
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (submitting) return
     setSubmitting(true); setError(null)
-    try { await register({ name: name.trim(), email: email.trim(), password }); onRegistered(email.trim()) }
-    catch (requestError) { setError(requestError instanceof ApiError && requestError.status === 409 ? 'Este e-mail já está cadastrado.' : 'Não foi possível criar sua conta agora. Tente novamente.') }
+    try { await register({ name: name.trim(), email: email.trim(), password }) }
+    catch (requestError) {
+      setError(requestError instanceof ApiError && requestError.status === 409 ? 'Este e-mail já está cadastrado.' : 'Não foi possível criar sua conta agora. Tente novamente.')
+      setSubmitting(false); return
+    }
+    // Straight into the app with the password just typed; only if that fails, the login screen asks again.
+    try { const response = await login({ email: email.trim(), password }); saveToken(response.token); saveRole(response.user.role); onAuthenticated(response.user.role) }
+    catch { onRegistered(email.trim()) }
     finally { setSubmitting(false) }
   }
   return <AuthLayout

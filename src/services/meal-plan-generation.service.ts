@@ -1,4 +1,5 @@
 import { MEAL_PLAN_PROMPT_VERSION } from "../prompts/meal-plan.prompt.js";
+import type { FirstDayMeal } from "../schemas/meal-plan.schema.js";
 import {
   getMealPlanByUsageEvent,
   getMealPlanGenerationState,
@@ -54,8 +55,9 @@ export async function generateMealPlan(
   userId: string,
   idempotencyKey: string,
   dependencies: GenerationDependencies = defaultDependencies,
+  options: { firstDayMeals?: FirstDayMeal[] } = {},
 ) {
-  const context = await dependencies.prepare(userId);
+  const context = await dependencies.prepare(userId, options.firstDayMeals);
   const reservation = await dependencies.reserve(
     userId,
     "PLAN_GENERATION",

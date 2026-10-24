@@ -103,7 +103,22 @@ export const mealPlanListQuerySchema = z
   })
   .strict();
 
-export const generateMealPlanBodySchema = z.object({}).strict();
+/** A meal the visitor already saw in the public preview: names only, quantities are recalculated. */
+const firstDayMealSchema = z
+  .object({
+    name: boundedText(100),
+    foods: z.array(boundedText(120)).min(1).max(20),
+  })
+  .strict();
+
+export const generateMealPlanBodySchema = z
+  .object({
+    // Monday from the preview the person saw before creating the account; the week starts from it.
+    firstDayMeals: z.array(firstDayMealSchema).min(1).max(10).optional(),
+  })
+  .strict();
+
+export type FirstDayMeal = z.infer<typeof firstDayMealSchema>;
 
 export type GeneratedMeal = z.infer<typeof mealSchema>;
 

@@ -80,14 +80,16 @@ export async function generateMealPlanController(
 
   if (!body.success) {
     response.status(400).json({
-      error: "Request body must be empty",
+      error: "Invalid generation body",
       code: "INVALID_GENERATION_BODY",
     });
     return;
   }
 
   try {
-    const result = await generateMealPlan(userId, idempotencyKey.data);
+    const result = await generateMealPlan(userId, idempotencyKey.data, undefined, {
+      firstDayMeals: body.data.firstDayMeals,
+    });
 
     if (result.outcome === "PENDING") {
       response.status(202).json({

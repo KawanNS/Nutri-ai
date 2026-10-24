@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlyvoraLoader } from '../components/AlyvoraLoader'
 import { BrandLogo } from '../components/BrandLogo'
+import { GoogleSignInButton } from '../components/auth/GoogleSignInButton'
 import { MacroBar } from '../components/motion/MacroBar'
 import { Alert } from '../components/ui/Alert'
 import { Button } from '../components/ui/Button'
 import { ApiError } from '../services/api'
+import { loginWithGoogleCode } from '../services/authService'
+import { saveRole, saveToken } from '../services/authToken'
+import { googleAuthErrorMessage } from '../services/googleAuthErrors'
+import { savePreviewFirstDay } from '../services/previewSeed'
 import { getPlanPreviewWithRetry } from '../services/planPreviewService'
 import type { PlanPreview } from '../types/planPreview'
 import type { Goal, ProfileOnboardingDraft } from '../types/profile'
+import '../components/AuthLayout.css'
 import './PlanPreviewPage.css'
 
 interface Props {
@@ -17,6 +23,8 @@ interface Props {
   onLoaded(preview: PlanPreview): void
   onBack(): void
   onRegister(): void
+  /** Google sign-up right on the preview; the app then asks only for the body data the preview did not need. */
+  onAuthenticated(role: 'USER' | 'ADMIN'): void
   onHome(): void
 }
 
@@ -75,7 +83,7 @@ function errorMessage(error: unknown): string {
   return 'Não deu para montar a prévia agora. Tente de novo ou crie sua conta para ver o plano completo.'
 }
 
-export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, onHome }: Props) {
+export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, onAuthenticated, onHome }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(!preview)
   const [attempt, setAttempt] = useState(0)
@@ -90,6 +98,28 @@ export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, 
       .catch((requestError: unknown) => setError(errorMessage(requestError)))
       .finally(() => setLoading(false))
   }, [attempt, draft, preview, onLoaded])
+
+  const [signingUp, setSigningUp] = useState(false)
+  const [signUpError, setSignUpError] = useState<string | null>(null)
+
+  async function handleGoogleCode(code: string) {
+    if (signingUp || !preview) return
+    setSigningUp(true); setSignUpError(null)
+    // Saved before the account exists: the first real plan starts from this Monday.
+    savePreviewFirstDay(preview)
+    try {
+      const response = await loginWithGoogleCode(code)
+      saveToken(response.token); saveRole(response.user.role); onAuthenticated(response.user.role)
+    } catch (requestError) {
+      setSignUpError(googleAuthErrorMessage(requestError))
+      setSigningUp(false)
+    }
+  }
+
+  function registerWithEmail() {
+    if (preview) savePreviewFirstDay(preview)
+    onRegister()
+  }
 
   function retry() {
     setError(null)
@@ -135,9 +165,11 @@ export function PlanPreviewPage({ draft, preview, onLoaded, onBack, onRegister, 
 
         <section className="plan-preview__locked" aria-labelledby="plan-preview-locked-title">
           <div className="plan-preview__days" aria-hidden="true">{lockedDays.map((day) => <span key={day}>{day}</span>)}<svg className="plan-preview__lock" viewBox="0 0 24 24" focusable="false"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
-          <h2 id="plan-preview-locked-title">Mais 6 dias e a lista de compras</h2>
-          <p>Crie sua conta grátis para ver a semana inteira. Sem cartão.</p>
-          <Button fullWidth onClick={onRegister}>Criar conta e ver a semana <span aria-hidden="true">→</span></Button>
+          <h2 id="plan-preview-locked-title">Salve esta segunda-feira e veja a semana</h2>
+          <p>Sua semana começa com estas refeições, mais 6 dias e a lista de compras. Grátis, sem cartão.</p>
+          {signUpError && <Alert variant="error">{signUpError}</Alert>}
+          <GoogleSignInButton disabled={signingUp} onCode={(code) => void handleGoogleCode(code)} onError={setSignUpError}/>
+          <button className="plan-preview__email" type="button" disabled={signingUp} onClick={registerWithEmail}>Prefiro usar e-mail</button>
         </section>
       </>}
     </main>
