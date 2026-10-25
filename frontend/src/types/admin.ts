@@ -12,3 +12,9 @@ export interface UsageResponse { summary: { calls: number; successfulCalls: numb
 export interface CostResponse { costs: { totalCalls: number; callsWithKnownCost: number; callsWithUnknownCost: number; totals: Array<{ currency: string; amountMicros: string }> } }
 export interface AuditItem { action: 'CREATE' | 'UPDATE'; task: AIRouterTask; previousRoute: AdminRoute; currentRoute: AdminRoute; actorUserId: string; changedAt: string }
 export interface AuditResponse { items: AuditItem[]; pagination: Pagination }
+
+export type FunnelPeriod = 7 | 14 | 30
+export interface FunnelTotals { previews: number; previewFailures: number; accounts: number; profiles: number; firstPlans: number; checkouts: number; subscriptions: number }
+export interface FunnelAccount { name: string; createdAt: string; hasProfile: boolean; mealPlans: number; checkoutAttempts: number; isPremium: boolean }
+export interface AdminFunnel { periodDays: FunnelPeriod; since: string; totals: FunnelTotals; days: Array<{ date: string; previews: number; accounts: number }>; latestAccounts: FunnelAccount[] }
+export interface AdminFunnelResponse { funnel: AdminFunnel }
