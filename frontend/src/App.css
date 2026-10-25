@@ -167,6 +167,8 @@
 .admin-badge { border: 1px solid #c8d9c5; border-radius: 999px; padding: 4px 8px; color: var(--green-dark); background: var(--green-pale); font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .admin-page { display: grid; gap: 18px; }
 .admin-page > .page-heading { margin-bottom: 10px; }
+/* Grid children default to min-width:auto; wide tables then pushed the whole Admin page past a phone's width. */
+.admin-page > * { min-width: 0; }
 .admin-metrics { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
 .admin-metrics article { min-width: 0; padding: 18px; border-top: 3px solid var(--green); border-radius: 8px 8px 16px 16px; background: var(--surface); box-shadow: var(--shadow); }
 .admin-metrics span { display: block; margin-bottom: 10px; color: var(--muted); font-size: .78rem; font-weight: 700; }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ApiError } from '../services/api'
 import { BrandLogo } from '../components/BrandLogo'
+import { AdminFunnel } from '../components/admin/AdminFunnel'
 import { listAdminAudit, listAdminCosts, listAdminModels, listAdminProviders, listAdminRoutes, listAdminUsage, updateAdminRoute, type AdminFilters } from '../services/adminService'
 import type { AdminModel, AdminProvider, AdminRoute, AuditItem, CostResponse, UsageResponse } from '../types/admin'
 
@@ -61,7 +62,7 @@ export function AdminRouterPage({ onApp, onLogout }: Props) {
   }
 
   return <div className="app-shell admin-shell"><header className="topbar"><div className="topbar__content"><div className="brand"><BrandLogo/><span className="admin-badge">Admin</span></div><nav className="topbar__actions" aria-label="Navegação administrativa"><button className="nav-button" type="button" onClick={onApp}>Ir para o app</button><button className="logout-button" type="button" onClick={onLogout}>Sair</button></nav></div></header>
-    <main className="page admin-page"><div className="page-heading"><div><p className="eyebrow">AI Router</p><h1>Operação da inteligência</h1><p>Rotas, saúde e uso da IA do Nutri-AI, sem expor credenciais ou conteúdo dos usuários.</p></div><button className="button button--secondary" type="button" disabled={loading} onClick={() => void load()}>{loading ? 'Atualizando…' : 'Atualizar dados'}</button></div>
+    <main className="page admin-page"><AdminFunnel/><div className="page-heading"><div><p className="eyebrow">AI Router</p><h1>Operação da inteligência</h1><p>Rotas, saúde e uso da IA do Nutri-AI, sem expor credenciais ou conteúdo dos usuários.</p></div><button className="button button--secondary" type="button" disabled={loading} onClick={() => void load()}>{loading ? 'Atualizando…' : 'Atualizar dados'}</button></div>
       {error && <div className="notice notice--error" role="alert">{error}</div>}{notice && <div className="notice notice--success" role="status">{notice}</div>}
       {loading && !data ? <div className="panel loading"><span className="spinner" aria-label="Carregando painel administrativo"/></div> : data && <>
         <section className="admin-metrics" aria-label="Resumo de uso"><article><span>Chamadas</span><strong>{integer.format(data.usage.summary.calls)}</strong></article><article><span>Sucesso</span><strong>{integer.format(data.usage.summary.successfulCalls)}</strong></article><article><span>Falhas</span><strong>{integer.format(data.usage.summary.failedCalls)}</strong></article><article><span>Latência média</span><strong>{data.usage.summary.latency.averageMs === null ? '—' : `${decimal.format(data.usage.summary.latency.averageMs)} ms`}</strong></article><article><span>Tokens</span><strong>{data.usage.summary.usage.totalTokens === null ? '—' : integer.format(data.usage.summary.usage.totalTokens)}</strong></article></section>

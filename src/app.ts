@@ -13,6 +13,7 @@ import { progressRouter } from "./routes/progress.routes.js";
 import { usageControlRouter } from "./routes/usage-control.routes.js";
 import { billingRouter } from "./routes/billing.routes.js";
 import { caktoWebhookRouter } from "./routes/cakto-webhook.routes.js";
+import { adminFunnelRouter } from "./routes/admin-funnel.routes.js";
 import { aiRouterAdminRouter } from "./routes/ai-router-admin.routes.js";
 import { chatRouter } from "./routes/chat.routes.js";
 import { mealPhotoRouter } from "./routes/meal-photo.routes.js";
@@ -60,5 +61,6 @@ app.use("/api/meal-photo", mealPhotoRouter);
 app.use("/api/food-logs", foodLogRouter);
 app.use("/api/plan-preview", planPreviewRouter);
 app.use("/api/admin/ai-router", aiRouterAdminRouter);
+app.use("/api/admin/funnel", adminFunnelRouter);
 
 export { app };

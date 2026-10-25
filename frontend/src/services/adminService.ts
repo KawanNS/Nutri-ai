@@ -1,4 +1,4 @@
-import type { AdminModel, AdminProvider, AdminRoute, AIRouterProvider, AIRouterTask, AuditResponse, CostResponse, UsageResponse } from '../types/admin'
+import type { AdminFunnelResponse, AdminModel, AdminProvider, AdminRoute, AIRouterProvider, AIRouterTask, AuditResponse, CostResponse, FunnelPeriod, UsageResponse } from '../types/admin'
 import { apiRequest } from './api'
 
 export interface AdminFilters { task?: string; provider?: string; model?: string; status?: string; from?: string; to?: string }
@@ -14,3 +14,4 @@ export const listAdminUsage = (filters: AdminFilters) => apiRequest<UsageRespons
 export const listAdminCosts = (filters: AdminFilters) => apiRequest<CostResponse>(`/api/admin/ai-router/costs?${query(filters)}`)
 export const listAdminAudit = (filters: Pick<AdminFilters, 'task' | 'from' | 'to'>) => apiRequest<AuditResponse>(`/api/admin/ai-router/audit?${query(filters)}`)
 export const updateAdminRoute = (task: AIRouterTask, input: { provider: AIRouterProvider; model: string; enabled: boolean; expectedVersion: number }) => apiRequest<{ route: AdminRoute }>(`/api/admin/ai-router/routes/${encodeURIComponent(task)}`, { method: 'PUT', body: JSON.stringify(input) })
+export const getAdminFunnel = (days: FunnelPeriod) => apiRequest<AdminFunnelResponse>(`/api/admin/funnel?days=${days}`)
