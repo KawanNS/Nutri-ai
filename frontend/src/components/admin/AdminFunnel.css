@@ -27,6 +27,9 @@
 .admin-funnel__legend--previews { color: var(--green-strong); font-weight: 700; }
 .admin-funnel__legend--accounts { color: var(--brand-orange); font-weight: 700; }
 
+.admin-funnel__link { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-funnel__link code { min-width: 0; overflow-wrap: anywhere; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: .8rem; }
+
 @media (max-width: 980px) { .admin-funnel__grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) {
   .admin-funnel__metrics { grid-template-columns: 1fr 1fr; }

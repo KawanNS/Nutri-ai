@@ -9,6 +9,8 @@ const integer = new Intl.NumberFormat('pt-BR')
 const shortDateTime = (value: string) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).format(new Date(value))
 const dayLabel = (date: string) => date.slice(8, 10)
 const dayTitle = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`
+// The link for the Instagram bio and ads: opens the questions directly and tags the visit.
+const instagramLink = `${window.location.origin}/?comecar&origem=instagram`
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 403) return 'Esta conta não possui autorização administrativa.'
@@ -21,6 +23,12 @@ export function AdminFunnel() {
   const [period, setPeriod] = useState<FunnelPeriod>(14)
   const [funnel, setFunnel] = useState<Funnel | null>(null)
   const [loading, setLoading] = useState(true), [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(instagramLink); setCopied(true); window.setTimeout(() => setCopied(false), 2000) }
+    catch { setCopied(false) }
+  }
 
   const load = useCallback(async (days: FunnelPeriod) => {
     setLoading(true); setError(null)
@@ -90,6 +98,21 @@ export function AdminFunnel() {
           </div>
           <p className="admin-funnel__note"><span className="admin-funnel__legend admin-funnel__legend--previews">Barras</span>: prévias. <span className="admin-funnel__legend admin-funnel__legend--accounts">Números</span>: contas novas.</p>
         </div>
+      </div>
+
+      <div className="admin-funnel__block">
+        <h3>De onde vieram</h3>
+        <div className="admin-funnel__link">
+          <code>{instagramLink}</code>
+          <button className="button button--secondary" type="button" onClick={() => void copyLink()}>{copied ? 'Copiado' : 'Copiar link'}</button>
+        </div>
+        {funnel.sources.length === 0
+          ? <p className="admin-funnel__note">Ninguém chegou por um link com origem neste período. Use o link acima na bio e nos anúncios; para outro canal, troque instagram pelo nome dele (ex.: origem=whatsapp).</p>
+          : <div className="admin-table-wrap"><table className="admin-table">
+            <thead><tr><th>Origem</th><th>Prévias</th><th>Contas</th></tr></thead>
+            <tbody>{funnel.sources.map((row) => <tr key={row.source}><td>{row.source}</td><td>{integer.format(row.previews)}</td><td>{integer.format(row.accounts)}</td></tr>)}</tbody>
+          </table></div>}
+        <p className="admin-funnel__note">Conta só quem chegou por um link com origem, a partir de 26/10.</p>
       </div>
 
       <div className="admin-funnel__block">

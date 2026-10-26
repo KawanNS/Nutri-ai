@@ -435,3 +435,20 @@ model AiUsageEvent {
   @@index([provider, createdAt(sort: Desc)])
   @@index([model, createdAt(sort: Desc)])
 }
+
+enum AcquisitionKind {
+  PREVIEW
+  SIGNUP
+}
+
+/// Where visitors came from (the ?origem= tag in a link), one row per preview or new account.
+/// Previews are anonymous; no relation to User so a missing table never blocks sign-up.
+model AcquisitionEvent {
+  id        String          @id @default(uuid()) @db.Uuid
+  kind      AcquisitionKind
+  source    String          @db.VarChar(40)
+  userId    String?         @db.Uuid
+  createdAt DateTime        @default(now())
+
+  @@index([createdAt])
+}

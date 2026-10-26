@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { planPreviewRequestSchema } from "../schemas/plan-preview.schema.js";
+import { parseSource, recordAcquisition } from "../services/acquisition.service.js";
 import { generatePlanPreview, PlanPreviewError } from "../services/plan-preview.service.js";
 
 type Generate = typeof generatePlanPreview;
@@ -13,7 +14,10 @@ export function createPlanPreviewController(generate: Generate = generatePlanPre
       return;
     }
     try {
-      response.status(200).json(await generate(validation.data));
+      const preview = await generate(validation.data);
+      // ?source= rides on the URL, not the strict body, so older and newer frontends both keep working.
+      recordAcquisition("PREVIEW", parseSource(request.query?.source));
+      response.status(200).json(preview);
     } catch (error: unknown) {
       if (error instanceof PlanPreviewError) {
         response.status(error.statusCode).json({ error: error.message, code: error.code });

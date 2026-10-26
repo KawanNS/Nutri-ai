@@ -16,6 +16,7 @@ import {
   register,
   renewSession,
 } from "../services/auth.service.js";
+import { isNewAccount, parseSource, recordAcquisition } from "../services/acquisition.service.js";
 
 function handleError(error: unknown, response: Response): void {
   if (error instanceof AuthError) {
@@ -38,6 +39,7 @@ export async function registerController(
 
   try {
     const user = await register(input.data);
+    recordAcquisition("SIGNUP", parseSource(request.query?.source), user.id);
     response.status(201).json({ user });
   } catch (error: unknown) {
     handleError(error, response);
@@ -85,7 +87,10 @@ export async function googleCodeLoginController(request: Request, response: Resp
   }
 
   try {
-    response.status(200).json(await loginWithGoogleCode(input.data.code));
+    const session = await loginWithGoogleCode(input.data.code);
+    // Google sign-in also logs existing accounts in; only a just-created account counts as a sign-up.
+    if (isNewAccount(session.user.createdAt)) recordAcquisition("SIGNUP", parseSource(request.query?.source), session.user.id);
+    response.status(200).json(session);
   } catch (error: unknown) {
     handleError(error, response);
   }
