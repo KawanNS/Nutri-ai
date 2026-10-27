@@ -6,7 +6,7 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 let startRequested = false
 
 /**
- * Reads a campaign link such as alyvora.vercel.app/?comecar&origem=instagram once, at startup:
+ * Reads a campaign link such as alyvora.vercel.app/?comecar=1&origem=instagram once, at startup:
  * remembers the source, notes whether to open the questions right away, and cleans the address bar.
  */
 export function captureAcquisitionFromUrl(): void {
