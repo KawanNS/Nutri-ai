@@ -9,8 +9,9 @@ const integer = new Intl.NumberFormat('pt-BR')
 const shortDateTime = (value: string) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).format(new Date(value))
 const dayLabel = (date: string) => date.slice(8, 10)
 const dayTitle = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`
-// The link for the Instagram bio and ads: opens the questions directly and tags the visit.
-const instagramLink = `${window.location.origin}/?comecar&origem=instagram`
+// The link for the Instagram bio and ads: opens the questions directly and tags the visit. comecar needs a
+// value: Instagram drops a parameter without one, and the link then lands on the home page.
+const instagramLink = `${window.location.origin}/?comecar=1&origem=instagram`
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 403) return 'Esta conta não possui autorização administrativa.'

@@ -39,7 +39,7 @@ test("a campaign link opens the questions and tags previews and sign-ups", async
     readFile("prisma/migrations/20261026120000_add_acquisition_events/migration.sql", "utf8"),
     readFile("frontend/src/components/admin/AdminFunnel.tsx", "utf8"),
   ]);
-  // alyvora.vercel.app/?comecar&origem=instagram
+  // alyvora.vercel.app/?comecar=1&origem=instagram
   assert.match(capture, /query\.get\('origem'\)/);
   assert.match(capture, /startRequested = query\.has\('comecar'\)/);
   assert.match(capture, /window\.history\.replaceState/);
@@ -53,6 +53,7 @@ test("a campaign link opens the questions and tags previews and sign-ups", async
   assert.match(authController, /recordAcquisition\("SIGNUP", parseSource\(request\.query\?\.source\), user\.id\)/);
   assert.match(authController, /if \(isNewAccount\(session\.user\.createdAt\)\) recordAcquisition\("SIGNUP"/);
   assert.match(migration, /CREATE TABLE "AcquisitionEvent"/);
-  assert.match(funnel, /\/\?comecar&origem=instagram/);
+  // Instagram drops a valueless ?comecar, so the shared link always carries =1.
+  assert.match(funnel, /\/\?comecar=1&origem=instagram/);
   assert.match(funnel, /<h3>De onde vieram<\/h3>/);
 });
