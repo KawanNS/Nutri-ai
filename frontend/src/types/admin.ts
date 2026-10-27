@@ -16,5 +16,5 @@ export interface AuditResponse { items: AuditItem[]; pagination: Pagination }
 export type FunnelPeriod = 7 | 14 | 30
 export interface FunnelTotals { previews: number; previewFailures: number; accounts: number; profiles: number; firstPlans: number; checkouts: number; subscriptions: number }
 export interface FunnelAccount { name: string; createdAt: string; hasProfile: boolean; mealPlans: number; checkoutAttempts: number; isPremium: boolean }
-export interface AdminFunnel { periodDays: FunnelPeriod; since: string; totals: FunnelTotals; days: Array<{ date: string; previews: number; accounts: number }>; latestAccounts: FunnelAccount[] }
+export interface AdminFunnel { periodDays: FunnelPeriod; since: string; totals: FunnelTotals; days: Array<{ date: string; previews: number; accounts: number }>; sources: Array<{ source: string; previews: number; accounts: number }>; latestAccounts: FunnelAccount[] }
 export interface AdminFunnelResponse { funnel: AdminFunnel }

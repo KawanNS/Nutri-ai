@@ -17,6 +17,7 @@ import { renewSessionIfStale } from './services/session'
 import type { AuthUser } from './types/auth'
 import type { PlanPreview } from './types/planPreview'
 import type { Profile, ProfileOnboardingDraft } from './types/profile'
+import { startRequestedFromLink } from './services/acquisition'
 import './App.css'
 
 // The public funnel (landing, questions, preview, sign-in) ships in the first bundle;
@@ -33,7 +34,7 @@ const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage').then((mod
 type View = 'landing' | 'onboarding' | 'plan-preview' | 'login' | 'register' | 'checking-profile' | 'profile-error' | 'meal-plan' | 'chat' | 'meal-photo' | 'diary' | 'profile' | 'progress' | 'subscription' | 'admin'
 
 function App() {
-  const [view, setView] = useState<View>(() => getToken() ? 'checking-profile' : 'landing')
+  const [view, setView] = useState<View>(() => getToken() ? 'checking-profile' : startRequestedFromLink() ? 'onboarding' : 'landing')
   const [profile, setProfile] = useState<Profile | undefined>(), [progressNotice, setProgressNotice] = useState<string | undefined>()
   const [onboardingDraft, setOnboardingDraft] = useState<ProfileOnboardingDraft | undefined>()
   // The preview of the visitor's Monday, kept while they go back and forth so it is generated once per answers.

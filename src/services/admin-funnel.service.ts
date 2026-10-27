@@ -19,6 +19,27 @@ export function funnelDays(periodDays: FunnelPeriod, now: Date): string[] {
 
 const sum = (rows: DayCount[]) => rows.reduce((total, row) => total + row.count, 0);
 
+/** Previews and new accounts per ?origem= tag; empty while the AcquisitionEvent table does not exist yet. */
+async function countBySource(since: Date) {
+  try {
+    const rows = await prisma.acquisitionEvent.groupBy({
+      by: ["source", "kind"],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+    });
+    const sources = new Map<string, { source: string; previews: number; accounts: number }>();
+    for (const row of rows) {
+      const entry = sources.get(row.source) ?? { source: row.source, previews: 0, accounts: 0 };
+      if (row.kind === "PREVIEW") entry.previews += row._count._all;
+      else entry.accounts += row._count._all;
+      sources.set(row.source, entry);
+    }
+    return [...sources.values()].sort((a, b) => b.previews + b.accounts - (a.previews + a.accounts));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Where people drop off, for the owner: previews (anonymous, counted from the AI usage log the preview
  * already writes), accounts, profiles, first plans, checkout and subscriptions. Read-only; no emails.
@@ -55,6 +76,7 @@ export async function getAdminFunnel(periodDays: FunnelPeriod, now = new Date())
   ]);
 
   const previewDays = day(previews), accountDays = day(accounts);
+  const sources = await countBySource(since);
   const latest = await prisma.user.findMany({
     where: { role: "USER" },
     orderBy: { createdAt: "desc" },
@@ -85,6 +107,7 @@ export async function getAdminFunnel(periodDays: FunnelPeriod, now = new Date())
       previews: previewDays.find((row) => row.day === date)?.count ?? 0,
       accounts: accountDays.find((row) => row.day === date)?.count ?? 0,
     })),
+    sources,
     latestAccounts: latest.map((user) => ({
       name: user.name,
       createdAt: user.createdAt.toISOString(),
